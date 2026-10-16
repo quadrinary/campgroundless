@@ -343,12 +343,259 @@ h1 em {
   background: #284832;
 }
 
+.search-wrap button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .search-message {
   min-height: 22px;
   margin: 6px 0 16px;
   color: #879087;
   font-size: 8px;
   line-height: 1.45;
+}
+
+.search-results {
+  max-height: 180px;
+  margin: -8px 0 8px;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.search-results[hidden] {
+  display: none;
+}
+
+.search-results li + li {
+  border-top: 1px solid #edf0e9;
+}
+
+.search-result {
+  width: 100%;
+  padding: 7px 5px;
+  border: 0;
+  background: transparent;
+  color: #425747;
+  cursor: pointer;
+  font-size: 8px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+  background: #f0f4ee;
+}
+
+.search-attribution {
+  margin: -12px 0 16px;
+  color: #929a90;
+  font-size: 7px;
+  line-height: 1.4;
+}
+
+.search-attribution a {
+  color: #59755c;
+}
+
+.map-notes {
+  margin: 2px 0 15px;
+  padding: 13px 0 12px;
+  border-top: 1px solid #edf0e9;
+  border-bottom: 1px solid #edf0e9;
+}
+
+.map-notes-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 8px;
+}
+
+.map-notes-heading h3 {
+  margin: 0 0 4px;
+  color: #39483c;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.map-notes-heading p,
+.map-note-privacy {
+  margin: 0;
+  color: #879087;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.map-note-count {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #eff4ed;
+  color: #5c7558;
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.map-note-form {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.map-note-form[hidden] {
+  display: none;
+}
+
+.map-note-location {
+  margin: 0 0 2px;
+  color: #6e7b70;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.note-field-label {
+  margin-top: 3px;
+  color: #465448;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.note-field-label span {
+  color: #98a096;
+  font-weight: 400;
+}
+
+.note-text-field {
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 1px solid #dfe3da;
+  border-radius: 4px;
+  outline: 0;
+  background: #fdfdfa;
+  color: #35453a;
+  font: inherit;
+  font-size: 8px;
+}
+
+.note-text-field:focus {
+  border-color: #809a7e;
+  box-shadow: 0 0 0 2px rgba(121, 151, 122, 0.14);
+}
+
+.note-textarea {
+  min-height: 62px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.map-note-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.map-note-actions button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.note-save-button {
+  background: #365a43;
+  color: #fff;
+}
+
+.note-save-button:hover {
+  background: #284832;
+}
+
+.note-cancel-button {
+  background: #eef0eb;
+  color: #566458;
+}
+
+.map-note-message {
+  margin: 0;
+  color: #59755c;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.map-note-message.is-error {
+  color: #9b3f35;
+}
+
+.map-note-privacy {
+  margin-top: 8px;
+}
+
+.map-note-icon {
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.map-note-icon span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 3px;
+  background: #315a43;
+  box-shadow: 0 1px 5px rgba(30, 48, 34, 0.45);
+  font-size: 17px;
+  transform: rotate(-45deg);
+}
+
+.map-note-icon i {
+  font-style: normal;
+  transform: rotate(45deg);
+}
+
+.map-note-popup h3 {
+  margin: 4px 0 6px;
+  color: #354b3b;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.map-note-popup p {
+  margin: 5px 0;
+  color: #627064;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.map-note-popup .map-note-popup-type {
+  color: #657a63;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.map-note-popup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.map-note-popup-actions button {
+  padding: 4px 7px;
+  border: 1px solid #dfe3da;
+  border-radius: 3px;
+  background: #f8f9f6;
+  color: #405943;
+  cursor: pointer;
+  font-size: 9px;
 }
 
 .layer-filters {

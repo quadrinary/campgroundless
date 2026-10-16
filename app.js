@@ -64,8 +64,40 @@
   const mapStatus = document.getElementById("map-status");
   const mapLoading = document.getElementById("map-loading");
   const searchMessage = document.getElementById("search-message");
+  const searchInput = document.getElementById("place-search");
+  const searchSubmit = document.getElementById("search-submit");
+  const searchResults = document.getElementById("search-results");
   const dataSourceLabel = document.getElementById("map-data-source-label");
   const sourceLayerNote = document.getElementById("source-layer-note");
+  const searchMarkers = L.layerGroup();
+  const noteMarkers = L.layerGroup();
+  const noteForm = document.getElementById("map-note-form");
+  const noteTitle = document.getElementById("map-note-title");
+  const noteIcon = document.getElementById("map-note-icon");
+  const noteBody = document.getElementById("map-note-body");
+  const noteLocation = document.getElementById("map-note-location");
+  const noteMessage = document.getElementById("map-note-message");
+  const noteCount = document.getElementById("map-note-count");
+  const notesStorageKey = "campgroundless.map-notes.v1";
+  const noteTypes = {
+    camp: { label: "Campsite", icon: "🏕️" },
+    water: { label: "Water", icon: "💧" },
+    fire: { label: "Campfire area", icon: "🔥" },
+    wildlife: { label: "Wildlife", icon: "🐻" },
+    trail: { label: "Trail", icon: "🥾" },
+    road: { label: "Road / access", icon: "🚙" },
+    fuel: { label: "Fuel", icon: "⛽" },
+    food: { label: "Food", icon: "🍽️" },
+    viewpoint: { label: "Viewpoint", icon: "🏞️" },
+    landmark: { label: "Landmark", icon: "📍" },
+    photo: { label: "Photo spot", icon: "📷" },
+  };
+  const placeSearchCache = new Map();
+  let lastPlaceSearchAt = 0;
+  let placeSearchInProgress = false;
+  let selectedNoteLocation = null;
+  let editingNoteId = null;
+  let notes = [];
   const map = L.map("map", {
     zoomControl: false,
     minZoom: 5,
@@ -76,6 +108,8 @@
 
   L.control.zoom({ position: "bottomright" }).addTo(map);
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
+  searchMarkers.addTo(map);
+  noteMarkers.addTo(map);
   function createBasemap() {
     const basemapOptions = {
       maxZoom: 19,
@@ -126,6 +160,172 @@
       return entities[character];
     });
   }
+
+  function setNoteMessage(text, isError = false) {
+    noteMessage.textContent = text;
+    noteMessage.classList.toggle("is-error", isError);
+  }
+
+  function validNote(note) {
+    return (
+      note &&
+      typeof note.id === "string" &&
+      typeof note.title === "string" &&
+      typeof note.body === "string" &&
+      typeof note.createdAt === "string" &&
+      typeof note.updatedAt === "string" &&
+      Object.hasOwn(noteTypes, note.icon) &&
+      Number.isFinite(note.lat) &&
+      Number.isFinite(note.lng) &&
+      californiaBounds.contains([note.lat, note.lng])
+    );
+  }
+
+  try {
+    const savedNotes = JSON.parse(localStorage.getItem(notesStorageKey) || "[]");
+    notes = Array.isArray(savedNotes) ? savedNotes.filter(validNote) : [];
+  } catch (error) {
+    console.error("Could not read saved map notes.", error);
+    setNoteMessage("Saved notes could not be loaded from this browser.", true);
+  }
+
+  function persistNotes(nextNotes) {
+    localStorage.setItem(notesStorageKey, JSON.stringify(nextNotes));
+  }
+
+  function closeNoteEditor() {
+    noteForm.hidden = true;
+    editingNoteId = null;
+    selectedNoteLocation = null;
+    noteForm.reset();
+    noteIcon.value = "camp";
+    setNoteMessage("");
+  }
+
+  function openNoteEditor(location, note = null) {
+    if (!californiaBounds.contains(location)) {
+      selectedNoteLocation = null;
+      setNoteMessage("Choose a point within California to save a note.", true);
+      return;
+    }
+    selectedNoteLocation = location;
+    editingNoteId = note?.id ?? null;
+    noteForm.hidden = false;
+    noteLocation.textContent = `Selected location: ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
+    noteTitle.value = note?.title ?? "";
+    noteIcon.value = note?.icon ?? "camp";
+    noteBody.value = note?.body ?? "";
+    noteForm.querySelector(".note-save-button").textContent = note ? "Update note" : "Save note";
+    setNoteMessage("");
+    if (window.matchMedia("(max-width: 700px)").matches) {
+      noteForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      noteTitle.focus({ preventScroll: true });
+    }
+  }
+
+  function buildNotePopup(note) {
+    const type = noteTypes[note.icon];
+    const title = note.title.trim() || type.label;
+    const timestamp = new Date(note.updatedAt);
+    const dateText = Number.isNaN(timestamp.getTime()) ? "" : timestamp.toLocaleDateString();
+    return `
+      <div class="map-note-popup">
+        <div class="map-note-popup-type">${type.icon} ${escapeHtml(type.label)}${dateText ? ` · ${escapeHtml(dateText)}` : ""}</div>
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(note.body)}</p>
+        <div class="map-note-popup-actions">
+          <button type="button" data-note-action="edit" data-note-id="${escapeHtml(note.id)}">Edit</button>
+          <button type="button" data-note-action="delete" data-note-id="${escapeHtml(note.id)}">Delete</button>
+        </div>
+      </div>`;
+  }
+
+  function renderNotes() {
+    noteMarkers.clearLayers();
+    notes.forEach((note) => {
+      const type = noteTypes[note.icon];
+      const marker = L.marker([note.lat, note.lng], {
+        icon: L.divIcon({
+          className: "map-note-icon",
+          html: `<span><i>${type.icon}</i></span>`,
+          iconSize: [36, 36],
+          iconAnchor: [18, 30],
+          popupAnchor: [0, -28],
+        }),
+        title: `${type.label}: ${note.title || note.body.slice(0, 60)}`,
+        alt: `${type.label} map note`,
+      }).addTo(noteMarkers);
+      marker.bindPopup(buildNotePopup(note), { maxWidth: 280 });
+      marker.on("popupopen", (event) => {
+        event.popup.getElement().querySelectorAll("[data-note-action]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const selectedNote = notes.find((entry) => entry.id === button.dataset.noteId);
+            if (!selectedNote) {
+              return;
+            }
+            if (button.dataset.noteAction === "edit") {
+              openNoteEditor(L.latLng(selectedNote.lat, selectedNote.lng), selectedNote);
+              map.closePopup();
+              return;
+            }
+            if (window.confirm("Delete this map note?")) {
+              const nextNotes = notes.filter((entry) => entry.id !== selectedNote.id);
+              try {
+                persistNotes(nextNotes);
+                notes = nextNotes;
+                map.closePopup();
+                renderNotes();
+                setNoteMessage("Map note deleted from this browser.");
+              } catch (error) {
+                console.error("Could not delete map note.", error);
+                setNoteMessage("Could not delete the note. Check this browser's storage settings.", true);
+              }
+            }
+          });
+        });
+      });
+    });
+    noteCount.textContent = `${notes.length} saved`;
+  }
+
+  map.on("click", (event) => openNoteEditor(event.latlng));
+  document.getElementById("map-note-cancel").addEventListener("click", closeNoteEditor);
+  noteForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const body = noteBody.value.trim();
+    const title = noteTitle.value.trim();
+    if (!selectedNoteLocation || !body) {
+      setNoteMessage("Select a map location and enter a note or review.", true);
+      return;
+    }
+    const existingNote = notes.find((note) => note.id === editingNoteId);
+    const now = new Date().toISOString();
+    const note = {
+      id: existingNote?.id ?? (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+      lat: selectedNoteLocation.lat,
+      lng: selectedNoteLocation.lng,
+      title,
+      icon: noteIcon.value,
+      body,
+      createdAt: existingNote?.createdAt ?? now,
+      updatedAt: now,
+    };
+    const nextNotes = existingNote
+      ? notes.map((entry) => (entry.id === existingNote.id ? note : entry))
+      : [...notes, note];
+    try {
+      persistNotes(nextNotes);
+      notes = nextNotes;
+      renderNotes();
+      closeNoteEditor();
+      setNoteMessage("Map note saved in this browser.");
+    } catch (error) {
+      console.error("Could not save map note.", error);
+      setNoteMessage("Could not save the note. Check this browser's storage settings.", true);
+    }
+  });
+  renderNotes();
 
   function buildWhere(layers = settings.layers) {
     const enabledGroups = Object.keys(managersByGroup)
@@ -247,12 +447,120 @@
     return searchableFeatures;
   }
 
-  function searchLoadedFeatures() {
-    const term = document.getElementById("place-search").value.trim().toLocaleLowerCase();
-    if (!term) {
-      searchMessage.textContent = "Enter a land-unit name to search loaded map features.";
+  function clearSearchResults() {
+    searchResults.replaceChildren();
+    searchResults.hidden = true;
+    searchMarkers.clearLayers();
+  }
+
+  function showPlace(place) {
+    const latitude = Number(place.lat);
+    const longitude = Number(place.lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       return;
     }
+    const location = L.latLng(latitude, longitude);
+    if (!californiaBounds.contains(location)) {
+      return;
+    }
+    searchMarkers.clearLayers();
+    const marker = L.marker(location)
+      .addTo(searchMarkers)
+      .bindPopup(`<div class="map-popup"><h3>${escapeHtml(place.display_name)}</h3><p>Place search result from OpenStreetMap.</p></div>`);
+    map.setView(location, 14);
+    marker.openPopup();
+    searchMessage.textContent = `Showing ${place.display_name}.`;
+  }
+
+  function displayPlaceResults(places) {
+    searchResults.replaceChildren();
+    const validPlaces = places.filter((place) => {
+      const latitude = Number(place.lat);
+      const longitude = Number(place.lon);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || typeof place.display_name !== "string") {
+        return false;
+      }
+      const location = L.latLng(latitude, longitude);
+      return (
+        californiaBounds.contains(location) &&
+        location.lat >= -90 &&
+        location.lat <= 90 &&
+        location.lng >= -180 &&
+        location.lng <= 180
+      );
+    });
+    validPlaces.forEach((place) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "search-result";
+      button.textContent = place.display_name;
+      button.addEventListener("click", () => showPlace(place));
+      item.append(button);
+      searchResults.append(item);
+    });
+    searchResults.hidden = validPlaces.length === 0;
+    if (validPlaces.length === 0) {
+      searchMessage.textContent = "No matching California places found. Try another name or spelling.";
+      return;
+    }
+    searchMessage.textContent = `${validPlaces.length} place results found. Choose one to show it on the map.`;
+  }
+
+  async function searchPlaces(term) {
+    const normalizedTerm = term.toLocaleLowerCase();
+    if (placeSearchCache.has(normalizedTerm)) {
+      displayPlaceResults(placeSearchCache.get(normalizedTerm));
+      return;
+    }
+    const waitTime = Math.max(0, 1000 - (Date.now() - lastPlaceSearchAt));
+    if (waitTime > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, waitTime));
+    }
+    const endpoint = new URL(settings.placeSearchUrl);
+    endpoint.searchParams.set("q", term);
+    endpoint.searchParams.set("format", "jsonv2");
+    endpoint.searchParams.set("limit", "5");
+    endpoint.searchParams.set("countrycodes", "us");
+    endpoint.searchParams.set("viewbox", "-124.6,42.1,-114.0,32.4");
+    endpoint.searchParams.set("bounded", "1");
+    lastPlaceSearchAt = Date.now();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(endpoint, {
+        headers: { Accept: "application/json" },
+        referrer: `${window.location.origin}${window.location.pathname}`,
+        referrerPolicy: "unsafe-url",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Place search service returned HTTP ${response.status}.`);
+      }
+      const places = await response.json();
+      if (!Array.isArray(places)) {
+        throw new Error("Place search service returned an unsupported response.");
+      }
+      placeSearchCache.set(normalizedTerm, places);
+      if (placeSearchCache.size > 50) {
+        placeSearchCache.delete(placeSearchCache.keys().next().value);
+      }
+      displayPlaceResults(places);
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
+  async function searchMap() {
+    const term = searchInput.value.trim();
+    if (!term) {
+      searchMessage.textContent = "Enter a place, landmark, business, or land-unit name.";
+      return;
+    }
+    if (placeSearchInProgress) {
+      return;
+    }
+    clearSearchResults();
     const match = refreshSearchableFeatures().find((featureLayer) => {
       const properties = featureLayer.feature.properties;
       const searchableText = [
@@ -262,24 +570,38 @@
       ].join(" ").toLocaleLowerCase();
       return searchableText.includes(term);
     });
-    if (!match) {
-      searchMessage.textContent = "No matching unit is loaded. Zoom or pan to another area, then try again.";
-      return;
+    if (match) {
+      const bounds = match.getBounds?.();
+      if (bounds?.isValid()) {
+        map.fitBounds(bounds.pad(0.15), { maxZoom: 10 });
+        match.openPopup();
+        searchMessage.textContent = `Showing ${match.feature.properties.Unit_Nm || "the matching unit"}.`;
+        return;
+      }
     }
-    const bounds = match.getBounds?.();
-    if (bounds?.isValid()) {
-      map.fitBounds(bounds.pad(0.15), { maxZoom: 10 });
-      match.openPopup();
-      searchMessage.textContent = `Showing ${match.feature.properties.Unit_Nm || "the matching unit"}.`;
-    } else {
-      searchMessage.textContent = "That land unit has no mappable boundary in the current view.";
+    placeSearchInProgress = true;
+    searchSubmit.disabled = true;
+    searchSubmit.textContent = "…";
+    searchMessage.textContent = "Searching California places…";
+    try {
+      await searchPlaces(term);
+    } catch (error) {
+      console.error("Place search failed.", error);
+      searchMessage.textContent =
+        error.name === "AbortError"
+          ? "Place search timed out. Try again."
+          : "Place search is unavailable. Check the provider endpoint or try again later.";
+    } finally {
+      placeSearchInProgress = false;
+      searchSubmit.disabled = false;
+      searchSubmit.textContent = "Go";
     }
   }
 
-  document.getElementById("search-submit").addEventListener("click", searchLoadedFeatures);
-  document.getElementById("place-search").addEventListener("keydown", (event) => {
+  searchSubmit.addEventListener("click", searchMap);
+  searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      searchLoadedFeatures();
+      searchMap();
     }
   });
 
@@ -305,7 +627,8 @@
 
   document.getElementById("reset-button").addEventListener("click", () => {
     map.fitBounds(californiaBounds);
-    document.getElementById("place-search").value = "";
-    searchMessage.textContent = "Search the land units currently loaded on the map.";
+    searchInput.value = "";
+    clearSearchResults();
+    searchMessage.textContent = "Search for California places or land units. Place searches are sent to OpenStreetMap when submitted; no autocomplete.";
   });
 })();

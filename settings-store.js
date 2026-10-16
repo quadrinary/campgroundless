@@ -7,6 +7,7 @@
     dataUrl: "",
     dataApiKey: "",
     dataAttribution: "",
+    placeSearchUrl: "https://nominatim.openstreetmap.org/search",
     layers: {
       forest: true,
       blm: true,

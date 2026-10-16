@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=3" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
   </head>
   <body>
     <header class="topbar">
@@ -71,17 +71,62 @@
           <p class="sidebar-intro">Explore public-land boundaries. Tap an area to see its mapped manager.</p>
 
           <div class="map-search">
-            <label for="place-search">Find a land unit</label>
+            <label for="place-search">Search places &amp; land units</label>
             <div class="search-wrap">
               <svg aria-hidden="true" viewBox="0 0 20 20">
                 <circle cx="8.5" cy="8.5" r="5.5"></circle>
                 <path d="m13 13 4 4"></path>
               </svg>
-              <input id="place-search" type="search" placeholder="e.g. Inyo National Forest" autocomplete="off" />
-              <button id="search-submit" type="button" aria-label="Search visible land units">Go</button>
+              <input id="place-search" type="search" placeholder="e.g. Inyo National Forest or restaurant" autocomplete="off" />
+              <button id="search-submit" type="button" aria-label="Search places and land units">Go</button>
             </div>
-            <p id="search-message" class="search-message" aria-live="polite">Search the land units currently loaded on the map.</p>
+            <p id="search-message" class="search-message" aria-live="polite">Search for California places or land units. Place searches are sent to OpenStreetMap when submitted; no autocomplete.</p>
+            <ul id="search-results" class="search-results" aria-label="Place search results" hidden></ul>
+            <p class="search-attribution">Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
           </div>
+
+          <section class="map-notes" aria-labelledby="map-notes-heading">
+            <div class="map-notes-heading">
+              <div>
+                <h3 id="map-notes-heading">Map notes &amp; reviews</h3>
+                <p>Click a place on the map to add a private note.</p>
+              </div>
+              <span id="map-note-count" class="map-note-count">0 saved</span>
+            </div>
+            <form id="map-note-form" class="map-note-form" hidden>
+              <p id="map-note-location" class="map-note-location"></p>
+              <label class="note-field-label" for="map-note-title">Title <span>optional</span></label>
+              <input id="map-note-title" class="note-text-field" type="text" maxlength="80" placeholder="e.g. Quiet river access" />
+              <label class="note-field-label" for="map-note-icon">Map icon</label>
+              <select id="map-note-icon" class="note-text-field">
+                <optgroup label="Camping">
+                  <option value="camp">🏕️ Campsite</option>
+                  <option value="water">💧 Water</option>
+                  <option value="fire">🔥 Campfire area</option>
+                  <option value="wildlife">🐻 Wildlife</option>
+                </optgroup>
+                <optgroup label="Travel">
+                  <option value="trail">🥾 Trail</option>
+                  <option value="road">🚙 Road / access</option>
+                  <option value="fuel">⛽ Fuel</option>
+                  <option value="food">🍽️ Food</option>
+                </optgroup>
+                <optgroup label="Landmarks">
+                  <option value="viewpoint">🏞️ Viewpoint</option>
+                  <option value="landmark">📍 Landmark</option>
+                  <option value="photo">📷 Photo spot</option>
+                </optgroup>
+              </select>
+              <label class="note-field-label" for="map-note-body">Note or review</label>
+              <textarea id="map-note-body" class="note-text-field note-textarea" rows="3" maxlength="1200" required placeholder="Share useful details about this spot…"></textarea>
+              <div class="map-note-actions">
+                <button class="note-save-button" type="submit">Save note</button>
+                <button class="note-cancel-button" id="map-note-cancel" type="button">Cancel</button>
+              </div>
+            </form>
+            <p id="map-note-message" class="map-note-message" role="status" aria-live="polite"></p>
+            <p class="map-note-privacy">Notes and icons are saved only in this browser. They are not shared or synced, and do not confirm camping permission.</p>
+          </section>
 
           <fieldset class="layer-filters">
             <legend>Show land managers</legend>
@@ -234,7 +279,7 @@
       crossorigin=""
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
-    <script src="./settings-store.js?v=2"></script>
-    <script src="./app.js?v=6"></script>
+    <script src="./settings-store.js?v=3"></script>
+    <script src="./app.js?v=8"></script>
   </body>
 </html>

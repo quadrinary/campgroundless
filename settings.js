@@ -28,6 +28,7 @@
       dataUrl: form.elements.dataUrl.value.trim(),
       dataApiKey: form.elements.dataApiKey.value.trim(),
       dataAttribution: form.elements.dataAttribution.value.trim(),
+      placeSearchUrl: form.elements.placeSearchUrl.value.trim(),
       layers,
       basemap: form.elements.basemap.value,
       basemapUrl: form.elements.basemapUrl.value.trim(),
@@ -38,6 +39,7 @@
   }
 
   function validate(settings) {
+    Settings.validateHttpUrl(settings.placeSearchUrl, "Place search endpoint");
     if (settings.dataSource === "custom") {
       Settings.validateHttpUrl(settings.dataUrl, "Feature Layer URL");
       if (!/\/FeatureServer\/\d+\/?$/i.test(new URL(settings.dataUrl).pathname)) {
@@ -61,6 +63,7 @@
     form.elements.dataUrl.value = settings.dataUrl;
     form.elements.dataApiKey.value = settings.dataApiKey;
     form.elements.dataAttribution.value = settings.dataAttribution;
+    form.elements.placeSearchUrl.value = settings.placeSearchUrl;
     Object.keys(layerNames).forEach((layer) => {
       form.querySelector(`input[name="layer"][value="${layer}"]`).checked = Boolean(settings.layers[layer]);
     });
@@ -97,6 +100,10 @@
       `${selectedLayers.length} selected${selectedLayers.length ? ` · ${selectedLayers.map((layer) => layerNames[layer]).join(", ")}` : ""}`;
     document.getElementById("summary-basemap").textContent =
       ({ esri: "Esri World Street Map", osm: "OpenStreetMap", custom: "Custom XYZ tiles" })[settings.basemap];
+    document.getElementById("summary-place-search").textContent =
+      settings.placeSearchUrl === Settings.defaults.placeSearchUrl
+        ? "OpenStreetMap Nominatim"
+        : "Custom Nominatim-compatible service";
     document.getElementById("summary-keys").textContent =
       selectedKeys === 0 ? "None saved" : `${selectedKeys} saved in this browser`;
   }

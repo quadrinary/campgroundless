@@ -15,7 +15,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=3" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
     <link rel="stylesheet" href="./settings.css?v=1" />
   </head>
   <body>
@@ -203,6 +203,26 @@
             </div>
           </section>
 
+          <section class="settings-card" aria-labelledby="place-search-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">04</span>
+              <div>
+                <h2 id="place-search-heading">Place search provider</h2>
+                <p>Searches use this provider when a query does not match a loaded land unit.</p>
+              </div>
+            </div>
+            <label class="field-label" for="place-search-url">Nominatim-compatible search endpoint</label>
+            <input
+              class="text-field"
+              id="place-search-url"
+              name="placeSearchUrl"
+              type="url"
+              autocomplete="url"
+              spellcheck="false"
+            />
+            <p class="field-help">Default: OpenStreetMap Nominatim. You may switch to another HTTPS Nominatim-compatible endpoint here without an app update. The endpoint must return a JSON array with lat, lon, and display_name fields. Queries are sent only when you press Go; do not submit personal or confidential information.</p>
+          </section>
+
           <aside class="security-note">
             <span class="security-icon" aria-hidden="true">!</span>
             <div>
@@ -220,6 +240,7 @@
             <li><span>Data source</span><strong id="summary-source">USGS PAD-US 3.0</strong></li>
             <li><span>Land layers</span><strong id="summary-layers">4 selected</strong></li>
             <li><span>Basemap</span><strong id="summary-basemap">Esri World Street Map</strong></li>
+            <li><span>Place search</span><strong id="summary-place-search">OpenStreetMap Nominatim</strong></li>
             <li><span>API keys</span><strong id="summary-keys">None saved</strong></li>
           </ul>
           <div class="settings-actions">
@@ -238,7 +259,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=2"></script>
-    <script src="./settings.js?v=2"></script>
+    <script src="./settings-store.js?v=3"></script>
+    <script src="./settings.js?v=3"></script>
   </body>
 </html>
