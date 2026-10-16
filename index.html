@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore California public-land boundaries for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
+    />
+    <meta name="theme-color" content="#f5f4ef" />
+    <title>Campgroundless — California public lands map</title>
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link rel="preconnect" href="https://services.arcgis.com" />
+    <link rel="preconnect" href="https://tile.openstreetmap.org" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Campgroundless home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36" role="img">
+            <path d="M18 3 2 31h32L18 3Z" fill="currentColor" />
+            <path d="m18 15-8 14h16l-8-14Z" fill="#f5f4ef" />
+            <path d="M18 23v8" stroke="#f5f4ef" stroke-width="2" />
+          </svg>
+        </span>
+        <span>campgroundless<span class="brand-period">.</span></span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#map-section">Explore map</a>
+        <a href="#field-notes">Field notes</a>
+        <a class="nav-source" href="#data-sources">Data &amp; sources <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> CALIFORNIA · EARLY ACCESS</p>
+          <h1 id="page-title">Find your way<br />to the <em>wide open.</em></h1>
+          <p class="intro-description">
+            A field guide to public-land boundaries that can help you start planning a dispersed-camping trip.
+            <strong>Land ownership is not permission to camp.</strong>
+          </p>
+        </div>
+        <aside class="intro-note" aria-label="Important trip planning notice">
+          <span class="note-icon" aria-hidden="true">!</span>
+          <div>
+            <strong>Verify before you go</strong>
+            <p>Closures, fire rules, access, and stay limits can change by place and date. Always confirm with the local land manager.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="explorer" id="map-section" aria-label="California public lands explorer">
+        <aside class="sidebar">
+          <div class="sidebar-heading">
+            <div>
+              <p class="eyebrow">THE MAP</p>
+              <h2>California</h2>
+            </div>
+            <span class="live-pill"><span></span> LIVE LAYERS</span>
+          </div>
+          <p class="sidebar-intro">Explore public-land boundaries. Tap an area to see its mapped manager.</p>
+
+          <div class="map-search">
+            <label for="place-search">Find a land unit</label>
+            <div class="search-wrap">
+              <svg aria-hidden="true" viewBox="0 0 20 20">
+                <circle cx="8.5" cy="8.5" r="5.5"></circle>
+                <path d="m13 13 4 4"></path>
+              </svg>
+              <input id="place-search" type="search" placeholder="e.g. Inyo National Forest" autocomplete="off" />
+              <button id="search-submit" type="button" aria-label="Search visible land units">Go</button>
+            </div>
+            <p id="search-message" class="search-message" aria-live="polite">Search the land units currently loaded on the map.</p>
+          </div>
+
+          <fieldset class="layer-filters">
+            <legend>Show land managers</legend>
+            <label class="filter-row">
+              <input type="checkbox" name="manager" value="forest" checked />
+              <span class="filter-swatch swatch-forest"></span>
+              <span>U.S. Forest Service</span>
+            </label>
+            <label class="filter-row">
+              <input type="checkbox" name="manager" value="blm" checked />
+              <span class="filter-swatch swatch-blm"></span>
+              <span>Bureau of Land Management</span>
+            </label>
+            <label class="filter-row">
+              <input type="checkbox" name="manager" value="state" checked />
+              <span class="filter-swatch swatch-state"></span>
+              <span>State &amp; local public land</span>
+            </label>
+            <label class="filter-row">
+              <input type="checkbox" name="manager" value="other" checked />
+              <span class="filter-swatch swatch-other"></span>
+              <span>Other federal public land</span>
+            </label>
+          </fieldset>
+
+          <div class="status-card" role="note">
+            <span class="status-icon" aria-hidden="true">?</span>
+            <div>
+              <strong>Camping status: not determined</strong>
+              <p>This map shows managers, not camping permission. Verify every location before setting up camp.</p>
+            </div>
+          </div>
+
+          <div class="map-actions">
+            <button class="action-button" id="locate-button" type="button">
+              <svg aria-hidden="true" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="5.5"></circle>
+                <circle cx="10" cy="10" r="1.5"></circle>
+                <path d="M10 1v3M10 16v3M1 10h3M16 10h3"></path>
+              </svg>
+              Use my location
+            </button>
+            <button class="action-button action-button-muted" id="reset-button" type="button">
+              Reset map
+            </button>
+          </div>
+          <p class="location-privacy">Your location stays in your browser and is never saved.</p>
+        </aside>
+
+        <div class="map-column">
+          <div class="map-toolbar">
+            <div>
+              <span class="map-toolbar-label">LAND OWNERSHIP &amp; MANAGEMENT</span>
+              <span id="map-status" class="map-status" role="status" aria-live="polite">Connecting to land data…</span>
+            </div>
+            <span class="map-toolbar-note"><span class="status-dot"></span> Camping access varies</span>
+          </div>
+          <div id="map" role="application" aria-label="Interactive map of California public land boundaries">
+            <div class="map-loading" id="map-loading">
+              <span class="loading-spinner" aria-hidden="true"></span>
+              <span>Loading the map…</span>
+            </div>
+          </div>
+          <div class="map-caption">
+            <span><strong>BOUNDARY DATA</strong> · USGS PAD-US 3.0</span>
+            <span>Use for broad planning only · <a href="#data-sources">Read data limitations</a></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="field-notes" id="field-notes" aria-labelledby="field-notes-title">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">A BETTER TRIP STARTS HERE</p>
+            <h2 id="field-notes-title">Before you head out</h2>
+          </div>
+          <span class="section-side-note">Three checks. Every trip.</span>
+        </div>
+        <div class="notes-grid">
+          <article class="note-card">
+            <span class="card-number">01</span>
+            <h3>Confirm access &amp; rules</h3>
+            <p>Ask the responsible office about camping permission, road access, stay limits, permits, and current closures.</p>
+            <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">BLM camping guidance <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="note-card">
+            <span class="card-number">02</span>
+            <h3>Check fire restrictions</h3>
+            <p>Restrictions can change quickly with weather. Check local rules and California campfire permit requirements.</p>
+            <a href="https://www.fire.ca.gov/prepare/campfire-permits" target="_blank" rel="noreferrer">CAL FIRE permits &amp; safety <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="note-card">
+            <span class="card-number">03</span>
+            <h3>Leave it better</h3>
+            <p>Use existing sites, stay on designated roads, pack out all waste, and keep a safe distance from water and wildlife.</p>
+            <a href="https://www.fs.usda.gov/visit/know-before-you-go/camping" target="_blank" rel="noreferrer">Forest Service camping tips <span aria-hidden="true">↗</span></a>
+          </article>
+        </div>
+      </section>
+
+      <section class="data-section" id="data-sources" aria-labelledby="data-title">
+        <div class="data-heading">
+          <div>
+            <p class="eyebrow">KNOW WHAT YOU'RE LOOKING AT</p>
+            <h2 id="data-title">About this map</h2>
+          </div>
+          <span class="data-badge">BOUNDARIES ≠ PERMISSION</span>
+        </div>
+        <div class="data-grid">
+          <div class="data-copy">
+            <p>
+              This early-access map filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
+            </p>
+            <p>
+              PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. California's PAD-US 3.0 update included state, regional, local, and nonprofit data from CPAD; coverage and update dates vary by source. Its boundaries are generalized and may overlap or be incomplete.
+            </p>
+            <p class="data-warning">
+              <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
+            </p>
+          </div>
+          <div class="source-list">
+            <h3>Sources &amp; verification</h3>
+            <a href="https://doi.org/10.5066/P9Q9LQ4B" target="_blank" rel="noreferrer">
+              <span><strong>USGS PAD-US 3.0</strong><small>Dataset record · DOI P9Q9LQ4B</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview" target="_blank" rel="noreferrer">
+              <span><strong>USGS PAD-US overview</strong><small>Scope, use, and limitations</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">
+              <span><strong>BLM camping guidance</strong><small>Rules vary by state and local office</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://www.fs.usda.gov/visit/know-before-you-go" target="_blank" rel="noreferrer">
+              <span><strong>U.S. Forest Service</strong><small>Check current local conditions</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <p class="source-timestamp">The live ArcGIS layer reports PAD-US 3.0 data last edited May 23, 2023. This is not a current inventory of restrictions or conditions.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">▲</span><span>campgroundless<span class="brand-period">.</span></span></a>
+      <p>Made for thoughtful trips, not a substitute for local guidance.</p>
+      <a href="#data-sources">Data &amp; limitations</a>
+    </footer>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
