@@ -66,11 +66,14 @@
 
   L.control.zoom({ position: "bottomright" }).addTo(map);
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 19,
-  }).addTo(map);
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution:
+        '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community',
+      maxZoom: 19,
+    },
+  ).addTo(map);
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => {

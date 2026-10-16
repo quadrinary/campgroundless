@@ -16,7 +16,7 @@ The web map uses the USGS PAD-US 3.0 land-ownership layer. PAD-US is a compiled 
 - U.S. Geological Survey, Gap Analysis Project, [Protected Areas Database of the United States (PAD-US) 3.0](https://doi.org/10.5066/P9Q9LQ4B), public domain.
 - PAD-US 3.0 [data overview](https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview) and [USGS PAD-US program page](https://www.usgs.gov/programs/gap-analysis-project/science/protected-areas).
 - [Bureau of Land Management camping guidance](https://www.blm.gov/programs/recreation/camping), [U.S. Forest Service camping information](https://www.fs.usda.gov/visit/know-before-you-go/camping), and [CAL FIRE campfire permits](https://www.fire.ca.gov/prepare/campfire-permits). Current restrictions must be checked at the local office.
-- Base map tiles © [CARTO](https://carto.com/attributions); geographic data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+- Basemap tiles: [Esri World Street Map](https://goto.arcgisonline.com/maps/World_Street_Map). Attribution: Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community.
 
 The app uses Leaflet and Esri Leaflet from unpkg.com. It is a static client-side site; the browser contacts the map/data providers directly. Geolocation is only requested after the visitor presses the location button.
 
