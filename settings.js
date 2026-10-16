@@ -35,6 +35,11 @@
       basemapAttribution: form.elements.basemapAttribution.value.trim(),
       esriApiKey: form.elements.esriApiKey.value.trim(),
       customBasemapApiKey: form.elements.customBasemapApiKey.value.trim(),
+      typography: {
+        body: Number(form.elements.fontBodySize.value),
+        search: Number(form.elements.fontSearchSize.value),
+        caption: Number(form.elements.fontCaptionSize.value),
+      },
     };
   }
 
@@ -72,8 +77,19 @@
     form.elements.basemapAttribution.value = settings.basemapAttribution;
     form.elements.esriApiKey.value = settings.esriApiKey;
     form.elements.customBasemapApiKey.value = settings.customBasemapApiKey;
+    form.elements.fontBodySize.value = settings.typography.body;
+    form.elements.fontSearchSize.value = settings.typography.search;
+    form.elements.fontCaptionSize.value = settings.typography.caption;
+    updateTypographyValues(settings.typography);
+    Settings.applyTypography(settings);
     updateConditionalFields();
     updateSummary(settings);
+  }
+
+  function updateTypographyValues(typography) {
+    document.getElementById("font-body-value").textContent = `${typography.body} px`;
+    document.getElementById("font-search-value").textContent = `${typography.search} px`;
+    document.getElementById("font-caption-value").textContent = `${typography.caption} px`;
   }
 
   function updateConditionalFields() {
@@ -104,18 +120,25 @@
       settings.placeSearchUrl === Settings.defaults.placeSearchUrl
         ? "OpenStreetMap Nominatim"
         : "Custom Nominatim-compatible service";
+    document.getElementById("summary-typography").textContent =
+      `${settings.typography.body} / ${settings.typography.search} / ${settings.typography.caption} px`;
     document.getElementById("summary-keys").textContent =
       selectedKeys === 0 ? "None saved" : `${selectedKeys} saved in this browser`;
   }
 
   form.addEventListener("change", () => {
+    const settings = currentFormSettings();
+    Settings.applyTypography(settings);
     updateConditionalFields();
-    updateSummary(currentFormSettings());
+    updateSummary(settings);
     setMessage("");
   });
 
   form.addEventListener("input", () => {
-    updateSummary(currentFormSettings());
+    const settings = currentFormSettings();
+    Settings.applyTypography(settings);
+    updateTypographyValues(settings.typography);
+    updateSummary(settings);
     setMessage("");
   });
 

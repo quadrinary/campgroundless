@@ -7,7 +7,7 @@ A responsive California public-land boundary explorer for dispersed-camping trip
 - Displays selected federal, state, and local public land management/ownership records in California from the **Fee** feature class.
 - Filters a public ArcGIS-hosted layer reproducing USGS PAD-US 3.0 data by California and manager category. The layer is queried live as the map is used; the ArcGIS hosting endpoint is outside USGS.
 - Shows the mapped manager, unit name, PAD-US public-access attribute, and source date when available.
-- Lets visitors attach private, browser-local notes/reviews and camping, travel, or landmark icons to clicked map locations.
+- Lets visitors attach private, browser-local notes/reviews and camping, travel, or landmark icons to clicked map locations. Clicking a managed-land polygon opens its information popup; select **Write note here** and choose an icon to open the note editor at that exact point.
 - Does **not** determine whether dispersed camping is allowed at a site. Public-land boundaries, public-access attributes, and manager names are not camping authorization. Closures, road access, permits, fire rules, stay limits, and local restrictions must be verified directly with the responsible office.
 
 The web map uses the USGS PAD-US 3.0 land-ownership layer. PAD-US is a compiled inventory; data age, completeness, scale, and accuracy vary by source. The ArcGIS service metadata reports data last edited on May 23, 2023. California's PAD-US 3.0 update included state, regional, local, and nonprofit data from the California Protected Areas Database (CPAD), but the map filters to selected government managers and fee records. It is not a parcel-level legal boundary map, does not provide comprehensive or current camping permission, and a missing polygon is not evidence that land is private or unavailable. The newer PAD-US 4.1 release is available from USGS; this live map does not claim to use it.
@@ -25,6 +25,8 @@ The app uses Leaflet and Esri Leaflet from unpkg.com. It is a static client-side
 ## Map settings and API keys
 
 Open **Settings** from the map navigation to select USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer, toggle manager categories, choose Esri/OpenStreetMap/custom XYZ basemaps, enter optional provider keys, set custom source attribution, and change the Nominatim-compatible place-search endpoint. Custom land services must expose the fields and manager codes used by PAD-US (`FID`, `State_Nm`, `FeatClass`, `Mang_Name`, `Unit_Nm`, `Loc_Nm`, `Pub_Access`, and `Src_Date`) because the map filters and popups rely on that schema. Custom place-search endpoints must use HTTPS and return a Nominatim-compatible JSON array with `lat`, `lon`, and `display_name` fields.
+
+Settings also provide three interface text-size sliders with 1 px increments and a ±5 px range around each default: body text and field labels (7–17 px, default 12 px), search/map status/source text (6–16 px, default 11 px), and small captions/toolbar notes (5–15 px, default 10 px). These preferences preview immediately and are saved with other browser-local settings.
 
 Preferences and API keys are stored in that browser's `localStorage` and are not uploaded to this site. Map requests send a key only to the selected data or tile provider. A browser-stored key is accessible to people with access to the browser and is visible in outgoing requests; never save a private server secret here. Use provider-restricted, low-privilege keys. Esri/OpenStreetMap defaults work without keys.
 

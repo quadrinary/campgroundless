@@ -431,6 +431,84 @@
   clip-path: inset(50%);
 }
 
+.typography-options {
+  display: grid;
+  gap: 8px;
+}
+
+.typography-option {
+  min-height: 54px;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.8fr);
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e6e8e1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.typography-option > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.typography-option strong {
+  color: #46564a;
+  font-size: var(--font-body-size);
+}
+
+.typography-option small {
+  color: #889188;
+  font-size: var(--font-caption-size);
+  line-height: 1.4;
+}
+
+.typography-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.typography-control input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #426a4b;
+  cursor: pointer;
+}
+
+.typography-control output {
+  color: #46564a;
+  font-size: var(--font-body-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.settings-intro > p:last-child,
+.settings-card-heading p,
+.field-label,
+.field-help,
+.choice-content strong,
+.layer-choice,
+.security-note strong,
+.security-note p,
+.settings-summary > p:not(.eyebrow),
+.settings-summary li strong,
+.save-button,
+.reset-settings-button,
+.back-to-map,
+.settings-message {
+  font-size: var(--font-body-size);
+}
+
+.choice-content small,
+.optional-label,
+.settings-summary li span {
+  font-size: var(--font-caption-size);
+}
+
 @media (max-width: 820px) {
   .settings-layout {
     grid-template-columns: minmax(0, 1fr) 230px;

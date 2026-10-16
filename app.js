@@ -60,6 +60,7 @@
     console.error("Could not read map settings.", error);
     settings = structuredClone(window.CampgroundlessSettings.defaults);
   }
+  window.CampgroundlessSettings.applyTypography(settings);
 
   const mapStatus = document.getElementById("map-status");
   const mapLoading = document.getElementById("map-loading");
@@ -80,18 +81,27 @@
   const noteCount = document.getElementById("map-note-count");
   const notesStorageKey = "campgroundless.map-notes.v1";
   const noteTypes = {
-    camp: { label: "Campsite", icon: "🏕️" },
-    water: { label: "Water", icon: "💧" },
-    fire: { label: "Campfire area", icon: "🔥" },
-    wildlife: { label: "Wildlife", icon: "🐻" },
-    trail: { label: "Trail", icon: "🥾" },
-    road: { label: "Road / access", icon: "🚙" },
-    fuel: { label: "Fuel", icon: "⛽" },
-    food: { label: "Food", icon: "🍽️" },
-    viewpoint: { label: "Viewpoint", icon: "🏞️" },
-    landmark: { label: "Landmark", icon: "📍" },
-    photo: { label: "Photo spot", icon: "📷" },
+    camp: { label: "Campsite", icon: "🏕️", category: "Camping" },
+    water: { label: "Water", icon: "💧", category: "Camping" },
+    fire: { label: "Campfire area", icon: "🔥", category: "Camping" },
+    wildlife: { label: "Wildlife", icon: "🐻", category: "Camping" },
+    trail: { label: "Trail", icon: "🥾", category: "Travel" },
+    road: { label: "Road / access", icon: "🚙", category: "Travel" },
+    fuel: { label: "Fuel", icon: "⛽", category: "Travel" },
+    food: { label: "Food", icon: "🍽️", category: "Travel" },
+    viewpoint: { label: "Viewpoint", icon: "🏞️", category: "Landmarks" },
+    landmark: { label: "Landmark", icon: "📍", category: "Landmarks" },
+    photo: { label: "Photo spot", icon: "📷", category: "Landmarks" },
   };
+  const noteIconOptions = ["Camping", "Travel", "Landmarks"]
+    .map((category) => {
+      const options = Object.entries(noteTypes)
+        .filter(([, type]) => type.category === category)
+        .map(([value, type]) => `<option value="${value}">${type.icon} ${type.label}</option>`)
+        .join("");
+      return `<optgroup label="${category}">${options}</optgroup>`;
+    })
+    .join("");
   const placeSearchCache = new Map();
   let lastPlaceSearchAt = 0;
   let placeSearchInProgress = false;
@@ -365,8 +375,24 @@
         <p>Public-access field: <strong>${accessText}</strong></p>
         <p>Source date recorded: ${sourceDateText}</p>
         <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
+        <div class="feature-note-action">
+          <label for="feature-note-icon">Add a personal note at this point</label>
+          <select id="feature-note-icon" class="feature-note-icon-select" aria-label="Choose a note icon">${noteIconOptions}</select>
+          <button type="button" class="feature-note-button">Write note here</button>
+        </div>
       </div>`;
     layer.bindPopup(popup, { maxWidth: 260 });
+    layer.on("popupopen", (event) => {
+      const popupElement = event.popup.getElement();
+      const iconSelect = popupElement.querySelector(".feature-note-icon-select");
+      popupElement.querySelector(".feature-note-button").addEventListener("click", () => {
+        openNoteEditor(event.popup.getLatLng());
+        if (!noteForm.hidden) {
+          noteIcon.value = iconSelect.value;
+          map.closePopup();
+        }
+      });
+    });
   }
 
   const dataSourceUrl =

@@ -15,8 +15,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=5" />
-    <link rel="stylesheet" href="./settings.css?v=1" />
+    <link rel="stylesheet" href="./styles.css?v=7" />
+    <link rel="stylesheet" href="./settings.css?v=3" />
   </head>
   <body>
     <header class="topbar">
@@ -223,6 +223,39 @@
             <p class="field-help">Default: OpenStreetMap Nominatim. You may switch to another HTTPS Nominatim-compatible endpoint here without an app update. The endpoint must return a JSON array with lat, lon, and display_name fields. Queries are sent only when you press Go; do not submit personal or confidential information.</p>
           </section>
 
+          <section class="settings-card" aria-labelledby="typography-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">05</span>
+              <div>
+                <h2 id="typography-heading">Text size</h2>
+                <p>Adjust the map interface text. Changes preview as you select them and are saved with your settings.</p>
+              </div>
+            </div>
+            <div class="typography-options">
+              <label class="typography-option" for="font-body-size">
+                <span><strong>Body text &amp; field labels</strong><small>Descriptions, labels, and general map guidance</small></span>
+                <span class="typography-control">
+                  <input id="font-body-size" name="fontBodySize" type="range" min="7" max="17" step="1" value="12" aria-describedby="font-body-value" />
+                  <output id="font-body-value" for="font-body-size">12 px</output>
+                </span>
+              </label>
+              <label class="typography-option" for="font-search-size">
+                <span><strong>Search, map status &amp; source text</strong><small>Search controls, map status, and data/source details</small></span>
+                <span class="typography-control">
+                  <input id="font-search-size" name="fontSearchSize" type="range" min="6" max="16" step="1" value="11" aria-describedby="font-search-value" />
+                  <output id="font-search-value" for="font-search-size">11 px</output>
+                </span>
+              </label>
+              <label class="typography-option" for="font-caption-size">
+                <span><strong>Small captions &amp; toolbar notes</strong><small>Map captions, attributions, and compact notes</small></span>
+                <span class="typography-control">
+                  <input id="font-caption-size" name="fontCaptionSize" type="range" min="5" max="15" step="1" value="10" aria-describedby="font-caption-value" />
+                  <output id="font-caption-value" for="font-caption-size">10 px</output>
+                </span>
+              </label>
+            </div>
+          </section>
+
           <aside class="security-note">
             <span class="security-icon" aria-hidden="true">!</span>
             <div>
@@ -241,6 +274,7 @@
             <li><span>Land layers</span><strong id="summary-layers">4 selected</strong></li>
             <li><span>Basemap</span><strong id="summary-basemap">Esri World Street Map</strong></li>
             <li><span>Place search</span><strong id="summary-place-search">OpenStreetMap Nominatim</strong></li>
+            <li><span>Text sizes</span><strong id="summary-typography">12 / 11 / 10 px</strong></li>
             <li><span>API keys</span><strong id="summary-keys">None saved</strong></li>
           </ul>
           <div class="settings-actions">
@@ -259,7 +293,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=3"></script>
-    <script src="./settings.js?v=3"></script>
+    <script src="./settings-store.js?v=4"></script>
+    <script src="./settings.js?v=6"></script>
   </body>
 </html>
