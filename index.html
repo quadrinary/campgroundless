@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=10" />
+    <link rel="stylesheet" href="./styles.css?v=11" />
   </head>
   <body>
     <header class="topbar">
@@ -125,7 +125,8 @@
               </div>
             </form>
             <p id="map-note-message" class="map-note-message" role="status" aria-live="polite"></p>
-            <p class="map-note-privacy">Notes and icons are saved only in this browser. They are not shared or synced, and do not confirm camping permission.</p>
+            <p id="shared-note-notice" class="shared-note-notice" role="status" hidden>A shared note is shown in view-only mode. Anyone with this link can view its contents; it is not saved to this browser.</p>
+            <p class="map-note-privacy">Notes and icons are saved only in this browser. Share links include a snapshot of one note in the URL; anyone with the link can view it. Shared notes are view-only and do not confirm camping permission.</p>
           </section>
 
           <fieldset class="layer-filters">
@@ -280,6 +281,6 @@
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=5"></script>
-    <script src="./app.js?v=14"></script>
+    <script src="./app.js?v=15"></script>
   </body>
 </html>

@@ -72,6 +72,7 @@
   const sourceLayerNote = document.getElementById("source-layer-note");
   const searchMarkers = L.layerGroup();
   const noteMarkers = L.layerGroup();
+  const sharedNoteMarkers = L.layerGroup();
   const noteForm = document.getElementById("map-note-form");
   const noteTitle = document.getElementById("map-note-title");
   const noteIcon = document.getElementById("map-note-icon");
@@ -79,6 +80,7 @@
   const noteLocation = document.getElementById("map-note-location");
   const noteMessage = document.getElementById("map-note-message");
   const noteCount = document.getElementById("map-note-count");
+  const sharedNoteNotice = document.getElementById("shared-note-notice");
   const notesStorageKey = "campgroundless.map-notes.v1";
   const noteTypes = {
     camp: { label: "Campsite", icon: "🏕️", category: "Camping" },
@@ -119,6 +121,7 @@
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
   searchMarkers.addTo(map);
   noteMarkers.addTo(map);
+  sharedNoteMarkers.addTo(map);
   function createBasemap() {
     const basemapOptions = {
       maxZoom: 19,
@@ -321,6 +324,72 @@
     localStorage.setItem(notesStorageKey, JSON.stringify(nextNotes));
   }
 
+  function encodeSharedNote(note) {
+    const bytes = new TextEncoder().encode(JSON.stringify(note));
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  }
+
+  function decodeSharedNote(token) {
+    if (!token || token.length > 5000) {
+      return null;
+    }
+    try {
+      const base64 = token.replaceAll("-", "+").replaceAll("_", "/");
+      const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      const note = JSON.parse(new TextDecoder().decode(bytes));
+      return validNote(note) && note.title.length <= 80 && note.body.length <= 1200
+        ? note
+        : null;
+    } catch (error) {
+      console.warn("Could not read the shared map note from this link.", error);
+      return null;
+    }
+  }
+
+  function shareUrlForNote(note) {
+    const url = new URL(window.location.href);
+    url.hash = `shared-note=${encodeSharedNote(note)}`;
+    return url.href;
+  }
+
+  async function shareNote(note) {
+    const shareUrl = shareUrlForNote(note);
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard access is not available.");
+      }
+      await navigator.clipboard.writeText(shareUrl);
+      setNoteMessage("Share link copied. Anyone with it can view this note.", false);
+    } catch (error) {
+      console.warn("Could not copy the shared map note link.", error);
+      const copied = window.prompt("Copy this view-only share link:", shareUrl);
+      setNoteMessage(
+        copied === null
+          ? "Share link was not copied."
+          : "Share link is ready to paste. Anyone with it can view this note.",
+        copied === null,
+      );
+    }
+  }
+
+  function readSharedNoteFromUrl() {
+    const match = window.location.hash.match(/^#shared-note=(.+)$/);
+    if (!match) {
+      return null;
+    }
+    const note = decodeSharedNote(match[1]);
+    if (!note) {
+      setNoteMessage("This shared-note link is invalid or incomplete.", true);
+      return null;
+    }
+    return note;
+  }
+
   function closeNoteEditor() {
     noteForm.hidden = true;
     editingNoteId = null;
@@ -352,26 +421,32 @@
     }
   }
 
-  function buildNotePopup(note) {
+  function buildNotePopup(note, shared = false) {
     const type = noteTypes[note.icon];
     const title = note.title.trim() || type.label;
     const timestamp = new Date(note.updatedAt);
     const dateText = Number.isNaN(timestamp.getTime()) ? "" : timestamp.toLocaleDateString();
     return `
       <div class="map-note-popup">
-        <div class="map-note-popup-type">${type.icon} ${escapeHtml(type.label)}${dateText ? ` · ${escapeHtml(dateText)}` : ""}</div>
+        <div class="map-note-popup-type">${type.icon} ${escapeHtml(type.label)}${dateText ? ` · ${escapeHtml(dateText)}` : ""}${shared ? " · Shared view" : ""}</div>
         <h3>${escapeHtml(title)}</h3>
         <p>${escapeHtml(note.body)}</p>
-        <div class="map-note-popup-actions">
+        ${shared ? "" : `<div class="map-note-popup-actions">
+          <button type="button" data-note-action="share" data-note-id="${escapeHtml(note.id)}">Copy share link</button>
           <button type="button" data-note-action="edit" data-note-id="${escapeHtml(note.id)}">Edit</button>
           <button type="button" data-note-action="delete" data-note-id="${escapeHtml(note.id)}">Delete</button>
-        </div>
+        </div>`}
       </div>`;
   }
+
+  const sharedNote = readSharedNoteFromUrl();
 
   function renderNotes() {
     noteMarkers.clearLayers();
     notes.forEach((note) => {
+      if (sharedNote?.id === note.id) {
+        return;
+      }
       const type = noteTypes[note.icon];
       const marker = L.marker([note.lat, note.lng], {
         icon: L.divIcon({
@@ -390,6 +465,10 @@
           button.addEventListener("click", () => {
             const selectedNote = notes.find((entry) => entry.id === button.dataset.noteId);
             if (!selectedNote) {
+              return;
+            }
+            if (button.dataset.noteAction === "share") {
+              void shareNote(selectedNote);
               return;
             }
             if (button.dataset.noteAction === "edit") {
@@ -454,6 +533,24 @@
     }
   });
   renderNotes();
+
+  if (sharedNote) {
+    sharedNoteNotice.hidden = false;
+    const marker = L.marker([sharedNote.lat, sharedNote.lng], {
+      icon: L.divIcon({
+        className: "map-note-icon",
+        html: `<span><i>${noteTypes[sharedNote.icon].icon}</i></span>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 30],
+        popupAnchor: [0, -28],
+      }),
+      title: `${noteTypes[sharedNote.icon].label}: ${sharedNote.title || sharedNote.body.slice(0, 60)}`,
+      alt: `Shared ${noteTypes[sharedNote.icon].label} map note`,
+    }).addTo(sharedNoteMarkers);
+    marker.bindPopup(buildNotePopup(sharedNote, true), { maxWidth: 280 });
+    map.setView([sharedNote.lat, sharedNote.lng], 15);
+    marker.openPopup();
+  }
 
   function buildWhere(layers = settings.layers) {
     const enabledGroups = Object.keys(managersByGroup)

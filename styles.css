@@ -535,6 +535,20 @@ h1 em {
   color: #9b3f35;
 }
 
+.shared-note-notice {
+  margin: 7px 0 0;
+  padding: 7px 8px;
+  border-left: 2px solid #b98547;
+  background: #f7f3e9;
+  color: #6f5c3d;
+  font-size: var(--font-caption-size, 10px);
+  line-height: 1.45;
+}
+
+.shared-note-notice[hidden] {
+  display: none;
+}
+
 .map-note-privacy {
   margin-top: 8px;
 }
