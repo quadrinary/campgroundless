@@ -797,6 +797,102 @@ h1 em {
   isolation: isolate;
 }
 
+.map-layer-control {
+  position: relative;
+  width: 34px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.map-layer-toggle {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background-color: #fff;
+  background-image: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #34483a;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
+  cursor: pointer;
+}
+
+.leaflet-touch .map-layer-toggle {
+  width: 30px;
+  height: 30px;
+}
+
+.map-layer-toggle::before {
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  content: "";
+  -webkit-mask: url("https://unpkg.com/leaflet@1.9.4/dist/images/layers-2x.png") center / contain no-repeat;
+  mask: url("https://unpkg.com/leaflet@1.9.4/dist/images/layers-2x.png") center / contain no-repeat;
+}
+
+.map-layer-toggle:hover,
+.map-layer-toggle:focus-visible {
+  background-color: #f3f5f0;
+}
+
+.map-layer-toggle:focus-visible,
+.map-layer-option input:focus-visible {
+  outline: 2px solid #507655;
+  outline-offset: 2px;
+}
+
+.map-layer-panel {
+  position: absolute;
+  right: 50px;
+  bottom: 0;
+  width: 220px;
+  padding: 10px;
+  border: 1px solid #dfe4dc;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(25, 40, 29, 0.22);
+  color: #35483a;
+  font-size: 10px;
+}
+
+.map-layer-panel[hidden] {
+  display: none;
+}
+
+.map-layer-heading {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 11px;
+}
+
+.map-layer-option {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.map-layer-option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #426a4b;
+}
+
+.map-layer-status {
+  display: block;
+  margin-top: 4px;
+  color: #9b3f35;
+  font-size: 9px;
+}
+
 .map-loading {
   position: absolute;
   z-index: 500;

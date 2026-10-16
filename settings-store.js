@@ -15,6 +15,7 @@
       other: true,
     },
     basemap: "esri",
+    osmLayer: "standard",
     basemapUrl: "",
     basemapAttribution: "",
     esriApiKey: "",
@@ -30,6 +31,11 @@
     search: { min: 6, max: 16 },
     caption: { min: 5, max: 15 },
   };
+  const osmLayers = ["standard", "hot", "topographic"];
+
+  function normalizeOsmLayer(layer) {
+    return osmLayers.includes(layer) ? layer : defaults.osmLayer;
+  }
 
   function normalizeTypography(typography = {}) {
     if (!typography || typeof typography !== "object") {
@@ -59,6 +65,7 @@
         ...defaults,
         ...saved,
         layers: { ...defaults.layers, ...(saved.layers ?? {}) },
+        osmLayer: normalizeOsmLayer(saved.osmLayer),
         typography: normalizeTypography(saved.typography),
       };
     } catch (error) {
@@ -70,7 +77,11 @@
   function write(settings) {
     localStorage.setItem(
       storageKey,
-      JSON.stringify({ ...settings, typography: normalizeTypography(settings.typography) }),
+      JSON.stringify({
+        ...settings,
+        osmLayer: normalizeOsmLayer(settings.osmLayer),
+        typography: normalizeTypography(settings.typography),
+      }),
     );
   }
 

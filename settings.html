@@ -154,9 +154,18 @@
             <label class="field-label" for="basemap">Tile provider</label>
             <select id="basemap" name="basemap" class="text-field select-field">
               <option value="esri">Esri World Street Map · no key required</option>
-              <option value="osm">OpenStreetMap standard tiles · no key required</option>
+              <option value="osm">OpenStreetMap styles · no key required</option>
               <option value="custom">Custom XYZ tile service</option>
             </select>
+            <div class="conditional-fields" id="osm-layer-fields">
+              <label class="field-label" for="osm-layer">OpenStreetMap style</label>
+              <select id="osm-layer" name="osmLayer" class="text-field select-field">
+                <option value="standard">Standard map</option>
+                <option value="hot">Humanitarian (HOT)</option>
+                <option value="topographic">Topographic (OpenTopoMap)</option>
+              </select>
+              <p class="field-help">These are alternative map renderings, not separate land or trail data layers. Tile availability and terms vary by provider; avoid bulk downloads. <a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noreferrer">OpenStreetMap tile usage policy</a></p>
+            </div>
             <div class="conditional-fields" id="custom-basemap-fields">
               <label class="field-label" for="basemap-url">XYZ tile URL template</label>
               <input
@@ -293,7 +302,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=4"></script>
-    <script src="./settings.js?v=6"></script>
+    <script src="./settings-store.js?v=5"></script>
+    <script src="./settings.js?v=7"></script>
   </body>
 </html>

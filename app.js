@@ -111,12 +111,11 @@
   const map = L.map("map", {
     zoomControl: false,
     minZoom: 5,
-    maxZoom: 14,
+    maxZoom: 18,
     maxBounds: californiaBounds.pad(0.14),
     maxBoundsViscosity: 0.7,
   }).fitBounds(californiaBounds);
 
-  L.control.zoom({ position: "bottomright" }).addTo(map);
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
   searchMarkers.addTo(map);
   noteMarkers.addTo(map);
@@ -127,10 +126,24 @@
     };
     let url;
     if (settings.basemap === "osm") {
-      url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-      basemapOptions.attribution =
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-      basemapOptions.maxZoom = 19;
+      if (settings.osmLayer === "hot") {
+        url = "https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png";
+        basemapOptions.attribution =
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, tiles style by <a href="https://www.hotosm.org/">Humanitarian OpenStreetMap Team</a>';
+        basemapOptions.maxZoom = 19;
+      } else if (settings.osmLayer === "topographic") {
+        url = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
+        basemapOptions.attribution =
+          'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Map style: &copy; <a href="https://opentopomap.org/">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
+        basemapOptions.subdomains = "abc";
+        basemapOptions.maxNativeZoom = 17;
+        basemapOptions.maxZoom = 18;
+      } else {
+        url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+        basemapOptions.attribution =
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+        basemapOptions.maxZoom = 19;
+      }
     } else if (settings.basemap === "custom" && settings.basemapUrl) {
       const apiKey = encodeURIComponent(settings.customBasemapApiKey);
       url = settings.basemapUrl
@@ -153,10 +166,115 @@
       basemapOptions.attribution =
         '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community';
     }
-    return L.tileLayer(url, basemapOptions).addTo(map);
+    return L.tileLayer(url, basemapOptions);
   }
 
-  createBasemap();
+  let basemapLayer = createBasemap().addTo(map);
+
+  function activeBasemapOption() {
+    if (settings.basemap === "custom" && settings.basemapUrl) {
+      return "custom";
+    }
+    return settings.basemap === "osm" ? `osm:${settings.osmLayer}` : "esri";
+  }
+
+  function applyBasemapOption(option) {
+    if (option === "custom" && settings.basemapUrl) {
+      settings.basemap = "custom";
+    } else if (option.startsWith("osm:")) {
+      settings.basemap = "osm";
+      settings.osmLayer = option.slice("osm:".length);
+    } else {
+      settings.basemap = "esri";
+    }
+
+    layerStatus.textContent = "";
+    try {
+      window.CampgroundlessSettings.write(settings);
+    } catch (error) {
+      console.error("Could not save basemap preference.", error);
+      layerStatus.textContent = "Style changed for this visit, but could not be saved.";
+    }
+
+    map.removeLayer(basemapLayer);
+    basemapLayer = createBasemap().addTo(map);
+  }
+
+  let layerStatus;
+  const layerControl = L.control({ position: "bottomright" });
+  layerControl.onAdd = () => {
+    const container = L.DomUtil.create("div", "leaflet-control map-layer-control");
+    const button = L.DomUtil.create(
+      "button",
+      "map-layer-toggle leaflet-control-layers-toggle",
+      container,
+    );
+    button.type = "button";
+    button.title = "Choose map style";
+    button.setAttribute("aria-label", "Choose map style");
+    button.setAttribute("aria-expanded", "false");
+
+    const panel = L.DomUtil.create("div", "map-layer-panel", container);
+    panel.id = "map-layer-panel";
+    panel.hidden = true;
+    panel.setAttribute("role", "group");
+    panel.setAttribute("aria-label", "Map styles");
+    const heading = L.DomUtil.create("strong", "map-layer-heading", panel);
+    heading.textContent = "Map style";
+
+    const options = [
+      ["esri", "Esri World Street Map"],
+      ["osm:standard", "OpenStreetMap · Standard"],
+      ["osm:hot", "OpenStreetMap · Humanitarian"],
+      ["osm:topographic", "OpenTopoMap · Topographic"],
+    ];
+    if (settings.basemapUrl) {
+      options.push(["custom", "Custom XYZ tiles"]);
+    }
+
+    options.forEach(([value, label], index) => {
+      const optionLabel = L.DomUtil.create("label", "map-layer-option", panel);
+      const radio = L.DomUtil.create("input", "", optionLabel);
+      radio.type = "radio";
+      radio.name = "map-style-choice";
+      radio.value = value;
+      radio.checked = value === activeBasemapOption();
+      radio.id = `map-style-choice-${index}`;
+      const text = L.DomUtil.create("span", "", optionLabel);
+      text.textContent = label;
+      radio.addEventListener("change", () => {
+        if (!radio.checked) {
+          return;
+        }
+        applyBasemapOption(radio.value);
+        button.setAttribute("aria-expanded", "false");
+        panel.hidden = true;
+      });
+    });
+
+    layerStatus = L.DomUtil.create("span", "map-layer-status", panel);
+    layerStatus.setAttribute("role", "status");
+    button.setAttribute("aria-controls", panel.id);
+    button.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      button.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) {
+        panel.querySelector('input[type="radio"]:checked')?.focus();
+      }
+    });
+    container.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !panel.hidden) {
+        panel.hidden = true;
+        button.setAttribute("aria-expanded", "false");
+        button.focus();
+      }
+    });
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+    return container;
+  };
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+  layerControl.addTo(map);
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => {

@@ -31,6 +31,7 @@
       placeSearchUrl: form.elements.placeSearchUrl.value.trim(),
       layers,
       basemap: form.elements.basemap.value,
+      osmLayer: form.elements.osmLayer.value,
       basemapUrl: form.elements.basemapUrl.value.trim(),
       basemapAttribution: form.elements.basemapAttribution.value.trim(),
       esriApiKey: form.elements.esriApiKey.value.trim(),
@@ -73,6 +74,7 @@
       form.querySelector(`input[name="layer"][value="${layer}"]`).checked = Boolean(settings.layers[layer]);
     });
     form.elements.basemap.value = settings.basemap;
+    form.elements.osmLayer.value = settings.osmLayer;
     form.elements.basemapUrl.value = settings.basemapUrl;
     form.elements.basemapAttribution.value = settings.basemapAttribution;
     form.elements.esriApiKey.value = settings.esriApiKey;
@@ -99,6 +101,8 @@
       form.querySelector('input[name="dataSource"]:checked').value !== "custom";
     document.getElementById("custom-basemap-fields").hidden =
       form.elements.basemap.value !== "custom";
+    document.getElementById("osm-layer-fields").hidden =
+      form.elements.basemap.value !== "osm";
     document.getElementById("custom-basemap-attribution-field").hidden =
       form.elements.basemap.value !== "custom";
   }
@@ -114,8 +118,15 @@
       settings.dataSource === "custom" ? "Custom ArcGIS layer" : "USGS PAD-US 3.0";
     document.getElementById("summary-layers").textContent =
       `${selectedLayers.length} selected${selectedLayers.length ? ` · ${selectedLayers.map((layer) => layerNames[layer]).join(", ")}` : ""}`;
+    const osmLayerNames = {
+      standard: "Standard",
+      hot: "Humanitarian (HOT)",
+      topographic: "Topographic",
+    };
     document.getElementById("summary-basemap").textContent =
-      ({ esri: "Esri World Street Map", osm: "OpenStreetMap", custom: "Custom XYZ tiles" })[settings.basemap];
+      settings.basemap === "osm"
+        ? `OpenStreetMap · ${osmLayerNames[settings.osmLayer] ?? osmLayerNames.standard}`
+        : ({ esri: "Esri World Street Map", custom: "Custom XYZ tiles" })[settings.basemap];
     document.getElementById("summary-place-search").textContent =
       settings.placeSearchUrl === Settings.defaults.placeSearchUrl
         ? "OpenStreetMap Nominatim"
