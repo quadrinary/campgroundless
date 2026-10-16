@@ -5,7 +5,7 @@
     [32.4, -124.6],
     [42.1, -114.0],
   );
-  const layerUrl =
+  const defaultLayerUrl =
     "https://services.arcgis.com/9ecg2KpMLcsUv1Oh/arcgis/rest/services/Land_Ownership/FeatureServer/39";
   const managersByGroup = {
     forest: ["USFS"],
@@ -53,9 +53,19 @@
     USFS: "U.S. Forest Service",
   };
 
+  let settings;
+  try {
+    settings = window.CampgroundlessSettings.read();
+  } catch (error) {
+    console.error("Could not read map settings.", error);
+    settings = structuredClone(window.CampgroundlessSettings.defaults);
+  }
+
   const mapStatus = document.getElementById("map-status");
   const mapLoading = document.getElementById("map-loading");
   const searchMessage = document.getElementById("search-message");
+  const dataSourceLabel = document.getElementById("map-data-source-label");
+  const sourceLayerNote = document.getElementById("source-layer-note");
   const map = L.map("map", {
     zoomControl: false,
     minZoom: 5,
@@ -66,14 +76,43 @@
 
   L.control.zoom({ position: "bottomright" }).addTo(map);
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
-  L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-    {
-      attribution:
-        '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community',
+  function createBasemap() {
+    const basemapOptions = {
       maxZoom: 19,
-    },
-  ).addTo(map);
+      attribution: "",
+    };
+    let url;
+    if (settings.basemap === "osm") {
+      url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+      basemapOptions.attribution =
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+      basemapOptions.maxZoom = 19;
+    } else if (settings.basemap === "custom" && settings.basemapUrl) {
+      const apiKey = encodeURIComponent(settings.customBasemapApiKey);
+      url = settings.basemapUrl
+        .replaceAll("{apiKey}", apiKey)
+        .replaceAll("{z}", "{z}")
+        .replaceAll("{x}", "{x}")
+        .replaceAll("{y}", "{y}");
+      if (settings.customBasemapApiKey && !settings.basemapUrl.includes("{apiKey}")) {
+        url += `${url.includes("?") ? "&" : "?"}apiKey=${apiKey}`;
+      }
+      basemapOptions.attribution = escapeHtml(
+        settings.basemapAttribution || "Custom XYZ tile provider",
+      );
+    } else {
+      url =
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+      if (settings.esriApiKey) {
+        url += `?token=${encodeURIComponent(settings.esriApiKey)}`;
+      }
+      basemapOptions.attribution =
+        '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community';
+    }
+    return L.tileLayer(url, basemapOptions).addTo(map);
+  }
+
+  createBasemap();
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => {
@@ -88,10 +127,9 @@
     });
   }
 
-  function buildWhere() {
-    const enabledGroups = [...document.querySelectorAll('input[name="manager"]:checked')]
-      .map((checkbox) => checkbox.value)
-      .filter((group) => Object.hasOwn(managersByGroup, group));
+  function buildWhere(layers = settings.layers) {
+    const enabledGroups = Object.keys(managersByGroup)
+      .filter((group) => layers[group]);
     const managers = [...new Set(enabledGroups.flatMap((group) => managersByGroup[group]))];
     if (managers.length === 0) {
       return "1=0";
@@ -124,17 +162,30 @@
       <div class="map-popup">
         <div class="map-popup-label">${escapeHtml(manager)}</div>
         <h3>${escapeHtml(unit)}</h3>
-        <p>PAD-US public-access field: <strong>${accessText}</strong></p>
+        <p>Public-access field: <strong>${accessText}</strong></p>
         <p>Source date recorded: ${sourceDateText}</p>
         <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
       </div>`;
     layer.bindPopup(popup, { maxWidth: 260 });
   }
 
-  const landLayer = L.esri.featureLayer({
-    url: layerUrl,
+  const dataSourceUrl =
+    settings.dataSource === "custom" && settings.dataUrl
+      ? settings.dataUrl
+      : defaultLayerUrl;
+  if (settings.dataSource === "custom" && settings.dataUrl) {
+    dataSourceLabel.textContent = "Custom ArcGIS Feature Layer";
+    sourceLayerNote.textContent =
+      "This custom layer is managed by its provider. Verify its metadata, attribution requirements, accuracy, and update date with that provider; a compatible schema still does not indicate camping permission.";
+  }
+  const landLayerOptions = {
+    url: dataSourceUrl,
     where: buildWhere(),
-    attribution: "Land data: USGS GAP, PAD-US 3.0",
+    token: settings.dataApiKey || undefined,
+    attribution:
+      settings.dataSource === "custom"
+        ? escapeHtml(settings.dataAttribution || "Land data: custom ArcGIS Feature Layer")
+        : "Land data: USGS GAP, PAD-US 3.0",
     fields: [
       "FID",
       "FeatClass",
@@ -149,11 +200,15 @@
     minZoom: 5,
     style: featureStyle,
     onEachFeature: createPopup,
-  });
+  };
+  const landLayer = L.esri.featureLayer(landLayerOptions);
 
   landLayer.on("load", () => {
     mapLoading.hidden = true;
-    mapStatus.textContent = "Public land boundaries loaded · PAD-US 3.0";
+    mapStatus.textContent =
+      settings.dataSource === "custom"
+        ? "Custom land boundaries loaded"
+        : "Public land boundaries loaded · PAD-US 3.0";
     mapStatus.classList.remove("error");
     refreshSearchableFeatures();
   });
@@ -167,9 +222,18 @@
   landLayer.addTo(map);
 
   document.querySelectorAll('input[name="manager"]').forEach((checkbox) => {
+    checkbox.checked = Boolean(settings.layers[checkbox.value]);
     checkbox.addEventListener("change", () => {
+      settings.layers[checkbox.value] = checkbox.checked;
+      try {
+        window.CampgroundlessSettings.write(settings);
+      } catch (error) {
+        console.error("Could not save layer preferences.", error);
+        searchMessage.textContent =
+          "Could not save layer preferences in this browser. Check storage settings.";
+      }
       mapStatus.textContent = "Updating land boundaries…";
-      landLayer.setWhere(buildWhere());
+      landLayer.setWhere(buildWhere(settings.layers));
     });
   });
 

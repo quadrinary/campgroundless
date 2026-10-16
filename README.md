@@ -18,7 +18,15 @@ The web map uses the USGS PAD-US 3.0 land-ownership layer. PAD-US is a compiled 
 - [Bureau of Land Management camping guidance](https://www.blm.gov/programs/recreation/camping), [U.S. Forest Service camping information](https://www.fs.usda.gov/visit/know-before-you-go/camping), and [CAL FIRE campfire permits](https://www.fire.ca.gov/prepare/campfire-permits). Current restrictions must be checked at the local office.
 - Basemap tiles: [Esri World Street Map](https://goto.arcgisonline.com/maps/World_Street_Map). Attribution: Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community.
 
-The app uses Leaflet and Esri Leaflet from unpkg.com. It is a static client-side site; the browser contacts the map/data providers directly. Geolocation is only requested after the visitor presses the location button.
+The app uses Leaflet and Esri Leaflet from unpkg.com. It is a static client-side site; the browser contacts the map/data providers directly.
+
+## Map settings and API keys
+
+Open **Settings** from the map navigation to select USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer, toggle manager categories, choose Esri/OpenStreetMap/custom XYZ basemaps, enter optional provider keys, and set custom source attribution. Custom land services must expose the fields and manager codes used by PAD-US (`FID`, `State_Nm`, `FeatClass`, `Mang_Name`, `Unit_Nm`, `Loc_Nm`, `Pub_Access`, and `Src_Date`) because the map filters and popups rely on that schema.
+
+Preferences and API keys are stored in that browser's `localStorage` and are not uploaded to this site. Map requests send a key only to the selected data or tile provider. A browser-stored key is accessible to people with access to the browser and is visible in outgoing requests; never save a private server secret here. Use provider-restricted, low-privilege keys. Esri/OpenStreetMap defaults work without keys.
+
+The data and basemap selections apply on the map page. Layer toggles also save when changed from the map sidebar. Settings are per browser/device, not an account-wide profile.
 
 ## Local development
 

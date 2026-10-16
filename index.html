@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=2" />
+    <link rel="stylesheet" href="./styles.css?v=3" />
   </head>
   <body>
     <header class="topbar">
@@ -35,7 +35,8 @@
       <nav aria-label="Main navigation">
         <a href="#map-section">Explore map</a>
         <a href="#field-notes">Field notes</a>
-        <a class="nav-source" href="#data-sources">Data &amp; sources <span aria-hidden="true">↗</span></a>
+        <a href="#data-sources">Data &amp; sources</a>
+        <a class="nav-source" href="./settings.html">Settings</a>
       </nav>
     </header>
 
@@ -145,7 +146,7 @@
             </div>
           </div>
           <div class="map-caption">
-            <span><strong>BOUNDARY DATA</strong> · USGS PAD-US 3.0</span>
+            <span><strong>BOUNDARY DATA</strong> · <span id="map-data-source-label">USGS PAD-US 3.0</span></span>
             <span>Use for broad planning only · <a href="#data-sources">Read data limitations</a></span>
           </div>
         </div>
@@ -192,7 +193,7 @@
         <div class="data-grid">
           <div class="data-copy">
             <p>
-              This early-access map filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
+              The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
             </p>
             <p>
               PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. California's PAD-US 3.0 update included state, regional, local, and nonprofit data from CPAD; coverage and update dates vary by source. Its boundaries are generalized and may overlap or be incomplete.
@@ -215,7 +216,7 @@
             <a href="https://www.fs.usda.gov/visit/know-before-you-go" target="_blank" rel="noreferrer">
               <span><strong>U.S. Forest Service</strong><small>Check current local conditions</small></span><span aria-hidden="true">↗</span>
             </a>
-            <p class="source-timestamp">The live ArcGIS layer reports PAD-US 3.0 data last edited May 23, 2023. This is not a current inventory of restrictions or conditions.</p>
+            <p class="source-timestamp" id="source-layer-note">The default ArcGIS layer reports PAD-US 3.0 data last edited May 23, 2023. This is not a current inventory of restrictions or conditions.</p>
           </div>
         </div>
       </section>
@@ -233,6 +234,7 @@
       crossorigin=""
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
-    <script src="./app.js?v=2"></script>
+    <script src="./settings-store.js?v=2"></script>
+    <script src="./app.js?v=6"></script>
   </body>
 </html>

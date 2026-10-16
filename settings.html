@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f4ef" />
+    <meta
+      name="description"
+      content="Configure map data sources, land-manager layers, basemaps, and provider API keys."
+    />
+    <title>Map settings — Campgroundless</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css?v=3" />
+    <link rel="stylesheet" href="./settings.css?v=1" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="Campgroundless home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36" role="img">
+            <path d="M18 3 2 31h32L18 3Z" fill="currentColor" />
+            <path d="m18 15-8 14h16l-8-14Z" fill="#f5f4ef" />
+            <path d="M18 23v8" stroke="#f5f4ef" stroke-width="2" />
+          </svg>
+        </span>
+        <span>campgroundless<span class="brand-period">.</span></span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="./index.html#map-section">Explore map</a>
+        <a href="./index.html#field-notes">Field notes</a>
+        <a href="./index.html#data-sources">Data &amp; sources</a>
+        <a class="nav-source" href="./settings.html" aria-current="page">Settings</a>
+      </nav>
+    </header>
+
+    <main id="top" class="settings-main">
+      <section class="settings-intro">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> YOUR MAP, YOUR SOURCES</p>
+        <h1>Map <em>settings.</em></h1>
+        <p>Choose which land records and basemap to show. Settings apply to this browser and are not synced across devices.</p>
+      </section>
+
+      <form id="settings-form" class="settings-layout">
+        <div class="settings-groups">
+          <section class="settings-card" aria-labelledby="source-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">01</span>
+              <div>
+                <h2 id="source-heading">Land data source</h2>
+                <p>Choose the ArcGIS Feature Layer used for mapped land boundaries.</p>
+              </div>
+            </div>
+            <fieldset class="choice-list">
+              <legend class="visually-hidden">Select a land data source</legend>
+              <label class="choice-card">
+                <input type="radio" name="dataSource" value="padus" />
+                <span class="choice-content">
+                  <strong>USGS PAD-US 3.0 · California</strong>
+                  <small>Public ArcGIS-hosted layer · no key required · data last edited May 23, 2023</small>
+                </span>
+                <span class="choice-check" aria-hidden="true"></span>
+              </label>
+              <label class="choice-card">
+                <input type="radio" name="dataSource" value="custom" />
+                <span class="choice-content">
+                  <strong>Custom ArcGIS Feature Layer</strong>
+                  <small>Use a PAD-US-compatible service URL. The map expects the documented PAD-US fields.</small>
+                </span>
+                <span class="choice-check" aria-hidden="true"></span>
+              </label>
+            </fieldset>
+            <div class="conditional-fields" id="custom-data-fields">
+              <label class="field-label" for="data-url">Feature Layer URL</label>
+              <input
+                class="text-field"
+                id="data-url"
+                name="dataUrl"
+                type="url"
+                placeholder="https://services.example.com/arcgis/rest/services/Layer/FeatureServer/0"
+                autocomplete="url"
+                spellcheck="false"
+              />
+              <p class="field-help">Enter one ArcGIS Feature Layer endpoint over HTTPS, including its layer number. It must provide PAD-US-compatible fields and coding, including FID and the manager codes this map filters.</p>
+            </div>
+            <div class="conditional-fields" id="custom-data-attribution-field">
+              <label class="field-label" for="data-attribution">Data attribution <span class="optional-label">optional</span></label>
+              <input
+                class="text-field"
+                id="data-attribution"
+                name="dataAttribution"
+                type="text"
+                placeholder="Provider / dataset credit"
+              />
+              <p class="field-help">Shown in the map attribution control. Check the data provider's attribution requirements.</p>
+            </div>
+            <div class="field-row">
+              <div>
+                <label class="field-label" for="data-api-key">ArcGIS data API key / token <span class="optional-label">optional</span></label>
+                <p class="field-help">Sent only with requests to the selected ArcGIS land-data service.</p>
+              </div>
+              <div class="secret-field">
+                <input class="text-field" id="data-api-key" name="dataApiKey" type="password" autocomplete="off" />
+                <button type="button" class="reveal-button" data-reveal="data-api-key" aria-label="Show ArcGIS data API key">Show</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-card" aria-labelledby="layers-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">02</span>
+              <div>
+                <h2 id="layers-heading">Land-manager layers</h2>
+                <p>Choose which categories to display. Every category represents land management—not camping permission.</p>
+              </div>
+            </div>
+            <div class="layer-choice-grid">
+              <label class="layer-choice">
+                <input type="checkbox" name="layer" value="forest" />
+                <span class="filter-swatch swatch-forest"></span>
+                <span>U.S. Forest Service</span>
+              </label>
+              <label class="layer-choice">
+                <input type="checkbox" name="layer" value="blm" />
+                <span class="filter-swatch swatch-blm"></span>
+                <span>Bureau of Land Management</span>
+              </label>
+              <label class="layer-choice">
+                <input type="checkbox" name="layer" value="state" />
+                <span class="filter-swatch swatch-state"></span>
+                <span>State &amp; local public land</span>
+              </label>
+              <label class="layer-choice">
+                <input type="checkbox" name="layer" value="other" />
+                <span class="filter-swatch swatch-other"></span>
+                <span>Other federal public land</span>
+              </label>
+            </div>
+            <p class="field-help layer-help">These filters are also available in the map sidebar. Changes are saved for this browser only.</p>
+          </section>
+
+          <section class="settings-card" aria-labelledby="basemap-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">03</span>
+              <div>
+                <h2 id="basemap-heading">Basemap</h2>
+                <p>Choose the background map. Tiles are loaded directly from the selected provider.</p>
+              </div>
+            </div>
+            <label class="field-label" for="basemap">Tile provider</label>
+            <select id="basemap" name="basemap" class="text-field select-field">
+              <option value="esri">Esri World Street Map · no key required</option>
+              <option value="osm">OpenStreetMap standard tiles · no key required</option>
+              <option value="custom">Custom XYZ tile service</option>
+            </select>
+            <div class="conditional-fields" id="custom-basemap-fields">
+              <label class="field-label" for="basemap-url">XYZ tile URL template</label>
+              <input
+                class="text-field"
+                id="basemap-url"
+                name="basemapUrl"
+                type="text"
+                placeholder="https://tiles.example.com/{z}/{x}/{y}.png?key={apiKey}"
+                autocomplete="url"
+                spellcheck="false"
+              />
+              <p class="field-help">Must include {z}, {x}, and {y} placeholders. Use {apiKey} where the provider expects the key; otherwise it will be added as a query parameter.</p>
+            </div>
+            <div class="conditional-fields" id="custom-basemap-attribution-field">
+              <label class="field-label" for="basemap-attribution">Basemap attribution <span class="optional-label">optional</span></label>
+              <input
+                class="text-field"
+                id="basemap-attribution"
+                name="basemapAttribution"
+                type="text"
+                placeholder="Map tiles © Provider"
+              />
+              <p class="field-help">Shown in the map attribution control. Follow the tile provider's terms.</p>
+            </div>
+            <div class="field-row">
+              <div>
+                <label class="field-label" for="esri-api-key">Esri API key <span class="optional-label">optional</span></label>
+                <p class="field-help">Added to Esri tile requests if you select the Esri basemap.</p>
+              </div>
+              <div class="secret-field">
+                <input class="text-field" id="esri-api-key" name="esriApiKey" type="password" autocomplete="off" />
+                <button type="button" class="reveal-button" data-reveal="esri-api-key" aria-label="Show Esri API key">Show</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label class="field-label" for="custom-basemap-api-key">Custom basemap API key <span class="optional-label">optional</span></label>
+                <p class="field-help">Used only for the custom XYZ tile service.</p>
+              </div>
+              <div class="secret-field">
+                <input class="text-field" id="custom-basemap-api-key" name="customBasemapApiKey" type="password" autocomplete="off" />
+                <button type="button" class="reveal-button" data-reveal="custom-basemap-api-key" aria-label="Show custom basemap API key">Show</button>
+              </div>
+            </div>
+          </section>
+
+          <aside class="security-note">
+            <span class="security-icon" aria-hidden="true">!</span>
+            <div>
+              <strong>About API keys in a static website</strong>
+              <p>Keys are stored in this browser's local storage, not on a server or in an account. They are sent to the provider you choose and can be read by anyone with access to this browser. Use provider-restricted, low-privilege keys; never enter a private server secret. Clear the key here or reset settings to remove it.</p>
+            </div>
+          </aside>
+        </div>
+
+        <aside class="settings-summary">
+          <p class="eyebrow">SETTINGS PREVIEW</p>
+          <h2>What you'll see</h2>
+          <p>Saved preferences take effect when you return to the map.</p>
+          <ul>
+            <li><span>Data source</span><strong id="summary-source">USGS PAD-US 3.0</strong></li>
+            <li><span>Land layers</span><strong id="summary-layers">4 selected</strong></li>
+            <li><span>Basemap</span><strong id="summary-basemap">Esri World Street Map</strong></li>
+            <li><span>API keys</span><strong id="summary-keys">None saved</strong></li>
+          </ul>
+          <div class="settings-actions">
+            <button class="save-button" type="submit">Save settings</button>
+            <button class="reset-settings-button" id="reset-settings" type="button">Reset to defaults</button>
+            <a class="back-to-map" href="./index.html">← Back to map</a>
+          </div>
+          <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
+        </aside>
+      </form>
+    </main>
+
+    <footer class="footer">
+      <a class="brand footer-brand" href="./index.html"><span class="brand-mark" aria-hidden="true">▲</span><span>campgroundless<span class="brand-period">.</span></span></a>
+      <p>Map settings are stored in this browser only.</p>
+      <a href="./index.html#data-sources">Data &amp; limitations</a>
+    </footer>
+
+    <script src="./settings-store.js?v=2"></script>
+    <script src="./settings.js?v=2"></script>
+  </body>
+</html>
