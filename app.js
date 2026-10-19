@@ -24,7 +24,7 @@
     [49.1, -93.5],
   );
   const defaultLayerUrl =
-    "https://services.arcgis.com/9ecg2KpMLcsUv1Oh/arcgis/rest/services/Land_Ownership/FeatureServer/39";
+    "https://services.arcgis.com/v01gqwM5QqNysAAi/ArcGIS/rest/services/Manager_Name/FeatureServer/0";
   const managersByGroup = {
     forest: ["USFS"],
     blm: ["BLM"],
@@ -1355,7 +1355,7 @@
         ? escapeHtml(settings.dataAttribution || "Land data: custom ArcGIS Feature Layer")
         : "Land data: USGS GAP, PAD-US 3.0",
     fields: [
-      "FID",
+      settings.dataSource === "custom" ? "FID" : "OBJECTID",
       "FeatClass",
       "Mang_Name",
       "Unit_Nm",
