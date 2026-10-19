@@ -4,8 +4,14 @@
   const coverageStates = [
     { abbreviation: "CA", fips: "06", name: "California" },
     { abbreviation: "OR", fips: "41", name: "Oregon" },
+    { abbreviation: "WA", fips: "53", name: "Washington" },
+    { abbreviation: "ID", fips: "16", name: "Idaho" },
     { abbreviation: "NV", fips: "32", name: "Nevada" },
+    { abbreviation: "UT", fips: "49", name: "Utah" },
     { abbreviation: "AZ", fips: "04", name: "Arizona" },
+    { abbreviation: "CO", fips: "08", name: "Colorado" },
+    { abbreviation: "NM", fips: "35", name: "New Mexico" },
+    { abbreviation: "TX", fips: "48", name: "Texas" },
   ];
   const coverageStateCodes = coverageStates
     .map((state) => `'${state.abbreviation}'`)
@@ -14,8 +20,8 @@
     .map((state) => `'${state.fips}'`)
     .join(",");
   const coverageBounds = L.latLngBounds(
-    [31.2, -124.8],
-    [46.5, -109.0],
+    [25.8, -124.8],
+    [49.1, -93.5],
   );
   const defaultLayerUrl =
     "https://services.arcgis.com/9ecg2KpMLcsUv1Oh/arcgis/rest/services/Land_Ownership/FeatureServer/39";
@@ -202,13 +208,13 @@
           !geometry || !["Polygon", "MultiPolygon"].includes(geometry.type),
       )
     ) {
-      throw new Error("The Census Bureau did not return all four state boundaries.");
+      throw new Error("The Census Bureau did not return all coverage state boundaries.");
     }
     coverageStateGeometries = geometries;
     return geometries;
   });
   coverageBoundaryPromise.catch((error) => {
-    console.warn("Could not load the four-state coverage boundaries.", error);
+    console.warn("Could not load the multi-state coverage boundaries.", error);
   });
   const blmRecreationPane = map.createPane("blmRecreationSites");
   blmRecreationPane.style.zIndex = "430";
@@ -1068,7 +1074,7 @@
   function openNoteEditor(location, note = null) {
     if (!isWithinCoverage([location.lng, location.lat])) {
       selectedNoteLocation = null;
-      setNoteMessage("Choose a point within California, Oregon, Nevada, or Arizona to save a note.", true);
+      setNoteMessage("Choose a point within California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, or Texas to save a note.", true);
       return;
     }
     selectedNoteLocation = location;
@@ -2668,7 +2674,7 @@
     });
     searchResults.hidden = validPlaces.length === 0;
     if (validPlaces.length === 0) {
-      searchMessage.textContent = "No matching places found in California, Oregon, Nevada, or Arizona. Try another name or spelling.";
+      searchMessage.textContent = "No matching places found in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, or Texas. Try another name or spelling.";
       return;
     }
     searchMessage.textContent = `${validPlaces.length} place results found. Choose one to show it on the map.`;
@@ -2689,7 +2695,7 @@
     endpoint.searchParams.set("format", "jsonv2");
     endpoint.searchParams.set("limit", "5");
     endpoint.searchParams.set("countrycodes", "us");
-    endpoint.searchParams.set("viewbox", "-124.8,46.5,-109.0,31.2");
+    endpoint.searchParams.set("viewbox", "-124.8,49.1,-93.5,25.8");
     endpoint.searchParams.set("bounded", "1");
     lastPlaceSearchAt = Date.now();
     const controller = new AbortController();
@@ -2749,7 +2755,7 @@
     placeSearchInProgress = true;
     searchSubmit.disabled = true;
     searchSubmit.textContent = "…";
-    searchMessage.textContent = "Searching California, Oregon, Nevada, and Arizona…";
+    searchMessage.textContent = "Searching California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas…";
     try {
       await searchPlaces(term);
     } catch (error) {
@@ -2796,6 +2802,6 @@
     map.fitBounds(coverageBounds);
     searchInput.value = "";
     clearSearchResults();
-    searchMessage.textContent = "Search for places or land units in California, Oregon, Nevada, and Arizona. Place searches go to OpenStreetMap when submitted; no autocomplete.";
+    searchMessage.textContent = "Search for places or land units in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Place searches go to OpenStreetMap when submitted; no autocomplete.";
   });
 })();
