@@ -14,6 +14,15 @@
       state: true,
       other: true,
     },
+    overlays: {
+      fsRecreation: false,
+      fsRoads: false,
+      fsClosedRoads: false,
+      fsTrails: false,
+      fsMvum: false,
+      blmPublicRoads: false,
+      blmLimitedRoads: false,
+    },
     basemap: "esri",
     osmLayer: "standard",
     basemapUrl: "",
@@ -35,6 +44,15 @@
 
   function normalizeOsmLayer(layer) {
     return osmLayers.includes(layer) ? layer : defaults.osmLayer;
+  }
+
+  function normalizeOverlays(overlays = {}) {
+    if (!overlays || typeof overlays !== "object") {
+      overlays = {};
+    }
+    return Object.fromEntries(
+      Object.keys(defaults.overlays).map((name) => [name, overlays[name] === true]),
+    );
   }
 
   function normalizeTypography(typography = {}) {
@@ -65,6 +83,7 @@
         ...defaults,
         ...saved,
         layers: { ...defaults.layers, ...(saved.layers ?? {}) },
+        overlays: normalizeOverlays(saved.overlays),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
         typography: normalizeTypography(saved.typography),
       };
@@ -79,6 +98,7 @@
       storageKey,
       JSON.stringify({
         ...settings,
+        overlays: normalizeOverlays(settings.overlays),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
         typography: normalizeTypography(settings.typography),
       }),

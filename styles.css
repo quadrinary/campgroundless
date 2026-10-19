@@ -865,7 +865,9 @@ h1 em {
   position: absolute;
   right: 50px;
   bottom: 0;
-  width: 220px;
+  width: 280px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
   padding: 10px;
   border: 1px solid #dfe4dc;
   border-radius: 5px;
@@ -885,12 +887,119 @@ h1 em {
   font-size: 11px;
 }
 
+.map-layer-separator {
+  margin: 8px -2px;
+  border: 0;
+  border-top: 1px solid #e5e9e2;
+}
+
+.map-layer-help {
+  margin: 2px 0 5px;
+  color: #69766b;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.map-overlay-legend[hidden] {
+  display: none;
+}
+
+.map-overlay-legend {
+  margin: 0 0 7px 24px;
+  padding: 5px 0 6px;
+  border-top: 1px solid #e5e9e2;
+}
+
+.map-overlay-legend-heading {
+  display: block;
+  margin-bottom: 2px;
+  color: #46594a;
+  font-size: 9px;
+}
+
+.map-overlay-legend-content {
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.map-mvum-legend-group + .map-mvum-legend-group {
+  margin-top: 7px;
+}
+
+.map-mvum-legend-group-title {
+  display: block;
+  margin-bottom: 2px;
+  color: #46594a;
+  font-size: 9px;
+}
+
+.map-mvum-legend-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-mvum-legend-item {
+  display: grid;
+  min-height: 22px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  color: #58665a;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+.map-mvum-legend-symbol {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.map-blm-legend-line {
+  width: 20px;
+  height: 0;
+  justify-self: center;
+  border-top: 3px solid #397b46;
+}
+
+.map-blm-legend-line.is-limited {
+  border-top: 3px dashed #a45138;
+}
+
 .map-layer-option {
   display: flex;
   min-height: 30px;
   align-items: center;
   gap: 8px;
   cursor: pointer;
+}
+
+.map-overlay-option {
+  min-height: 40px;
+}
+
+.map-overlay-copy {
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.map-overlay-copy strong,
+.map-overlay-copy small {
+  display: block;
+}
+
+.map-overlay-copy strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.map-overlay-copy small {
+  margin-top: 1px;
+  color: #758076;
+  font-size: 8px;
 }
 
 .map-layer-option input {
@@ -1009,6 +1118,33 @@ h1 em {
   color: #69756b;
   font-size: 10px;
   line-height: 1.5;
+}
+
+.road-location-popup {
+  max-width: 310px;
+}
+
+.road-location-popup h3 {
+  margin-bottom: 6px;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.road-restrictions {
+  margin: 0 0 7px;
+  color: #69756b;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.road-restrictions ul {
+  margin: 3px 0 0;
+  padding-left: 16px;
+}
+
+.road-restrictions li {
+  margin: 2px 0;
 }
 
 .map-popup .popup-warning {

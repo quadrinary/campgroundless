@@ -12,13 +12,15 @@
     <link rel="preconnect" href="https://unpkg.com" />
     <link rel="preconnect" href="https://services.arcgis.com" />
     <link rel="preconnect" href="https://server.arcgisonline.com" />
+    <link rel="preconnect" href="https://apps.fs.usda.gov" />
+    <link rel="preconnect" href="https://basemap.nationalmap.gov" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=11" />
+    <link rel="stylesheet" href="./styles.css?v=15" />
   </head>
   <body>
     <header class="topbar">
@@ -247,6 +249,9 @@
             <p class="data-warning">
               <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
             </p>
+            <p>
+              Optional Forest Service recreation, road, trail, and MVUM overlays, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to the nearest named Census road. The MVUM legend explains designated vehicle types and seasons; BLM line styles distinguish public-release GTLF dataset subsets, not legal access status. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
+            </p>
           </div>
           <div class="source-list">
             <h3>Sources &amp; verification</h3>
@@ -261,6 +266,30 @@
             </a>
             <a href="https://www.fs.usda.gov/visit/know-before-you-go" target="_blank" rel="noreferrer">
               <span><strong>U.S. Forest Service</strong><small>Check current local conditions</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>USGS The National Map Topo</strong><small>Topographic reference basemap</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>USFS Recreation Opportunities</strong><small>Service reports nightly updates</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>USFS National Forest System Roads</strong><small>Includes mapped motorized closures</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>USFS National Forest System Trails</strong><small>Trail detail varies by forest</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_MVUM_01/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>USFS Motor Vehicle Use Map routes</strong><small>Designated vehicle use; coverage varies by forest</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer" target="_blank" rel="noreferrer">
+              <span><strong>U.S. Census Bureau TIGERweb roads</strong><small>Named primary, secondary, and local road reference</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://www.arcgis.com/home/item.html?id=f94999eb674d4085be0c86729fe4a151" target="_blank" rel="noreferrer">
+              <span><strong>BLM National GTLF public motorized roads</strong><small>National public-release dataset subset</small></span><span aria-hidden="true">↗</span>
+            </a>
+            <a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936" target="_blank" rel="noreferrer">
+              <span><strong>BLM National GTLF limited-public motorized roads</strong><small>National limited-public dataset subset</small></span><span aria-hidden="true">↗</span>
             </a>
             <p class="source-timestamp" id="source-layer-note">The default ArcGIS layer reports PAD-US 3.0 data last edited May 23, 2023. This is not a current inventory of restrictions or conditions.</p>
           </div>
@@ -280,7 +309,7 @@
       crossorigin=""
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
-    <script src="./settings-store.js?v=5"></script>
-    <script src="./app.js?v=15"></script>
+    <script src="./settings-store.js?v=9"></script>
+    <script src="./app.js?v=34"></script>
   </body>
 </html>

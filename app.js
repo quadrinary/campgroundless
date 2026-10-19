@@ -122,6 +122,9 @@
   searchMarkers.addTo(map);
   noteMarkers.addTo(map);
   sharedNoteMarkers.addTo(map);
+  const referencePane = map.createPane("referenceOverlays");
+  referencePane.style.zIndex = "420";
+  referencePane.style.pointerEvents = "none";
   function createBasemap() {
     const basemapOptions = {
       maxZoom: 19,
@@ -147,6 +150,28 @@
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
         basemapOptions.maxZoom = 19;
       }
+    } else if (settings.basemap === "esri-imagery") {
+      url =
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+      if (settings.esriApiKey) {
+        url += `?token=${encodeURIComponent(settings.esriApiKey)}`;
+      }
+      basemapOptions.attribution =
+        "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community";
+    } else if (settings.basemap === "esri-hillshade") {
+      url =
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}";
+      if (settings.esriApiKey) {
+        url += `?token=${encodeURIComponent(settings.esriApiKey)}`;
+      }
+      basemapOptions.attribution =
+        "Sources: Esri, Vantor, Airbus DS, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap, and the GIS user community";
+    } else if (settings.basemap === "usgs-topo") {
+      url = "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}";
+      basemapOptions.maxNativeZoom = 16;
+      basemapOptions.maxZoom = 18;
+      basemapOptions.attribution =
+        'USGS The National Map; data sources include USGS, U.S. Census Bureau, USFS, NOAA, and others · <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">The National Map</a>';
     } else if (settings.basemap === "custom" && settings.basemapUrl) {
       const apiKey = encodeURIComponent(settings.customBasemapApiKey);
       url = settings.basemapUrl
@@ -178,7 +203,7 @@
     if (settings.basemap === "custom" && settings.basemapUrl) {
       return "custom";
     }
-    return settings.basemap === "osm" ? `osm:${settings.osmLayer}` : "esri";
+    return settings.basemap === "osm" ? `osm:${settings.osmLayer}` : settings.basemap;
   }
 
   function applyBasemapOption(option) {
@@ -188,7 +213,7 @@
       settings.basemap = "osm";
       settings.osmLayer = option.slice("osm:".length);
     } else {
-      settings.basemap = "esri";
+      settings.basemap = option;
     }
 
     layerStatus.textContent = "";
@@ -204,6 +229,7 @@
   }
 
   let layerStatus;
+  const activeRoadOverlays = new Map();
   const layerControl = L.control({ position: "bottomright" });
   layerControl.onAdd = () => {
     const container = L.DomUtil.create("div", "leaflet-control map-layer-control");
@@ -213,20 +239,25 @@
       container,
     );
     button.type = "button";
-    button.title = "Choose map style";
-    button.setAttribute("aria-label", "Choose map style");
+    button.title = "Choose basemap and reference overlays";
+    button.setAttribute("aria-label", "Choose basemap and reference overlays");
     button.setAttribute("aria-expanded", "false");
 
     const panel = L.DomUtil.create("div", "map-layer-panel", container);
     panel.id = "map-layer-panel";
     panel.hidden = true;
     panel.setAttribute("role", "group");
-    panel.setAttribute("aria-label", "Map styles");
+    panel.setAttribute("aria-label", "Basemaps and reference overlays");
     const heading = L.DomUtil.create("strong", "map-layer-heading", panel);
     heading.textContent = "Map style";
+    layerStatus = L.DomUtil.create("span", "map-layer-status", panel);
+    layerStatus.setAttribute("role", "status");
 
     const options = [
       ["esri", "Esri World Street Map"],
+      ["esri-imagery", "Esri World Imagery"],
+      ["esri-hillshade", "Esri World Hillshade"],
+      ["usgs-topo", "USGS Topographic Map"],
       ["osm:standard", "OpenStreetMap · Standard"],
       ["osm:hot", "OpenStreetMap · Humanitarian"],
       ["osm:topographic", "OpenTopoMap · Topographic"],
@@ -255,8 +286,267 @@
       });
     });
 
-    layerStatus = L.DomUtil.create("span", "map-layer-status", panel);
-    layerStatus.setAttribute("role", "status");
+    const separator = L.DomUtil.create("hr", "map-layer-separator", panel);
+    separator.setAttribute("aria-hidden", "true");
+    const overlayHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
+    overlayHeading.textContent = "Reference overlays";
+    const overlayHelp = L.DomUtil.create("p", "map-layer-help", panel);
+    overlayHelp.textContent =
+      "Enable a road overlay, then click a mapped route for details. These layers do not confirm current access or camping permission.";
+
+    const overlayDefinitions = {
+      fsRecreation: {
+        label: "USFS recreation sites",
+        description: "Nightly-updated mapped facilities",
+        legendTitle: "Recreation symbols",
+        legendDescription: "Mapped recreation opportunity categories; not all sites are campgrounds.",
+        url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer",
+        layers: [0],
+        attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer">USDA Forest Service Recreation Opportunities</a>',
+      },
+      fsRoads: {
+        isRoad: true,
+        label: "USFS roads",
+        description: "Mapped Forest Service roads; verify current conditions",
+        legendTitle: "Road symbols",
+        legendDescription: "Mapped road surface categories; not current access status.",
+        url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer",
+        layers: [0],
+        attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer">USDA Forest Service National Forest System Roads</a>',
+      },
+      fsClosedRoads: {
+        isRoad: true,
+        label: "USFS roads mapped closed to motorized use",
+        description: "Not a live closure or access feed",
+        legendTitle: "Mapped closure symbol",
+        legendDescription: "A mapped motorized-use designation, not a live closure feed.",
+        legendFallback: "Road mapped closed to motorized uses",
+        url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer",
+        layers: [1],
+        attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer">USDA Forest Service National Forest System Roads</a>',
+      },
+      fsTrails: {
+        label: "USFS trails",
+        description: "Trail attributes vary by forest",
+        legendTitle: "Trail symbol",
+        legendDescription: "Forest Service trail mapping; detail and attributes vary by forest.",
+        legendFallback: "National Forest System trail",
+        url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer",
+        layers: [0],
+        attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer">USDA Forest Service National Forest System Trails</a>',
+      },
+      fsMvum: {
+        isRoad: true,
+        label: "USFS MVUM routes",
+        description: "Designated motor-vehicle routes; coverage varies by forest",
+        legendTitle: "MVUM route markings",
+        legendDescription:
+          "Vehicle permissions and seasons are not camping permission or current closure status.",
+        url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_MVUM_01/MapServer",
+        layers: [1, 2],
+        attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_MVUM_01/MapServer">USDA Forest Service Motor Vehicle Use Map</a>',
+      },
+      blmPublicRoads: {
+        isRoad: true,
+        type: "feature",
+        label: "BLM public-release motorized roads",
+        description: "National GTLF subset; not proof of public access",
+        legendTitle: "BLM GTLF road marking",
+        legendDescription:
+          "Solid green identifies this source dataset subset, not legal public access or current road status.",
+        url: "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_Natl_GTLF_Public_Motorized_Roads/FeatureServer/3",
+        where: "ADMIN_ST = 'CA'",
+        color: "#397b46",
+        dashArray: null,
+        attribution: '<a href="https://www.arcgis.com/home/item.html?id=f94999eb674d4085be0c86729fe4a151">BLM National Ground Transportation Linear Features (GTLF)</a>',
+      },
+      blmLimitedRoads: {
+        isRoad: true,
+        type: "feature",
+        label: "BLM limited-public motorized roads",
+        description: "National GTLF subset; not a live access status",
+        legendTitle: "BLM GTLF road marking",
+        legendDescription:
+          "Dashed rust identifies this source dataset subset, not legal access or current road status.",
+        url: "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_Natl_GTLF_Limited_Public_Motorized_Roads/FeatureServer/0",
+        where: "ADMIN_ST = 'CA'",
+        color: "#a45138",
+        dashArray: "6 4",
+        attribution: '<a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936">BLM National Ground Transportation Linear Features (GTLF)</a>',
+      },
+    };
+    const overlayLayers = {};
+    const legendRequests = new Map();
+
+    Object.entries(overlayDefinitions).forEach(([key, definition]) => {
+      const overlayEntry = L.DomUtil.create("div", "map-overlay-entry", panel);
+      const optionLabel = L.DomUtil.create(
+        "label",
+        "map-layer-option map-overlay-option",
+        overlayEntry,
+      );
+      const checkbox = L.DomUtil.create("input", "", optionLabel);
+      checkbox.type = "checkbox";
+      checkbox.name = "map-reference-overlay";
+      checkbox.value = key;
+      checkbox.checked = Boolean(settings.overlays[key]);
+      const copy = L.DomUtil.create("span", "map-overlay-copy", optionLabel);
+      const labelText = L.DomUtil.create("strong", "", copy);
+      labelText.textContent = definition.label;
+      const description = L.DomUtil.create("small", "", copy);
+      description.textContent = definition.description;
+      const legend = L.DomUtil.create("section", "map-overlay-legend", overlayEntry);
+      legend.hidden = true;
+      const legendHeading = L.DomUtil.create("strong", "map-overlay-legend-heading", legend);
+      legendHeading.textContent = definition.legendTitle;
+      const legendDescription = L.DomUtil.create("p", "map-layer-help", legend);
+      legendDescription.textContent = definition.legendDescription;
+      const legendContent = L.DomUtil.create("div", "map-overlay-legend-content", legend);
+      let legendLoaded = false;
+
+      async function loadOverlayLegend() {
+        if (legendLoaded) {
+          return;
+        }
+        if (definition.type === "feature") {
+          const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
+          const line = L.DomUtil.create("span", "map-blm-legend-line", item);
+          line.classList.add(key === "blmLimitedRoads" ? "is-limited" : "is-public");
+          const label = L.DomUtil.create("span", "", item);
+          label.textContent = definition.label;
+          legendLoaded = true;
+          return;
+        }
+
+        const legendUrl = `${definition.url}/legend?f=json`;
+        if (!legendRequests.has(legendUrl)) {
+          legendRequests.set(
+            legendUrl,
+            fetch(legendUrl).then((response) => {
+              if (!response.ok) {
+                throw new Error(`Legend request failed (${response.status}).`);
+              }
+              return response.json();
+            }),
+          );
+        }
+        try {
+          const data = await legendRequests.get(legendUrl);
+          const serviceLayers = (data.layers ?? []).filter((layer) =>
+            definition.layers.includes(layer.layerId),
+          );
+          if (serviceLayers.length !== definition.layers.length) {
+            throw new Error("The service returned an incomplete legend.");
+          }
+          serviceLayers.forEach((serviceLayer) => {
+            const group = L.DomUtil.create("div", "map-mvum-legend-group", legendContent);
+            if (serviceLayers.length > 1) {
+              const groupHeading = L.DomUtil.create(
+                "strong",
+                "map-mvum-legend-group-title",
+                group,
+              );
+              groupHeading.textContent = serviceLayer.layerName.endsWith("Roads")
+                ? "Roads"
+                : "Trails";
+            }
+            const list = L.DomUtil.create("ul", "map-mvum-legend-list", group);
+            (serviceLayer.legend ?? []).forEach((entry) => {
+              if (
+                entry.contentType !== "image/png" ||
+                typeof entry.imageData !== "string" ||
+                !/^[A-Za-z0-9+/=]+$/.test(entry.imageData)
+              ) {
+                return;
+              }
+              const item = L.DomUtil.create("li", "map-mvum-legend-item", list);
+              const symbol = L.DomUtil.create("img", "map-mvum-legend-symbol", item);
+              symbol.src = `data:image/png;base64,${entry.imageData}`;
+              symbol.alt = "";
+              const label = L.DomUtil.create("span", "", item);
+              label.textContent =
+                entry.label || definition.legendFallback || serviceLayer.layerName;
+            });
+          });
+          if (!legendContent.childElementCount) {
+            throw new Error("The service legend contained no usable symbols.");
+          }
+          legendLoaded = true;
+        } catch (error) {
+          legendRequests.delete(legendUrl);
+          console.error(`Could not load the ${definition.label} legend.`, error);
+          layerStatus.textContent = `${definition.label} is on, but its legend could not be loaded.`;
+        }
+      }
+
+      checkbox.addEventListener("change", () => {
+        settings.overlays[key] = checkbox.checked;
+        if (definition.isRoad) {
+          if (checkbox.checked) {
+            activeRoadOverlays.set(key, { ...definition, key });
+          } else {
+            activeRoadOverlays.delete(key);
+          }
+        }
+        layerStatus.textContent = "";
+        legend.hidden = !checkbox.checked;
+        if (checkbox.checked) {
+          loadOverlayLegend();
+        }
+        try {
+          window.CampgroundlessSettings.write(settings);
+        } catch (error) {
+          console.error("Could not save reference overlay preference.", error);
+          layerStatus.textContent =
+            "Overlay changed for this visit, but could not be saved in this browser.";
+        }
+
+        if (checkbox.checked) {
+          if (!overlayLayers[key]) {
+            const overlay =
+              definition.type === "feature"
+                ? L.esri.featureLayer({
+                    url: definition.url,
+                    where: definition.where,
+                    pane: "referenceOverlays",
+                    attribution: definition.attribution,
+                    style: () => ({
+                      color: definition.color,
+                      weight: 2,
+                      opacity: 0.9,
+                      dashArray: definition.dashArray,
+                    }),
+                  })
+                : L.esri.dynamicMapLayer({
+                    url: definition.url,
+                    layers: definition.layers,
+                    opacity: 0.88,
+                    pane: "referenceOverlays",
+                    attribution: definition.attribution,
+                  });
+            overlay.on("requesterror", () => {
+              layerStatus.textContent = `${definition.label} could not be loaded. The provider may be unavailable.`;
+            });
+            if (definition.isRoad) {
+              overlay.on("click", (event) => {
+                if (event.originalEvent) {
+                  L.DomEvent.stopPropagation(event.originalEvent);
+                }
+                handleMapClick(event);
+              });
+            }
+            overlayLayers[key] = overlay;
+          }
+          overlayLayers[key].addTo(map);
+        } else if (overlayLayers[key]) {
+          map.removeLayer(overlayLayers[key]);
+        }
+      });
+      if (checkbox.checked) {
+        checkbox.dispatchEvent(new Event("change"));
+      }
+    });
+
     button.setAttribute("aria-controls", panel.id);
     button.addEventListener("click", () => {
       panel.hidden = !panel.hidden;
@@ -496,7 +786,7 @@
     noteCount.textContent = `${notes.length} saved`;
   }
 
-  map.on("click", (event) => openNoteEditor(event.latlng));
+  map.on("click", handleMapClick);
   document.getElementById("map-note-cancel").addEventListener("click", closeNoteEditor);
   noteForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -643,6 +933,15 @@
     onEachFeature: createPopup,
   };
   const landLayer = L.esri.featureLayer(landLayerOptions);
+  landLayer.on("click", (event) => {
+    if (activeRoadOverlays.size === 0) {
+      return;
+    }
+    if (event.originalEvent) {
+      L.DomEvent.stopPropagation(event.originalEvent);
+    }
+    handleMapClick(event, true);
+  });
 
   landLayer.on("load", () => {
     mapLoading.hidden = true;
@@ -661,6 +960,450 @@
   });
 
   landLayer.addTo(map);
+
+  const censusRoadService =
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer";
+  const nearbyRoadSearchMeters = 10000;
+  let roadLookupSequence = 0;
+
+  async function queryArcGisFeatures(layerUrl, {
+    where = "1=1",
+    geometry,
+    geometryType,
+    outFields = "*",
+    token,
+    resultRecordCount = 2000,
+  }) {
+    const url = `${layerUrl.replace(/\/+$/, "")}/query`;
+    const parameters = new URLSearchParams({
+      where,
+      geometry: JSON.stringify(geometry),
+      geometryType,
+      inSR: "4326",
+      outSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      outFields,
+      returnGeometry: "true",
+      resultRecordCount: String(resultRecordCount),
+      f: "geojson",
+    });
+    if (token) {
+      parameters.set("token", token);
+    }
+    const response = await fetch(`${url}?${parameters}`);
+    if (!response.ok) {
+      throw new Error(`Map data request failed (${response.status}).`);
+    }
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "Map data provider returned an error.");
+    }
+    return data;
+  }
+
+  function roadQueryEnvelope(location, radius) {
+    const latitudePadding = radius / 111320;
+    const longitudePadding = latitudePadding / Math.max(0.01, Math.cos((location.lat * Math.PI) / 180));
+    return {
+      xmin: location.lng - longitudePadding,
+      ymin: location.lat - latitudePadding,
+      xmax: location.lng + longitudePadding,
+      ymax: location.lat + latitudePadding,
+      spatialReference: { wkid: 4326 },
+    };
+  }
+
+  function propertyValue(properties, ...names) {
+    const entries = Object.entries(properties ?? {});
+    for (const name of names) {
+      const entry = entries.find(([key]) => key.toLowerCase() === name.toLowerCase());
+      if (entry && entry[1] !== null && entry[1] !== undefined && String(entry[1]).trim()) {
+        return entry[1];
+      }
+    }
+    return "";
+  }
+
+  function roadClickToleranceMeters(location) {
+    const point = map.latLngToContainerPoint(location);
+    const adjacentPoint = map.containerPointToLatLng(L.point(point.x + 12, point.y));
+    return Math.max(35, Math.min(400, map.distance(location, adjacentPoint)));
+  }
+
+  async function queryRoadOverlay(definition, location, toleranceMeters) {
+    const nearbyGeometry = roadQueryEnvelope(location, toleranceMeters);
+    const layerSources =
+      definition.type === "feature"
+        ? [{ url: definition.url, layerId: null }]
+        : definition.layers.map((layerId) => ({
+            url: `${definition.url}/${layerId}`,
+            layerId,
+          }));
+    const results = await Promise.all(
+      layerSources.map(async ({ url, layerId }) => {
+        const data = await queryArcGisFeatures(url, {
+          where: definition.where ?? "1=1",
+          geometry: nearbyGeometry,
+          geometryType: "esriGeometryEnvelope",
+        });
+        return (data.features ?? []).map((feature) => ({
+          definition,
+          layerId,
+          properties: feature.properties ?? {},
+          geometry: feature.geometry,
+        }));
+      }),
+    );
+    return results.flat();
+  }
+
+  async function queryLandAtPoint(location) {
+    const data = await queryArcGisFeatures(dataSourceUrl, {
+      where: buildWhere({ forest: true, blm: true, state: true, other: true }),
+      geometry: {
+        x: location.lng,
+        y: location.lat,
+        spatialReference: { wkid: 4326 },
+      },
+      geometryType: "esriGeometryPoint",
+      outFields: "FeatClass,Mang_Name,Unit_Nm,Loc_Nm,Pub_Access,Src_Date",
+      token: settings.dataApiKey,
+      resultRecordCount: 10,
+    });
+    return data.features?.[0]?.properties ?? null;
+  }
+
+  function pointToRoadDistanceMeters(location, geometry) {
+    const coordinates = geometry?.type === "LineString"
+      ? [geometry.coordinates]
+      : geometry?.type === "MultiLineString"
+        ? geometry.coordinates
+        : [];
+    const earthRadius = 6371008.8;
+    const latitudeRadians = (location.lat * Math.PI) / 180;
+    const metersPerDegreeLatitude = (Math.PI * earthRadius) / 180;
+    const metersPerDegreeLongitude = metersPerDegreeLatitude * Math.cos(latitudeRadians);
+    let shortestDistance = Infinity;
+
+    coordinates.forEach((line) => {
+      for (let index = 1; index < line.length; index += 1) {
+        const first = line[index - 1];
+        const second = line[index];
+        const ax = (first[0] - location.lng) * metersPerDegreeLongitude;
+        const ay = (first[1] - location.lat) * metersPerDegreeLatitude;
+        const bx = (second[0] - location.lng) * metersPerDegreeLongitude;
+        const by = (second[1] - location.lat) * metersPerDegreeLatitude;
+        const segmentX = bx - ax;
+        const segmentY = by - ay;
+        const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
+        const projection =
+          segmentLengthSquared === 0
+            ? 0
+            : Math.max(
+                0,
+                Math.min(1, -(ax * segmentX + ay * segmentY) / segmentLengthSquared),
+              );
+        shortestDistance = Math.min(
+          shortestDistance,
+          Math.hypot(ax + projection * segmentX, ay + projection * segmentY),
+        );
+      }
+    });
+    return shortestDistance;
+  }
+
+  function censusRoadType(properties) {
+    const mtfcc = propertyValue(properties, "MTFCC");
+    const routeType = propertyValue(properties, "RTTYP");
+    const routeTypes = {
+      I: "Interstate",
+      U: "U.S. Highway",
+      S: "State highway",
+      C: "County road",
+    };
+    if (routeTypes[routeType]) {
+      return routeTypes[routeType];
+    }
+    return (
+      {
+        S1100: "Primary highway",
+        S1200: "Secondary road (U.S./state highway or connector)",
+        S1400: "Local road (neighborhood/rural street)",
+      }[mtfcc] || "Public road"
+    );
+  }
+
+  async function findNearestNamedRoad(location) {
+    const dataByLayer = await Promise.all(
+      [2, 6, 8].map((layerId) =>
+        queryArcGisFeatures(`${censusRoadService}/${layerId}`, {
+          where: "NAME IS NOT NULL AND NAME <> '' AND MTFCC IN ('S1100','S1200','S1400')",
+          geometry: roadQueryEnvelope(location, nearbyRoadSearchMeters),
+          geometryType: "esriGeometryEnvelope",
+          outFields: "NAME,BASENAME,MTFCC,RTTYP",
+          resultRecordCount: 2000,
+        }),
+      ),
+    );
+    let nearest = null;
+    let incomplete = false;
+    dataByLayer.forEach((data) => {
+      incomplete ||= data.exceededTransferLimit === true;
+      (data.features ?? []).forEach((feature) => {
+        const name = propertyValue(feature.properties, "NAME", "BASENAME");
+        if (!name) {
+          return;
+        }
+        const distance = pointToRoadDistanceMeters(location, feature.geometry);
+        if (
+          Number.isFinite(distance) &&
+          distance <= nearbyRoadSearchMeters &&
+          (!nearest || distance < nearest.distance)
+        ) {
+          nearest = {
+            name,
+            type: censusRoadType(feature.properties),
+            distance,
+          };
+        }
+      });
+    });
+    return { road: nearest, incomplete };
+  }
+
+  function roadRestrictionDetails(road) {
+    const properties = road.properties;
+    const key = road.definition.key;
+    let fields;
+    if (key.startsWith("blm")) {
+      fields = [
+        ["Planned travel mode", ["PLAN_ALLOW_MODE_TRNSPRT"]],
+        ["Access restriction", ["PLAN_ACCESS_RSTRCT"]],
+        ["Seasonal restriction", ["PLAN_SEASON_RSTRCT_CODE"]],
+        ["OHV designation", ["PLAN_OHV_ROUTE_DSGNTN"]],
+        ["OHV limits", ["OHV_ROUTE_DSGNTN_LIM", "OHV_DSGNTN_LIM_EXPLAIN"]],
+      ];
+    } else if (key === "fsMvum") {
+      fields = [
+        ["MVUM route designation", ["mvum_symbol_name"]],
+        ["Seasonal designation", ["seasonal"]],
+      ];
+      [
+        ["Passenger vehicles", "passengervehicle", "passengervehicle_datesopen"],
+        ["High-clearance vehicles", "highclearancevehicle", "highclearancevehicle_datesopen"],
+        ["Trucks", "truck", "truck_datesopen"],
+        ["Buses", "bus", "bus_datesopen"],
+        ["Motorhomes", "motorhome", "motorhome_datesopen"],
+        ["Four-wheel drive over 50 inches", "fourwd_gt50inches", "fourwd_gt50_datesopen"],
+        ["Two-wheel drive over 50 inches", "twowd_gt50inches", "twowd_gt50_datesopen"],
+        ["Tracked OHV over 50 inches", "tracked_ohv_gt50inches", "tracked_ohv_gt50_datesopen"],
+        ["Other OHV over 50 inches", "other_ohv_gt50inches", "other_ohv_gt50_datesopen"],
+        ["ATVs", "atv", "atv_datesopen"],
+        ["Motorcycles", "motorcycle", "motorcycle_datesopen"],
+        ["Other wheeled OHVs", "otherwheeled_ohv", "otherwheeled_ohv_datesopen"],
+        ["Tracked OHV under 50 inches", "tracked_ohv_lt50inches", "tracked_ohv_lt50_datesopen"],
+        ["Other OHV under 50 inches", "other_ohv_lt50inches", "other_ohv_lt50_datesopen"],
+      ].forEach(([label, property, datesProperty]) => {
+        const value = propertyValue(properties, property);
+        const dates = propertyValue(properties, datesProperty);
+        if ((value && !/^(no|n|false)$/i.test(value)) || dates) {
+          fields.push([
+            label,
+            [value, dates ? `Dates open: ${dates}` : ""].filter(Boolean).join(" · "),
+          ]);
+        }
+      });
+    } else {
+      fields = [
+        ["Mapped route status", ["route_status"]],
+        ["Mapped motorized-use status", ["openforuseto"]],
+        ["Surface", ["surface_type"]],
+        ["Maintenance level", ["oper_maint_level"]],
+      ];
+      if (key === "fsClosedRoads") {
+        fields.unshift(["Mapped designation", []]);
+      }
+    }
+    const details = [];
+    fields.forEach(([label, names]) => {
+      const value =
+        label === "Mapped designation" && key === "fsClosedRoads"
+          ? "Mapped closed to motorized uses; not a real-time closure feed"
+          : Array.isArray(names)
+            ? propertyValue(properties, ...names)
+            : names;
+      if (value) {
+        details.push([label, value]);
+      }
+    });
+    return details;
+  }
+
+  function landTypeDescription(properties) {
+    if (!properties) {
+      return "No matching land record at this point; this does not prove the land is private.";
+    }
+    const manager = managerNames[propertyValue(properties, "Mang_Name")] ||
+      propertyValue(properties, "Mang_Name") ||
+      "Public land manager not specified";
+    const category = propertyValue(properties, "FeatClass");
+    const unit =
+      propertyValue(properties, "Unit_Nm", "Loc_Nm") || "Unnamed land unit";
+    const access = propertyValue(properties, "Pub_Access");
+    return `${manager} · ${unit}${category ? ` · ownership class: ${category}` : ""}${
+      access ? ` · PAD-US access code: ${access}` : ""
+    }`;
+  }
+
+  function distanceDescription(distance) {
+    if (distance < 160.9344) {
+      return `about ${Math.round(distance * 3.28084)} ft`;
+    }
+    return `about ${(distance / 1609.344).toFixed(2)} mi`;
+  }
+
+  function formatRoadPopup(road, land, nearestRoad, location, landError, nearbyRoadError) {
+    const properties = road.properties;
+    const name =
+      propertyValue(properties, "name", "ROUTE_PRMRY_NM") || "Unnamed mapped route";
+    const roadType =
+      road.definition.key === "fsMvum"
+        ? `${road.layerId === 1 ? "Forest Service MVUM road" : "Forest Service MVUM motorized trail"}`
+        : road.definition.key === "fsClosedRoads"
+          ? "Forest Service road (mapped motorized-use closure designation)"
+          : road.definition.key.startsWith("blm")
+            ? propertyValue(properties, "PLAN_ASSET_CLASS") || "BLM GTLF motorized road"
+            : "National Forest System road";
+    const restrictions = roadRestrictionDetails(road);
+    const restrictionMarkup = restrictions.length
+      ? `<ul>${restrictions
+          .map(
+            ([label, value]) =>
+              `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`,
+          )
+          .join("")}</ul>`
+      : "<p>No restriction details are available in this road record.</p>";
+    const landMarkup = landError
+      ? "Land type could not be looked up. Verify with the land manager."
+      : landTypeDescription(land);
+    let nearestMarkup;
+    if (nearbyRoadError) {
+      nearestMarkup = "Named-road distance could not be looked up.";
+    } else if (nearestRoad?.road) {
+      nearestMarkup = `${escapeHtml(nearestRoad.road.name)} · ${escapeHtml(
+        nearestRoad.road.type,
+      )} · ${distanceDescription(nearestRoad.road.distance)} straight-line`;
+      if (nearestRoad.incomplete) {
+        nearestMarkup += " (nearby road results may be incomplete)";
+      }
+    } else {
+      nearestMarkup = "No named public road found within 6.2 mi.";
+    }
+    return `
+      <div class="map-popup road-location-popup">
+        <div class="map-popup-label">${escapeHtml(road.definition.label)}</div>
+        <h3>${escapeHtml(name)}</h3>
+        <p><strong>Land:</strong> ${escapeHtml(landMarkup)}</p>
+        <p><strong>Road type:</strong> ${escapeHtml(roadType)}</p>
+        <div class="road-restrictions"><strong>Restrictions and status</strong>${restrictionMarkup}</div>
+        <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
+        <p><strong>Nearest named public road:</strong> ${nearestMarkup}</p>
+        <p class="popup-warning">Reference data only. Road records may be incomplete or outdated and do not establish current access or camping permission. Confirm route restrictions, closures, and land rules with the responsible agency.</p>
+        <div class="feature-note-action"><button type="button" class="road-note-button">Write a note here</button></div>
+      </div>`;
+  }
+
+  async function handleMapClick(event, fromLandFeature = false) {
+    if (activeRoadOverlays.size === 0) {
+      openNoteEditor(event.latlng);
+      return;
+    }
+    layerStatus.textContent = "";
+    const lookupId = ++roadLookupSequence;
+    const location = event.latlng;
+    const toleranceMeters = roadClickToleranceMeters(location);
+    const activeOverlays = [...activeRoadOverlays.values()];
+    const roadResults = await Promise.allSettled(
+      activeOverlays.map((definition) =>
+        queryRoadOverlay(definition, location, toleranceMeters),
+      ),
+    );
+    if (lookupId !== roadLookupSequence) {
+      return;
+    }
+    const nearbyRoads = roadResults.flatMap((result) =>
+      result.status === "fulfilled" ? result.value : [],
+    );
+    const closestRoad = nearbyRoads
+      .map((road) => ({
+        ...road,
+        distance: pointToRoadDistanceMeters(location, road.geometry),
+      }))
+      .filter(
+        (road) =>
+          Number.isFinite(road.distance) && road.distance <= toleranceMeters,
+      )
+      .sort((first, second) => first.distance - second.distance)[0];
+    if (!closestRoad) {
+      const failedSources = roadResults
+        .map((result, index) => (result.status === "rejected" ? activeOverlays[index].label : null))
+        .filter(Boolean);
+      if (failedSources.length) {
+        layerStatus.textContent = fromLandFeature
+          ? `Could not check ${failedSources.join(", ")}; showing the land information.`
+          : `Could not check ${failedSources.join(", ")}; no selected road was identified at this point.`;
+      } else {
+        layerStatus.textContent = fromLandFeature
+          ? "No selected road was found here. Showing the land information."
+          : `No selected road was found within ${distanceDescription(toleranceMeters)}. Zoom in and click closer to a mapped route.`;
+      }
+      if (!fromLandFeature && !event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
+        openNoteEditor(location);
+      }
+      return;
+    }
+
+    map.closePopup();
+    noteForm.hidden = true;
+    const popup = L.popup({ maxWidth: 340, maxHeight: 360 })
+      .setLatLng(location)
+      .setContent(
+        `<div class="map-popup"><p>Loading road, land, and nearby named-road details…</p></div>`,
+      )
+      .openOn(map);
+    map.attributionControl.addAttribution(
+      '<a href="https://tigerweb.geo.census.gov/">U.S. Census Bureau TIGERweb Roads</a>',
+    );
+    const [landResult, nearbyRoadResult] = await Promise.allSettled([
+      queryLandAtPoint(location),
+      findNearestNamedRoad(location),
+    ]);
+    if (lookupId !== roadLookupSequence) {
+      return;
+    }
+    const landError = landResult.status === "rejected";
+    const nearbyRoadError = nearbyRoadResult.status === "rejected";
+    if (landError) {
+      console.error("Could not identify land at the selected road location.", landResult.reason);
+    }
+    if (nearbyRoadError) {
+      console.error("Could not find a nearby named public road.", nearbyRoadResult.reason);
+    }
+    popup.setContent(
+      formatRoadPopup(
+        closestRoad,
+        landError ? null : landResult.value,
+        nearbyRoadError ? null : nearbyRoadResult.value,
+        location,
+        landError,
+        nearbyRoadError,
+      ),
+    );
+    popup.getElement()?.querySelector(".road-note-button")?.addEventListener("click", () => {
+      openNoteEditor(location);
+      map.closePopup();
+    });
+  }
 
   document.querySelectorAll('input[name="manager"]').forEach((checkbox) => {
     checkbox.checked = Boolean(settings.layers[checkbox.value]);

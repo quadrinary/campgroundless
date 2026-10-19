@@ -123,10 +123,17 @@
       hot: "Humanitarian (HOT)",
       topographic: "Topographic",
     };
+    const basemapNames = {
+      esri: "Esri World Street Map",
+      "esri-imagery": "Esri World Imagery",
+      "esri-hillshade": "Esri World Hillshade",
+      "usgs-topo": "USGS Topographic Map",
+      custom: "Custom XYZ tiles",
+    };
     document.getElementById("summary-basemap").textContent =
       settings.basemap === "osm"
         ? `OpenStreetMap · ${osmLayerNames[settings.osmLayer] ?? osmLayerNames.standard}`
-        : ({ esri: "Esri World Street Map", custom: "Custom XYZ tiles" })[settings.basemap];
+        : basemapNames[settings.basemap] ?? basemapNames.esri;
     document.getElementById("summary-place-search").textContent =
       settings.placeSearchUrl === Settings.defaults.placeSearchUrl
         ? "OpenStreetMap Nominatim"
