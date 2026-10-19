@@ -1,9 +1,21 @@
 (() => {
   "use strict";
 
-  const californiaBounds = L.latLngBounds(
-    [32.4, -124.6],
-    [42.1, -114.0],
+  const coverageStates = [
+    { abbreviation: "CA", fips: "06", name: "California" },
+    { abbreviation: "OR", fips: "41", name: "Oregon" },
+    { abbreviation: "NV", fips: "32", name: "Nevada" },
+    { abbreviation: "AZ", fips: "04", name: "Arizona" },
+  ];
+  const coverageStateCodes = coverageStates
+    .map((state) => `'${state.abbreviation}'`)
+    .join(",");
+  const coverageStateFips = coverageStates
+    .map((state) => `'${state.fips}'`)
+    .join(",");
+  const coverageBounds = L.latLngBounds(
+    [31.2, -124.8],
+    [46.5, -109.0],
   );
   const defaultLayerUrl =
     "https://services.arcgis.com/9ecg2KpMLcsUv1Oh/arcgis/rest/services/Land_Ownership/FeatureServer/39";
@@ -52,6 +64,49 @@
     USBR: "U.S. Bureau of Reclamation",
     USFS: "U.S. Forest Service",
   };
+  const managerLogos = {
+    BLM: "https://www.blm.gov/themes/custom/blm_d9_22/logo.svg",
+    FWS: "https://www.fws.gov/_next/static/media/fws-logo.082bedb3.svg",
+    NPS: "https://www.nps.gov/theme/assets/dist/images/branding/logo.png",
+    USACE:
+      "https://upload.wikimedia.org/wikipedia/commons/3/35/United_States_Army_Corps_of_Engineers_logo.svg",
+    USBR: "https://www.usbr.gov/img/seal-white.png",
+    USFS: "https://www.fs.usda.gov/themes/custom/fs_uswds/logo.svg",
+  };
+  const federalManagerCodes = new Set([
+    "BLM",
+    "FWS",
+    "NPS",
+    "OTHF",
+    "USACE",
+    "USBR",
+    "USFS",
+  ]);
+  const federalManagerLabels = {
+    OTHF: "U.S.",
+    USBR: "BOR",
+  };
+  const blmRecreationTypes = {
+    "1": { label: "Information center site", color: "#cfeffc", usfsLabel: "Visitor Centers" },
+    "2": { label: "Water based site", color: "#fbb3fc" },
+    "3": { label: "Overnight site", color: "#b3fcb8" },
+    "4": { label: "Day use site", color: "#fcd1b6" },
+    "5": { label: "Toilet", color: "#bdc4fc" },
+    "6": { label: "Potable water", color: "#fcd4ee" },
+    "7": { label: "Trail head", color: "#fbfcbb", usfsLabel: "Trailhead" },
+    "8": { label: "Parking area", color: "#b8fce6" },
+    "9": { label: "Airplane landing strip", color: "#fcb3d1" },
+    "10": { label: "Campground", color: "#e3fcd7", usfsLabel: "Campground Camping" },
+    "11": { label: "Natural / endangered area", color: "#fcefd7" },
+    "12": { label: "OHV designated area", color: "#fcbebd" },
+    "13": { label: "Recreation management area", color: "#c5d9fc" },
+    "14": { label: "Unknown", color: "#e8c5fc", usfsLabel: "Unknown" },
+  };
+  const blmRecreationDefaultType = { label: "Other / unclassified", color: "#828282" };
+
+  function blmRecreationType(category) {
+    return blmRecreationTypes[String(category)] ?? blmRecreationDefaultType;
+  }
 
   let settings;
   try {
@@ -114,9 +169,44 @@
     zoomControl: false,
     minZoom: 5,
     maxZoom: 18,
-    maxBounds: californiaBounds.pad(0.14),
+    maxBounds: coverageBounds.pad(0.14),
     maxBoundsViscosity: 0.7,
-  }).fitBounds(californiaBounds);
+  }).fitBounds(coverageBounds);
+  const usfsRecreationPane = map.createPane("usfsRecreationSites");
+  usfsRecreationPane.style.zIndex = "420";
+  usfsRecreationPane.style.pointerEvents = "auto";
+  const censusStateService =
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer";
+  let coverageStateGeometries = null;
+  const coverageBoundaryPromise = queryArcGisFeatures(`${censusStateService}/0`, {
+    where: `STATE IN (${coverageStateFips})`,
+    outFields: "STATE",
+    resultRecordCount: 10,
+  }).then((data) => {
+    const statesByFips = new Map(
+      (data.features ?? []).map((feature) => [
+        String(feature.properties?.STATE ?? ""),
+        feature.geometry,
+      ]),
+    );
+    const geometries = coverageStates.map((state) => statesByFips.get(state.fips));
+    if (
+      geometries.some(
+        (geometry) =>
+          !geometry || !["Polygon", "MultiPolygon"].includes(geometry.type),
+      )
+    ) {
+      throw new Error("The Census Bureau did not return all four state boundaries.");
+    }
+    coverageStateGeometries = geometries;
+    return geometries;
+  });
+  coverageBoundaryPromise.catch((error) => {
+    console.warn("Could not load the four-state coverage boundaries.", error);
+  });
+  const blmRecreationPane = map.createPane("blmRecreationSites");
+  blmRecreationPane.style.zIndex = "430";
+  blmRecreationPane.style.pointerEvents = "auto";
 
   L.control.scale({ imperial: true, metric: false, position: "bottomleft" }).addTo(map);
   searchMarkers.addTo(map);
@@ -230,6 +320,7 @@
 
   let layerStatus;
   const activeRoadOverlays = new Map();
+  const recreationOverlayCheckboxes = new Map();
   const layerControl = L.control({ position: "bottomright" });
   layerControl.onAdd = () => {
     const container = L.DomUtil.create("div", "leaflet-control map-layer-control");
@@ -292,10 +383,11 @@
     overlayHeading.textContent = "Reference overlays";
     const overlayHelp = L.DomUtil.create("p", "map-layer-help", panel);
     overlayHelp.textContent =
-      "Enable a road overlay, then click a mapped route for details. These layers do not confirm current access or camping permission.";
+      "USFS and BLM recreation sites share the visibility threshold saved in Settings. Click a mapped road or site for details; overlays do not confirm current access or camping permission.";
 
     const overlayDefinitions = {
       fsRecreation: {
+        isRecreation: true,
         label: "USFS recreation sites",
         description: "Nightly-updated mapped facilities",
         legendTitle: "Recreation symbols",
@@ -303,6 +395,35 @@
         url: "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer",
         layers: [0],
         attribution: '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer">USDA Forest Service Recreation Opportunities</a>',
+      },
+      blmRecreation: {
+        type: "blm-sites",
+        label: "BLM recreation sites",
+        description: "National public-release points; interim data, verify details",
+        legendTitle: "Recreation site symbol",
+        legendDescription:
+          "Circle colors follow BLM's mapped facility categories; they do not indicate current availability or camping permission.",
+        url: "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_National_Recreation_Site_Points/FeatureServer/2",
+        where: `ADMIN_ST IN (${coverageStateCodes})`,
+        fields: [
+          "FET_TYPE",
+          "FET_NAME",
+          "FET_SUBTYPE",
+          "UNIT_NAME",
+          "DESCRIPTION",
+          "WEB_LINK",
+          "WEB_DISPLAY",
+          "OBJECTID",
+        ],
+        pointStyle: {
+          radius: 7,
+          color: "#75451f",
+          weight: 2,
+          opacity: 1,
+          fillColor: blmRecreationDefaultType.color,
+          fillOpacity: 0.9,
+        },
+        attribution: '<a href="https://www.arcgis.com/home/item.html?id=7438e9e800914c94bad99f70a4f2092d">BLM National Recreation Site Points</a>',
       },
       fsRoads: {
         isRoad: true,
@@ -355,7 +476,7 @@
         legendDescription:
           "Solid green identifies this source dataset subset, not legal public access or current road status.",
         url: "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_Natl_GTLF_Public_Motorized_Roads/FeatureServer/3",
-        where: "ADMIN_ST = 'CA'",
+        where: `ADMIN_ST IN (${coverageStateCodes})`,
         color: "#397b46",
         dashArray: null,
         attribution: '<a href="https://www.arcgis.com/home/item.html?id=f94999eb674d4085be0c86729fe4a151">BLM National Ground Transportation Linear Features (GTLF)</a>',
@@ -369,13 +490,14 @@
         legendDescription:
           "Dashed rust identifies this source dataset subset, not legal access or current road status.",
         url: "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_Natl_GTLF_Limited_Public_Motorized_Roads/FeatureServer/0",
-        where: "ADMIN_ST = 'CA'",
+        where: `ADMIN_ST IN (${coverageStateCodes})`,
         color: "#a45138",
         dashArray: "6 4",
         attribution: '<a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936">BLM National Ground Transportation Linear Features (GTLF)</a>',
       },
     };
     const overlayLayers = {};
+    const overlayLoadRequests = new Map();
     const legendRequests = new Map();
 
     Object.entries(overlayDefinitions).forEach(([key, definition]) => {
@@ -390,6 +512,9 @@
       checkbox.name = "map-reference-overlay";
       checkbox.value = key;
       checkbox.checked = Boolean(settings.overlays[key]);
+      if (definition.isRecreation || definition.type === "blm-sites") {
+        recreationOverlayCheckboxes.set(key, checkbox);
+      }
       const copy = L.DomUtil.create("span", "map-overlay-copy", optionLabel);
       const labelText = L.DomUtil.create("strong", "", copy);
       labelText.textContent = definition.label;
@@ -406,6 +531,31 @@
 
       async function loadOverlayLegend() {
         if (legendLoaded) {
+          return;
+        }
+        if (definition.pointStyle) {
+          for (const type of Object.values(blmRecreationTypes)) {
+            const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
+            const typeIcon = type.usfsLabel
+              ? await usfsSiteTypeIconByLabel(type.usfsLabel)
+              : "";
+            if (typeIcon) {
+              const symbol = L.DomUtil.create("img", "map-mvum-legend-symbol", item);
+              symbol.src = typeIcon;
+              symbol.alt = "";
+            } else {
+              const symbol = L.DomUtil.create("span", "map-blm-site-symbol", item);
+              symbol.style.backgroundColor = type.color;
+            }
+            const label = L.DomUtil.create("span", "", item);
+            label.textContent = type.label;
+          }
+          const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
+          const symbol = L.DomUtil.create("span", "map-blm-site-symbol", item);
+          symbol.style.backgroundColor = blmRecreationDefaultType.color;
+          const label = L.DomUtil.create("span", "", item);
+          label.textContent = blmRecreationDefaultType.label;
+          legendLoaded = true;
           return;
         }
         if (definition.type === "feature") {
@@ -489,6 +639,7 @@
           }
         }
         layerStatus.textContent = "";
+        updateRecreationSiteVisibility();
         legend.hidden = !checkbox.checked;
         if (checkbox.checked) {
           loadOverlayLegend();
@@ -502,6 +653,29 @@
         }
 
         if (checkbox.checked) {
+          if (definition.type === "blm-sites") {
+            if (!overlayLayers[key] && !overlayLoadRequests.has(key)) {
+              const request = loadBlmRecreationOverlay(definition)
+                .then((overlay) => {
+                  overlayLayers[key] = overlay;
+                  if (checkbox.checked) {
+                    overlay.addTo(map);
+                  }
+                })
+                .catch((error) => {
+                  console.error(`Could not load the ${definition.label} layer.`, error);
+                  if (checkbox.checked) {
+                    layerStatus.textContent = `${definition.label} could not be loaded. The provider may be unavailable.`;
+                  }
+                })
+                .finally(() => overlayLoadRequests.delete(key));
+              overlayLoadRequests.set(key, request);
+            }
+            if (overlayLayers[key]) {
+              overlayLayers[key].addTo(map);
+            }
+            return;
+          }
           if (!overlayLayers[key]) {
             const overlay =
               definition.type === "feature"
@@ -521,7 +695,10 @@
                     url: definition.url,
                     layers: definition.layers,
                     opacity: 0.88,
-                    pane: "referenceOverlays",
+                    pane: definition.isRecreation
+                      ? "usfsRecreationSites"
+                      : "referenceOverlays",
+                    interactive: Boolean(definition.isRecreation),
                     attribution: definition.attribution,
                   });
             overlay.on("requesterror", () => {
@@ -537,7 +714,9 @@
             }
             overlayLayers[key] = overlay;
           }
-          overlayLayers[key].addTo(map);
+          if (overlayLayers[key]) {
+            overlayLayers[key].addTo(map);
+          }
         } else if (overlayLayers[key]) {
           map.removeLayer(overlayLayers[key]);
         }
@@ -569,6 +748,27 @@
   L.control.zoom({ position: "bottomright" }).addTo(map);
   layerControl.addTo(map);
 
+  function updateRecreationSiteVisibility() {
+    const visible = map.getZoom() >= settings.recreationSitesMinZoom;
+    usfsRecreationPane.style.visibility = visible ? "visible" : "hidden";
+    blmRecreationPane.style.visibility = visible ? "visible" : "hidden";
+    const anyRecreationOverlayEnabled = [...recreationOverlayCheckboxes.values()].some(
+      (checkbox) => checkbox.checked,
+    );
+    if (!anyRecreationOverlayEnabled) {
+      return;
+    }
+    const zoomMessage = `Zoom in to level ${settings.recreationSitesMinZoom} or closer to show both USFS and BLM recreation sites.`;
+    if (!visible) {
+      layerStatus.textContent = zoomMessage;
+    } else if (layerStatus.textContent === zoomMessage) {
+      layerStatus.textContent = "";
+    }
+  }
+
+  map.on("zoomend", updateRecreationSiteVisibility);
+  updateRecreationSiteVisibility();
+
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => {
       const entities = {
@@ -580,6 +780,174 @@
       };
       return entities[character];
     });
+  }
+
+  function popupNoteIconMarkup(label = "Write a note at this location") {
+    return `<button type="button" class="site-note-icon-button" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5Zm16.7-10.3a.93.93 0 0 0 0-1.3l-1.6-1.6a.93.93 0 0 0-1.3 0l-1.7 1.7 3.5 3.5 1.1-2.3Z"/>
+      </svg>
+    </button>`;
+  }
+
+  function bindBlmRecreationPopup(feature, layer, siteIconsByType) {
+    const properties = feature.properties ?? {};
+    const category = blmRecreationType(properties.FET_TYPE);
+    layer.bindPopup(recreationSitePopup("Bureau of Land Management", {
+      name: propertyValue(properties, "FET_NAME"),
+      type: propertyValue(properties, "FET_SUBTYPE"),
+      typeIcon: siteIconsByType.get(String(properties.FET_TYPE)) || "",
+      typeMarker: true,
+      typeMarkerColor: category.color,
+      unit: propertyValue(properties, "UNIT_NAME"),
+      description: propertyValue(properties, "DESCRIPTION"),
+      link: propertyValue(properties, "WEB_LINK"),
+    }), { maxWidth: 320, maxHeight: 360 });
+    layer.on("popupopen", (event) => {
+      bindPopupNoteIcon(event.popup, event.popup.getLatLng());
+    });
+    layer.on("click", (event) => {
+      if (event.originalEvent) {
+        L.DomEvent.stopPropagation(event.originalEvent);
+      }
+      layer.openPopup(event.latlng);
+    });
+  }
+
+  function recreationSitePopup(agency, {
+    name,
+    type,
+    typeIcon,
+    typeMarker = false,
+    unit,
+    description,
+    link,
+    typeMarkerColor,
+    details = [],
+  }) {
+    const cleanDescription = sourceDescription(description);
+    let siteLink = "";
+    try {
+      const url = new URL(link);
+      if (url.protocol === "https:") {
+        siteLink = `<p><a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(agency)} site information</a></p>`;
+      }
+    } catch {}
+
+    const detailMarkup = details
+      .filter(([, value]) => value)
+      .map(([label, value]) => {
+        if (
+          ["Reservations", "Restrictions", "Fee information"].includes(label)
+        ) {
+          const formattedText = sourceRestrictionText(value);
+          return formattedText
+            ? `<p class="site-restrictions"><strong>${escapeHtml(label)}:</strong><br>${escapeHtml(formattedText)}</p>`
+            : "";
+        }
+        return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
+      })
+      .join("");
+    return `<div class="map-popup">
+        <div class="site-popup-header">
+          <div class="map-popup-label">${escapeHtml(agency)} recreation site</div>
+          ${popupNoteIconMarkup("Write a note at this site")}
+        </div>
+        <h3>${escapeHtml(name || `Unnamed ${agency} recreation site`)}</h3>
+      ${type ? `<p class="site-type"><strong>Site type:</strong>${typeIcon
+        ? `<img class="site-type-icon" src="${escapeHtml(typeIcon)}" alt="" aria-hidden="true">`
+        : typeMarker
+          ? `<span class="site-type-map-marker site-type-map-marker-blm" style="background-color: ${escapeHtml(typeMarkerColor || blmRecreationDefaultType.color)}" aria-hidden="true"></span>`
+          : ""}<span>${escapeHtml(type)}</span></p>` : ""}
+      ${unit ? `<p><strong>Administrative unit:</strong> ${escapeHtml(unit)}</p>` : ""}
+      ${cleanDescription ? `<p>${escapeHtml(cleanDescription)}</p>` : ""}
+      ${detailMarkup}
+      ${siteLink}
+      <p class="popup-warning">This mapped site record does not confirm it is currently open, available, or authorized for camping. Verify details and current rules with the local land manager.</p>
+    </div>`;
+  }
+
+  function bindPopupNoteIcon(popup, location, iconSelect = null) {
+    const button = popup.getElement()?.querySelector(".site-note-icon-button");
+    if (!button) {
+      return;
+    }
+    button.addEventListener("click", () => {
+      openNoteEditor(location);
+      if (!noteForm.hidden) {
+        if (iconSelect) {
+          noteIcon.value = iconSelect.value;
+        }
+        map.closePopup();
+      }
+    });
+  }
+
+  function sourceDescription(value) {
+    if (!value) {
+      return "";
+    }
+    return sourceHtmlDocument(value).body.textContent
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .trim();
+  }
+
+  function sourceHtmlDocument(value) {
+    const parser = new DOMParser();
+    let source = String(value);
+    let document;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      document = parser.parseFromString(source, "text/html");
+      const decoded = document.body.textContent;
+      if (
+        document.body.children.length === 0 &&
+        /<\/?[a-z][^>]*>/i.test(decoded)
+      ) {
+        source = decoded;
+        continue;
+      }
+      break;
+    }
+    return document;
+  }
+
+  function sourceRestrictionText(value) {
+    const document = sourceHtmlDocument(value);
+    function textWithBlocks(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.nodeValue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return "";
+      }
+      const children = Array.from(node.childNodes, textWithBlocks).join("");
+      if (node.tagName === "BR") {
+        return "\n";
+      }
+      if (node.tagName === "A") {
+        try {
+          const url = new URL(node.getAttribute("href"), document.baseURI);
+          if (url.protocol === "https:" && url.href !== children.trim()) {
+            return `${children.trim() || url.href} (${url.href})`;
+          }
+        } catch {}
+        return children;
+      }
+      if (node.tagName === "LI") {
+        return `- ${children}\n`;
+      }
+      if (["DIV", "P"].includes(node.tagName)) {
+        return `${children}\n`;
+      }
+      return children;
+    }
+    return textWithBlocks(document.body)
+      .replace(/\u00a0/g, " ")
+      .split("\n")
+      .map((line) => line.replace(/[ \t]+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n");
   }
 
   function setNoteMessage(text, isError = false) {
@@ -598,7 +966,7 @@
       Object.hasOwn(noteTypes, note.icon) &&
       Number.isFinite(note.lat) &&
       Number.isFinite(note.lng) &&
-      californiaBounds.contains([note.lat, note.lng])
+      isWithinCoverage([note.lng, note.lat])
     );
   }
 
@@ -690,9 +1058,9 @@
   }
 
   function openNoteEditor(location, note = null) {
-    if (!californiaBounds.contains(location)) {
+    if (!isWithinCoverage([location.lng, location.lat])) {
       selectedNoteLocation = null;
-      setNoteMessage("Choose a point within California to save a note.", true);
+      setNoteMessage("Choose a point within California, Oregon, Nevada, or Arizona to save a note.", true);
       return;
     }
     selectedNoteLocation = location;
@@ -850,7 +1218,7 @@
       return "1=0";
     }
     const quotedManagers = managers.map((manager) => `'${manager}'`).join(",");
-    return `State_Nm = 'CA' AND FeatClass = 'Fee' AND Mang_Name IN (${quotedManagers})`;
+    return `State_Nm IN (${coverageStateCodes}) AND FeatClass = 'Fee' AND Mang_Name IN (${quotedManagers})`;
   }
 
   function featureStyle(feature) {
@@ -864,6 +1232,58 @@
     };
   }
 
+  function managerIconMarkup(managerCode) {
+    if (!federalManagerCodes.has(managerCode)) {
+      return "";
+    }
+    const managerName = managerNames[managerCode] ?? "Federal land manager";
+    const managerLogo = managerLogos[managerCode];
+    if (!managerLogo) {
+      return `<span class="mapped-land-agency-badge mapped-land-agency-badge-${managerCode.toLowerCase()}" role="img" aria-label="${escapeHtml(managerName)} icon">${escapeHtml(federalManagerLabels[managerCode] ?? managerCode)}</span>`;
+    }
+    return `<img class="mapped-land-logo mapped-land-logo-${managerCode.toLowerCase()}" data-manager-code="${escapeHtml(managerCode)}" src="${escapeHtml(managerLogo)}" alt="${escapeHtml(managerName)} logo" loading="lazy">`;
+  }
+
+  function createManagerIconFallback(managerCode) {
+    const badge = document.createElement("span");
+    badge.className = `mapped-land-agency-badge mapped-land-agency-badge-${managerCode.toLowerCase()}`;
+    badge.setAttribute(
+      "aria-label",
+      `${managerNames[managerCode] ?? "Federal land manager"} icon`,
+    );
+    badge.setAttribute("role", "img");
+    badge.textContent = federalManagerLabels[managerCode] ?? managerCode;
+    return badge;
+  }
+
+  function bindManagerIconFallback(popupElement) {
+    popupElement.querySelectorAll("img[data-manager-code]").forEach((logo) => {
+      logo.addEventListener(
+        "error",
+        () => logo.replaceWith(createManagerIconFallback(logo.dataset.managerCode)),
+        { once: true },
+      );
+    });
+  }
+
+  function appendManagerIcon(container, managerCode) {
+    if (!federalManagerCodes.has(managerCode)) {
+      return;
+    }
+    const managerLogo = managerLogos[managerCode];
+    if (!managerLogo) {
+      container.append(createManagerIconFallback(managerCode));
+      return;
+    }
+    const logo = document.createElement("img");
+    logo.className = `mapped-land-logo mapped-land-logo-${managerCode.toLowerCase()}`;
+    logo.src = managerLogo;
+    logo.alt = `${managerNames[managerCode]} logo`;
+    logo.loading = "lazy";
+    logo.onerror = () => logo.replaceWith(createManagerIconFallback(managerCode));
+    container.append(logo);
+  }
+
   function createPopup(feature, layer) {
     const properties = feature.properties ?? {};
     const managerCode = properties.Mang_Name;
@@ -875,7 +1295,10 @@
     const sourceDateText = sourceDate ? escapeHtml(sourceDate) : "Not provided";
     const popup = `
       <div class="map-popup">
-        <div class="map-popup-label">${escapeHtml(manager)}</div>
+        <div class="site-popup-header">
+          <div class="map-popup-label">${managerIconMarkup(managerCode)}${escapeHtml(manager)}</div>
+          ${popupNoteIconMarkup("Write a note at this location")}
+        </div>
         <h3>${escapeHtml(unit)}</h3>
         <p>Public-access field: <strong>${accessText}</strong></p>
         <p>Source date recorded: ${sourceDateText}</p>
@@ -883,26 +1306,20 @@
         <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
         <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
         <div class="feature-note-action">
-          <label for="feature-note-icon">Add a personal note at this point</label>
+          <label for="feature-note-icon">Choose a note marker icon</label>
           <select id="feature-note-icon" class="feature-note-icon-select" aria-label="Choose a note icon">${noteIconOptions}</select>
-          <button type="button" class="feature-note-button">Write note here</button>
         </div>
       </div>`;
     layer.bindPopup(popup, { maxWidth: 300, maxHeight: 320 });
     layer.on("popupopen", (event) => {
       const popupElement = event.popup.getElement();
+      bindManagerIconFallback(popupElement);
       const iconSelect = popupElement.querySelector(".feature-note-icon-select");
       const nearestRoadValue = popupElement.querySelector(".nearest-road-value");
       if (nearestRoadValue) {
         void loadNearestRoadDescription(event.popup.getLatLng(), nearestRoadValue);
       }
-      popupElement.querySelector(".feature-note-button").addEventListener("click", () => {
-        openNoteEditor(event.popup.getLatLng());
-        if (!noteForm.hidden) {
-          noteIcon.value = iconSelect.value;
-          map.closePopup();
-        }
-      });
+      bindPopupNoteIcon(event.popup, event.popup.getLatLng(), iconSelect);
     });
   }
 
@@ -972,6 +1389,63 @@
   const nearbyRoadSearchMeters = 10000;
   let roadLookupSequence = 0;
   let nearestRoadLookupSequence = 0;
+  let recreationLookupSequence = 0;
+  let pointLandLookupSequence = 0;
+  let usfsSymbolRendererPromise;
+
+  async function usfsSymbolRendererInfos() {
+    if (!usfsSymbolRendererPromise) {
+      usfsSymbolRendererPromise = fetch(
+        "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer/0?f=pjson",
+      )
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Forest Service symbol request failed (${response.status}).`);
+          }
+          const layer = await response.json();
+          if (layer.error) {
+            throw new Error(layer.error.message || "Forest Service symbol data is unavailable.");
+          }
+          return layer.drawingInfo?.renderer?.uniqueValueInfos ?? [];
+        })
+        .catch((error) => {
+          console.error("Could not load Forest Service recreation-site symbols.", error);
+          usfsSymbolRendererPromise = undefined;
+          return [];
+        });
+    }
+    return usfsSymbolRendererPromise;
+  }
+
+  function rendererSymbolImage(symbol) {
+    if (
+      !symbol?.imageData ||
+      !/^image\/(png|gif|jpeg)$/i.test(symbol.contentType || "")
+    ) {
+      return "";
+    }
+    return `data:${symbol.contentType};base64,${symbol.imageData}`;
+  }
+
+  async function usfsSiteTypeIcon(markerType) {
+    if (!markerType) {
+      return "";
+    }
+    const symbol = (await usfsSymbolRendererInfos()).find(
+      (info) => info.value === markerType,
+    )?.symbol;
+    return rendererSymbolImage(symbol);
+  }
+
+  async function usfsSiteTypeIconByLabel(label) {
+    if (!label) {
+      return "";
+    }
+    const symbol = (await usfsSymbolRendererInfos()).find(
+      (info) => info.label === label,
+    )?.symbol;
+    return rendererSymbolImage(symbol);
+  }
 
   async function queryArcGisFeatures(layerUrl, {
     where = "1=1",
@@ -979,25 +1453,40 @@
     geometryType,
     outFields = "*",
     token,
+    objectIds,
     resultRecordCount = 2000,
   }) {
     const url = `${layerUrl.replace(/\/+$/, "")}/query`;
     const parameters = new URLSearchParams({
       where,
-      geometry: JSON.stringify(geometry),
-      geometryType,
       inSR: "4326",
       outSR: "4326",
-      spatialRel: "esriSpatialRelIntersects",
       outFields,
       returnGeometry: "true",
       resultRecordCount: String(resultRecordCount),
       f: "geojson",
     });
+    if (geometry && geometryType) {
+      parameters.set(
+        "geometry",
+        typeof geometry === "string" ? geometry : JSON.stringify(geometry),
+      );
+      parameters.set("geometryType", geometryType);
+      parameters.set("spatialRel", "esriSpatialRelIntersects");
+    }
+    if (objectIds) {
+      parameters.set("objectIds", objectIds);
+    }
     if (token) {
       parameters.set("token", token);
     }
-    const response = await fetch(`${url}?${parameters}`);
+    const response = objectIds
+      ? await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: parameters,
+        })
+      : await fetch(`${url}?${parameters}`);
     if (!response.ok) {
       throw new Error(`Map data request failed (${response.status}).`);
     }
@@ -1006,6 +1495,317 @@
       throw new Error(data.error.message || "Map data provider returned an error.");
     }
     return data;
+  }
+
+  async function showUsfsRecreationDetails(location) {
+    const lookupId = ++recreationLookupSequence;
+    const toleranceMeters = roadClickToleranceMeters(location);
+    const envelope = roadQueryEnvelope(location, toleranceMeters);
+    try {
+      const data = await queryArcGisFeatures(
+        "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer/0",
+        {
+          geometry: `${envelope.xmin},${envelope.ymin},${envelope.xmax},${envelope.ymax}`,
+          geometryType: "esriGeometryEnvelope",
+          outFields: "*",
+          resultRecordCount: 50,
+        },
+      );
+      if (lookupId !== recreationLookupSequence) {
+        return null;
+      }
+      if (data.exceededTransferLimit || (data.features ?? []).length >= 50) {
+        throw new Error("The Forest Service returned an incomplete set of nearby sites.");
+      }
+      const closest = (data.features ?? [])
+        .filter((feature) => feature.geometry?.type === "Point")
+        .map((feature) => ({
+          feature,
+          distance: map.distance(
+            location,
+            L.latLng(feature.geometry.coordinates[1], feature.geometry.coordinates[0]),
+          ),
+        }))
+        .filter((site) => site.distance <= toleranceMeters)
+        .sort((first, second) => first.distance - second.distance)[0];
+      if (!closest) {
+        return false;
+      }
+
+      const popup = L.popup({ maxWidth: 340, maxHeight: 400 }).setLatLng(location);
+      const properties = closest.feature.properties ?? {};
+      const season = [
+        propertyValue(properties, "OPEN_SEASON_START"),
+        propertyValue(properties, "OPEN_SEASON_END"),
+      ]
+        .filter(Boolean)
+        .join(" – ");
+      const reportedStatus = propertyValue(properties, "OPENSTATUS");
+      const details = [
+        ["Reported status", reportedStatus.toLowerCase() === "none" ? "" : reportedStatus],
+        ["Season", season],
+        ["Activities", propertyValue(properties, "MARKERACTIVITY")],
+        ["Operational hours", propertyValue(properties, "OPERATIONAL_HOURS")],
+        ["Reservations", propertyValue(properties, "RESERVATION_INFO")],
+        ["Restrictions", propertyValue(properties, "RESTRICTIONS")],
+        ["Accessibility", propertyValue(properties, "ACCESSIBILITY")],
+        ["Fee information", propertyValue(properties, "FEEDESCRIPTION")],
+      ];
+      const type = propertyValue(properties, "MARKERACTIVITYGROUP");
+      const typeIcon = await usfsSiteTypeIcon(propertyValue(properties, "MARKERTYPE"));
+      if (lookupId !== recreationLookupSequence) {
+        return null;
+      }
+      popup.setContent(recreationSitePopup("U.S. Forest Service", {
+        name: propertyValue(properties, "RECAREANAME"),
+        type,
+        typeIcon,
+        unit: propertyValue(properties, "FORESTNAME"),
+        description: sourceDescription(propertyValue(properties, "RECAREADESCRIPTION")),
+        link: propertyValue(properties, "RECAREAURL"),
+        details,
+      }));
+      map.attributionControl.addAttribution(
+        '<a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer">USDA Forest Service Recreation Opportunities</a>',
+      );
+      popup.openOn(map);
+      bindPopupNoteIcon(
+        popup,
+        L.latLng(
+          closest.feature.geometry.coordinates[1],
+          closest.feature.geometry.coordinates[0],
+        ),
+      );
+      return true;
+    } catch (error) {
+      console.error("Could not retrieve Forest Service recreation site details.", error);
+      return false;
+    }
+  }
+
+  function pointInRing(point, ring) {
+    if (!Array.isArray(ring) || ring.length < 3) {
+      return false;
+    }
+    let inside = false;
+    for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+      const [x1, y1] = ring[previous];
+      const [x2, y2] = ring[index];
+      const cross = (point[0] - x1) * (y2 - y1) - (point[1] - y1) * (x2 - x1);
+      if (
+        Math.abs(cross) < 1e-10 &&
+        point[0] >= Math.min(x1, x2) - 1e-10 &&
+        point[0] <= Math.max(x1, x2) + 1e-10 &&
+        point[1] >= Math.min(y1, y2) - 1e-10 &&
+        point[1] <= Math.max(y1, y2) + 1e-10
+      ) {
+        return true;
+      }
+      if ((y1 > point[1]) !== (y2 > point[1])) {
+        const crossingX = ((x2 - x1) * (point[1] - y1)) / (y2 - y1) + x1;
+        if (point[0] < crossingX) {
+          inside = !inside;
+        }
+      }
+    }
+    return inside;
+  }
+
+  function pointInStateBoundary(point, geometry) {
+    const polygons =
+      geometry?.type === "Polygon"
+        ? [geometry.coordinates]
+        : geometry?.type === "MultiPolygon"
+          ? geometry.coordinates
+          : [];
+    return polygons.some(
+      (rings) =>
+        Array.isArray(rings) &&
+        rings.length > 0 &&
+        pointInRing(point, rings[0]) &&
+        !rings.slice(1).some((ring) => pointInRing(point, ring)),
+    );
+  }
+
+  function isWithinCoverage(point) {
+    if (!coverageBounds.contains([point[1], point[0]])) {
+      return false;
+    }
+    return (
+      !coverageStateGeometries ||
+      coverageStateGeometries.some((geometry) =>
+        pointInStateBoundary(point, geometry),
+      )
+    );
+  }
+
+  async function queryArcGisObjectIds(layerUrl, where) {
+    const parameters = new URLSearchParams({
+      where,
+      returnIdsOnly: "true",
+      f: "json",
+    });
+    const response = await fetch(
+      `${layerUrl.replace(/\/+$/, "")}/query?${parameters}`,
+    );
+    if (!response.ok) {
+      throw new Error(`Map data request failed (${response.status}).`);
+    }
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "Map data provider returned an error.");
+    }
+    if (!Array.isArray(data.objectIds)) {
+      throw new Error("The BLM recreation service did not return feature IDs.");
+    }
+    return data.objectIds;
+  }
+
+  async function loadBlmRecreationOverlay(definition) {
+    await coverageBoundaryPromise;
+    const objectIds = await queryArcGisObjectIds(definition.url, definition.where);
+    const batches = [];
+    for (let offset = 0; offset < objectIds.length; offset += 500) {
+      batches.push(objectIds.slice(offset, offset + 500));
+    }
+    const sitePages = [];
+    for (let offset = 0; offset < batches.length; offset += 4) {
+      sitePages.push(
+        ...(await Promise.all(
+          batches.slice(offset, offset + 4).map((batch) =>
+            queryArcGisFeatures(definition.url, {
+              where: "1=1",
+              objectIds: batch.join(","),
+              outFields: definition.fields.join(","),
+              resultRecordCount: 500,
+            }),
+          ),
+        )),
+      );
+    }
+    if (
+      sitePages.some(
+        (page) => page.exceededTransferLimit || !Array.isArray(page.features),
+      )
+    ) {
+      throw new Error("The BLM recreation-site query was incomplete.");
+    }
+    const features = sitePages.flatMap((page) => page.features).filter((feature) => {
+      const coordinates = feature.geometry?.coordinates;
+      return (
+        feature.geometry?.type === "Point" &&
+        Array.isArray(coordinates) &&
+        isWithinCoverage(coordinates)
+      );
+    });
+    const siteIconsByType = new Map();
+    await Promise.all(
+      Object.entries(blmRecreationTypes)
+        .filter(([, category]) => category.usfsLabel)
+        .map(async ([type, category]) => {
+          const icon = await usfsSiteTypeIconByLabel(category.usfsLabel);
+          if (icon) {
+            siteIconsByType.set(type, icon);
+          }
+        }),
+    );
+    return L.geoJSON({ type: "FeatureCollection", features }, {
+      attribution: definition.attribution,
+      pointToLayer: (feature, latlng) => {
+        const type = String(feature.properties?.FET_TYPE ?? "");
+        const category = blmRecreationType(type);
+        const typeIcon = siteIconsByType.get(type);
+        if (typeIcon) {
+          return L.marker(latlng, {
+            pane: "blmRecreationSites",
+            icon: L.icon({
+              iconUrl: typeIcon,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+              popupAnchor: [0, -10],
+              className: "blm-recreation-site-marker",
+            }),
+          });
+        }
+        return L.circleMarker(latlng, {
+          ...definition.pointStyle,
+          fillColor: category.color,
+          pane: "blmRecreationSites",
+          className: "blm-recreation-site-marker",
+        });
+      },
+      onEachFeature: (feature, layer) =>
+        bindBlmRecreationPopup(feature, layer, siteIconsByType),
+    });
+  }
+
+  async function showBlmRecreationDetails(location) {
+    const lookupId = ++recreationLookupSequence;
+    const toleranceMeters = roadClickToleranceMeters(location);
+    const envelope = roadQueryEnvelope(location, toleranceMeters);
+    try {
+      const data = await queryArcGisFeatures(
+        "https://services1.arcgis.com/KbxwQRRfWyEYLgp4/arcgis/rest/services/BLM_National_Recreation_Site_Points/FeatureServer/2",
+        {
+          where: `ADMIN_ST IN (${coverageStateCodes})`,
+          geometry: `${envelope.xmin},${envelope.ymin},${envelope.xmax},${envelope.ymax}`,
+          geometryType: "esriGeometryEnvelope",
+          outFields: "FET_TYPE,FET_NAME,FET_SUBTYPE,UNIT_NAME,DESCRIPTION,WEB_LINK,WEB_DISPLAY,OBJECTID",
+          resultRecordCount: 50,
+        },
+      );
+      if (lookupId !== recreationLookupSequence) {
+        return null;
+      }
+      if (data.exceededTransferLimit || (data.features ?? []).length >= 50) {
+        throw new Error("The BLM returned an incomplete set of nearby recreation sites.");
+      }
+      const closest = (data.features ?? [])
+        .filter((feature) => feature.geometry?.type === "Point")
+        .map((feature) => ({
+          feature,
+          distance: map.distance(
+            location,
+            L.latLng(feature.geometry.coordinates[1], feature.geometry.coordinates[0]),
+          ),
+        }))
+        .filter((site) => site.distance <= toleranceMeters)
+        .sort((first, second) => first.distance - second.distance)[0];
+      if (!closest) {
+        return false;
+      }
+
+      const properties = closest.feature.properties ?? {};
+      const category = blmRecreationType(properties.FET_TYPE);
+      const typeIcon = await usfsSiteTypeIconByLabel(category.usfsLabel);
+      if (lookupId !== recreationLookupSequence) {
+        return null;
+      }
+      const popup = L.popup({ maxWidth: 320, maxHeight: 360 })
+        .setLatLng(L.latLng(
+          closest.feature.geometry.coordinates[1],
+          closest.feature.geometry.coordinates[0],
+        ))
+        .setContent(recreationSitePopup("Bureau of Land Management", {
+          name: propertyValue(properties, "FET_NAME"),
+          type: propertyValue(properties, "FET_SUBTYPE"),
+          typeIcon,
+          typeMarker: true,
+          typeMarkerColor: category.color,
+          unit: propertyValue(properties, "UNIT_NAME"),
+          description: propertyValue(properties, "DESCRIPTION"),
+          link: propertyValue(properties, "WEB_LINK"),
+        }))
+        .openOn(map);
+      bindPopupNoteIcon(popup, popup.getLatLng());
+      map.attributionControl.addAttribution(
+        '<a href="https://www.arcgis.com/home/item.html?id=7438e9e800914c94bad99f70a4f2092d">BLM National Recreation Site Points</a>',
+      );
+      return true;
+    } catch (error) {
+      console.error("Could not retrieve BLM recreation site details.", error);
+      return false;
+    }
   }
 
   function roadQueryEnvelope(location, radius) {
@@ -1401,28 +2201,100 @@
   }
 
   function openPointInformationPopup(location) {
+    const lookupId = ++pointLandLookupSequence;
     map.closePopup();
     noteForm.hidden = true;
     const popup = L.popup({ maxWidth: 320, maxHeight: 320 })
       .setLatLng(location)
       .setContent(`
         <div class="map-popup">
-          <div class="map-popup-label">Selected location</div>
+          <div class="site-popup-header">
+            <div class="map-popup-label">Selected location</div>
+            ${popupNoteIconMarkup()}
+          </div>
           <h3>Map point</h3>
           <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
+          <p><strong>Mapped land:</strong> <span class="point-land-value">Looking up the land manager…</span></p>
+          <p><strong>Contact:</strong> <span class="point-contact-value">Looking up manager information…</span></p>
           <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
+          <p class="popup-warning">Mapped ownership and public-access records do not establish camping permission or current access. Confirm rules, closures, and contact details with the responsible office.</p>
           <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
-          <div class="feature-note-action"><button type="button" class="point-note-button">Write a note here</button></div>
         </div>`)
       .openOn(map);
+    void queryLandAtPoint(location)
+      .then((land) => {
+        if (lookupId !== pointLandLookupSequence || !popup.isOpen()) {
+          return;
+        }
+        const popupElement = popup.getElement();
+        const landValue = popupElement.querySelector(".point-land-value");
+        const contactValue = popupElement.querySelector(".point-contact-value");
+        const managerCode = propertyValue(land, "Mang_Name");
+        landValue.replaceChildren();
+        appendManagerIcon(landValue, managerCode);
+        const landDescription = document.createElement("span");
+        landDescription.textContent = landTypeDescription(land);
+        landValue.append(landDescription);
+        const contact = managerContactLink(managerCode);
+        contactValue.replaceChildren();
+        if (contact) {
+          const link = document.createElement("a");
+          link.href = contact.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = contact.label;
+          contactValue.append(link);
+          const note = document.createTextNode(" · Confirm the local office for this site.");
+          contactValue.append(note);
+        } else {
+          contactValue.textContent =
+            "The land-boundary record has no office contact. Use the mapped manager name to find the responsible local office.";
+        }
+      })
+      .catch((error) => {
+        console.error("Could not look up the land manager at this point.", error);
+        if (lookupId === pointLandLookupSequence && popup.isOpen()) {
+          popup.getElement().querySelector(".point-land-value").textContent =
+            "Land type could not be looked up. Verify with the land manager.";
+          popup.getElement().querySelector(".point-contact-value").textContent =
+            "Manager contact details could not be looked up.";
+        }
+      });
     void loadNearestRoadDescription(
       location,
       popup.getElement().querySelector(".nearest-road-value"),
     );
-    popup.getElement().querySelector(".point-note-button").addEventListener("click", () => {
-      openNoteEditor(location);
-      map.closePopup();
-    });
+    bindPopupNoteIcon(popup, location);
+  }
+
+  function managerContactLink(managerCode) {
+    const contacts = {
+      BLM: {
+        label: "BLM field office directory",
+        url: "https://www.blm.gov/about/what-we-do/field-office-directory",
+      },
+      FWS: {
+        label: "U.S. Fish and Wildlife Service contacts",
+        url: "https://www.fws.gov/about/contact-us",
+      },
+      NPS: {
+        label: "National Park Service contacts",
+        url: "https://www.nps.gov/aboutus/contactus.htm",
+      },
+      USFS: {
+        label: "U.S. Forest Service contacts",
+        url: "https://www.fs.usda.gov/about-agency/contact-us",
+      },
+      USACE: {
+        label: "U.S. Army Corps of Engineers contacts",
+        url: "https://www.usace.army.mil/Contact/",
+      },
+      USBR: {
+        label: "Bureau of Reclamation contacts",
+        url: "https://www.usbr.gov/main/offices.html",
+      },
+    };
+    return contacts[managerCode] ?? null;
   }
 
   function roadRestrictionDetails(road) {
@@ -1571,7 +2443,10 @@
         : `Unavailable (${escapeHtml(networkRoad?.reason || "no reliable connected route was found")})`;
     return `
       <div class="map-popup road-location-popup">
-        <div class="map-popup-label">${escapeHtml(road.definition.label)}</div>
+        <div class="site-popup-header">
+          <div class="map-popup-label">${escapeHtml(road.definition.label)}</div>
+          ${popupNoteIconMarkup()}
+        </div>
         <h3>${escapeHtml(name)}</h3>
         <p><strong>Land:</strong> ${escapeHtml(landMarkup)}</p>
         <p><strong>Road type:</strong> ${escapeHtml(roadType)}</p>
@@ -1582,12 +2457,33 @@
         <p class="popup-warning">Road-network distance is calculated only when this selected route closely matches connected Census TIGERweb road geometry. It may identify a different named road than the straight-line result; unavailable means the data could not support a reliable route.</p>
         <p class="popup-warning">Census road data does not confirm legal public access or current conditions.</p>
         <p class="popup-warning">Reference data only. Road records may be incomplete or outdated and do not establish current access or camping permission. Confirm route restrictions, closures, and land rules with the responsible agency.</p>
-        <div class="feature-note-action"><button type="button" class="road-note-button">Write a note here</button></div>
       </div>`;
   }
 
   async function handleMapClick(event, fromLandFeature = false) {
     const location = event.latlng;
+    if (
+      settings.overlays.blmRecreation &&
+      event.originalEvent?.target?.closest?.(".blm-recreation-site-marker")
+    ) {
+      void showBlmRecreationDetails(location).then((siteFound) => {
+        if (siteFound === false) {
+          void handleMapClick({ latlng: location });
+        }
+      });
+      return;
+    }
+    if (
+      settings.overlays.fsRecreation &&
+      event.originalEvent?.target?.closest?.(".leaflet-usfsRecreationSites-pane")
+    ) {
+      void showUsfsRecreationDetails(location).then((siteFound) => {
+        if (siteFound === false) {
+          void handleMapClick({ latlng: location });
+        }
+      });
+      return;
+    }
     if (activeRoadOverlays.size === 0) {
       if (event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
         return;
@@ -1682,10 +2578,7 @@
         networkRoadError,
       ),
     );
-    popup.getElement()?.querySelector(".road-note-button")?.addEventListener("click", () => {
-      openNoteEditor(location);
-      map.closePopup();
-    });
+    bindPopupNoteIcon(popup, location);
   }
 
   document.querySelectorAll('input[name="manager"]').forEach((checkbox) => {
@@ -1727,7 +2620,7 @@
       return;
     }
     const location = L.latLng(latitude, longitude);
-    if (!californiaBounds.contains(location)) {
+    if (!isWithinCoverage([location.lng, location.lat])) {
       return;
     }
     searchMarkers.clearLayers();
@@ -1749,7 +2642,7 @@
       }
       const location = L.latLng(latitude, longitude);
       return (
-        californiaBounds.contains(location) &&
+        isWithinCoverage([location.lng, location.lat]) &&
         location.lat >= -90 &&
         location.lat <= 90 &&
         location.lng >= -180 &&
@@ -1768,7 +2661,7 @@
     });
     searchResults.hidden = validPlaces.length === 0;
     if (validPlaces.length === 0) {
-      searchMessage.textContent = "No matching California places found. Try another name or spelling.";
+      searchMessage.textContent = "No matching places found in California, Oregon, Nevada, or Arizona. Try another name or spelling.";
       return;
     }
     searchMessage.textContent = `${validPlaces.length} place results found. Choose one to show it on the map.`;
@@ -1789,7 +2682,7 @@
     endpoint.searchParams.set("format", "jsonv2");
     endpoint.searchParams.set("limit", "5");
     endpoint.searchParams.set("countrycodes", "us");
-    endpoint.searchParams.set("viewbox", "-124.6,42.1,-114.0,32.4");
+    endpoint.searchParams.set("viewbox", "-124.8,46.5,-109.0,31.2");
     endpoint.searchParams.set("bounded", "1");
     lastPlaceSearchAt = Date.now();
     const controller = new AbortController();
@@ -1849,7 +2742,7 @@
     placeSearchInProgress = true;
     searchSubmit.disabled = true;
     searchSubmit.textContent = "…";
-    searchMessage.textContent = "Searching California places…";
+    searchMessage.textContent = "Searching California, Oregon, Nevada, and Arizona…";
     try {
       await searchPlaces(term);
     } catch (error) {
@@ -1893,9 +2786,9 @@
   });
 
   document.getElementById("reset-button").addEventListener("click", () => {
-    map.fitBounds(californiaBounds);
+    map.fitBounds(coverageBounds);
     searchInput.value = "";
     clearSearchResults();
-    searchMessage.textContent = "Search for California places or land units. Place searches are sent to OpenStreetMap when submitted; no autocomplete.";
+    searchMessage.textContent = "Search for places or land units in California, Oregon, Nevada, and Arizona. Place searches go to OpenStreetMap when submitted; no autocomplete.";
   });
 })();

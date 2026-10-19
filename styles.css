@@ -969,6 +969,15 @@ h1 em {
   border-top: 3px dashed #a45138;
 }
 
+.map-blm-site-symbol {
+  width: 11px;
+  height: 11px;
+  justify-self: center;
+  border: 1.5px solid #75451f;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
 .map-layer-option {
   display: flex;
   min-height: 30px;
@@ -1106,6 +1115,52 @@ h1 em {
   text-transform: uppercase;
 }
 
+.site-popup-header {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-right: 7px;
+}
+
+.site-popup-header .map-popup-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 0;
+}
+
+.site-note-icon-button {
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #b7c7b8;
+  border-radius: 8px;
+  background: #edf3eb;
+  color: #315840;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgb(35 55 39 / 22%);
+}
+
+.site-note-icon-button:hover {
+  border-color: #365a43;
+  background: #dfeadd;
+}
+
+.site-note-icon-button:focus-visible {
+  outline: 3px solid #bd7f3d;
+  outline-offset: 2px;
+}
+
+.site-note-icon-button svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
 .map-popup h3 {
   margin: 0 0 7px;
   font-family: "DM Serif Display", Georgia, serif;
@@ -1118,6 +1173,83 @@ h1 em {
   color: #69756b;
   font-size: 10px;
   line-height: 1.5;
+}
+
+.point-land-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  vertical-align: middle;
+}
+
+.mapped-land-logo {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.mapped-land-logo-usfs {
+  width: 27px;
+  height: 32px;
+}
+
+.mapped-land-logo-nps {
+  width: 24px;
+  height: 32px;
+}
+
+.mapped-land-logo-usbr {
+  padding: 3px;
+  border-radius: 50%;
+  background: #174b3a;
+  box-sizing: border-box;
+}
+
+.mapped-land-agency-badge {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #536b5d;
+  border-radius: 50%;
+  background: #edf1e9;
+  color: #294f3d;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mapped-land-agency-badge-othf {
+  font-size: 10px;
+}
+
+.map-popup .site-type {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.site-type-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.site-type-map-marker-blm {
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #75451f;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.map-popup .site-restrictions {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .road-location-popup {
