@@ -879,6 +879,8 @@
         <h3>${escapeHtml(unit)}</h3>
         <p>Public-access field: <strong>${accessText}</strong></p>
         <p>Source date recorded: ${sourceDateText}</p>
+        <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
+        <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
         <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
         <div class="feature-note-action">
           <label for="feature-note-icon">Add a personal note at this point</label>
@@ -886,10 +888,14 @@
           <button type="button" class="feature-note-button">Write note here</button>
         </div>
       </div>`;
-    layer.bindPopup(popup, { maxWidth: 260 });
+    layer.bindPopup(popup, { maxWidth: 300, maxHeight: 320 });
     layer.on("popupopen", (event) => {
       const popupElement = event.popup.getElement();
       const iconSelect = popupElement.querySelector(".feature-note-icon-select");
+      const nearestRoadValue = popupElement.querySelector(".nearest-road-value");
+      if (nearestRoadValue) {
+        void loadNearestRoadDescription(event.popup.getLatLng(), nearestRoadValue);
+      }
       popupElement.querySelector(".feature-note-button").addEventListener("click", () => {
         openNoteEditor(event.popup.getLatLng());
         if (!noteForm.hidden) {
@@ -965,6 +971,7 @@
     "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer";
   const nearbyRoadSearchMeters = 10000;
   let roadLookupSequence = 0;
+  let nearestRoadLookupSequence = 0;
 
   async function queryArcGisFeatures(layerUrl, {
     where = "1=1",
@@ -1074,42 +1081,60 @@
   }
 
   function pointToRoadDistanceMeters(location, geometry) {
-    const coordinates = geometry?.type === "LineString"
+    return nearestPointOnRoad(location, geometry)?.distance ?? Infinity;
+  }
+
+  function roadLineCoordinates(geometry) {
+    return geometry?.type === "LineString"
       ? [geometry.coordinates]
       : geometry?.type === "MultiLineString"
         ? geometry.coordinates
         : [];
+  }
+
+  function projectPointToSegment(location, first, second) {
     const earthRadius = 6371008.8;
     const latitudeRadians = (location.lat * Math.PI) / 180;
     const metersPerDegreeLatitude = (Math.PI * earthRadius) / 180;
     const metersPerDegreeLongitude = metersPerDegreeLatitude * Math.cos(latitudeRadians);
-    let shortestDistance = Infinity;
+    const ax = (first[0] - location.lng) * metersPerDegreeLongitude;
+    const ay = (first[1] - location.lat) * metersPerDegreeLatitude;
+    const bx = (second[0] - location.lng) * metersPerDegreeLongitude;
+    const by = (second[1] - location.lat) * metersPerDegreeLatitude;
+    const segmentX = bx - ax;
+    const segmentY = by - ay;
+    const segmentLength = Math.hypot(segmentX, segmentY);
+    const segmentLengthSquared = segmentLength * segmentLength;
+    const fraction =
+      segmentLengthSquared === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(1, -(ax * segmentX + ay * segmentY) / segmentLengthSquared),
+          );
+    return {
+      fraction,
+      distance: Math.hypot(ax + fraction * segmentX, ay + fraction * segmentY),
+      length: segmentLength,
+      heading: Math.atan2(segmentY, segmentX),
+      point: {
+        lat: first[1] + fraction * (second[1] - first[1]),
+        lng: first[0] + fraction * (second[0] - first[0]),
+      },
+    };
+  }
 
-    coordinates.forEach((line) => {
+  function nearestPointOnRoad(location, geometry) {
+    let nearest = null;
+    roadLineCoordinates(geometry).forEach((line) => {
       for (let index = 1; index < line.length; index += 1) {
-        const first = line[index - 1];
-        const second = line[index];
-        const ax = (first[0] - location.lng) * metersPerDegreeLongitude;
-        const ay = (first[1] - location.lat) * metersPerDegreeLatitude;
-        const bx = (second[0] - location.lng) * metersPerDegreeLongitude;
-        const by = (second[1] - location.lat) * metersPerDegreeLatitude;
-        const segmentX = bx - ax;
-        const segmentY = by - ay;
-        const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
-        const projection =
-          segmentLengthSquared === 0
-            ? 0
-            : Math.max(
-                0,
-                Math.min(1, -(ax * segmentX + ay * segmentY) / segmentLengthSquared),
-              );
-        shortestDistance = Math.min(
-          shortestDistance,
-          Math.hypot(ax + projection * segmentX, ay + projection * segmentY),
-        );
+        const projected = projectPointToSegment(location, line[index - 1], line[index]);
+        if (!nearest || projected.distance < nearest.distance) {
+          nearest = projected;
+        }
       }
     });
-    return shortestDistance;
+    return nearest;
   }
 
   function censusRoadType(properties) {
@@ -1169,6 +1194,235 @@
       });
     });
     return { road: nearest, incomplete };
+  }
+
+  async function findRoadNetworkDistance(location, sourceGeometry) {
+    const sourcePoint = nearestPointOnRoad(location, sourceGeometry);
+    if (!sourcePoint) {
+      return { road: null, reason: "The selected overlay did not return usable road geometry." };
+    }
+
+    const dataByLayer = await Promise.all(
+      [2, 6, 8].map((layerId) =>
+        queryArcGisFeatures(`${censusRoadService}/${layerId}`, {
+          geometry: roadQueryEnvelope(location, nearbyRoadSearchMeters),
+          geometryType: "esriGeometryEnvelope",
+          outFields: "NAME,BASENAME,MTFCC,RTTYP",
+          resultRecordCount: 2000,
+        }),
+      ),
+    );
+    if (
+      dataByLayer.some(
+        (data) => data.exceededTransferLimit === true || (data.features ?? []).length >= 2000,
+      )
+    ) {
+      return { road: null, reason: "Census road results were truncated in this area." };
+    }
+
+    const adjacency = new Map();
+    const roadSegments = [];
+    const nodeFor = (coordinate) => `${coordinate[0].toFixed(6)},${coordinate[1].toFixed(6)}`;
+    const addSegment = (first, second, road) => {
+      const projected = projectPointToSegment(sourcePoint.point, first, second);
+      if (projected.length < 0.01) {
+        return;
+      }
+      const segment = {
+        firstNode: nodeFor(first),
+        secondNode: nodeFor(second),
+        length: projected.length,
+        road,
+      };
+      roadSegments.push({ ...segment, projected });
+      const firstEdges = adjacency.get(segment.firstNode) ?? [];
+      firstEdges.push({ node: segment.secondNode, length: segment.length, road });
+      adjacency.set(segment.firstNode, firstEdges);
+      const secondEdges = adjacency.get(segment.secondNode) ?? [];
+      secondEdges.push({ node: segment.firstNode, length: segment.length, road });
+      adjacency.set(segment.secondNode, secondEdges);
+    };
+
+    dataByLayer.forEach((data) => {
+      (data.features ?? []).forEach((feature) => {
+        const roadName = propertyValue(feature.properties, "NAME", "BASENAME");
+        const road = roadName
+          ? { name: roadName, type: censusRoadType(feature.properties) }
+          : null;
+        roadLineCoordinates(feature.geometry).forEach((line) => {
+          for (let index = 1; index < line.length; index += 1) {
+            addSegment(line[index - 1], line[index], road);
+          }
+        });
+      });
+    });
+
+    let sourceSegment = null;
+    roadSegments.forEach((segment) => {
+      if (!sourceSegment || segment.projected.distance < sourceSegment.projected.distance) {
+        sourceSegment = segment;
+      }
+    });
+    const maxSnapDistanceMeters = 20;
+    const headingDifference = sourceSegment
+      ? Math.abs(
+          Math.atan2(
+            Math.sin(2 * (sourceSegment.projected.heading - sourcePoint.heading)),
+            Math.cos(2 * (sourceSegment.projected.heading - sourcePoint.heading)),
+          ) / 2,
+        )
+      : Infinity;
+    if (
+      !sourceSegment ||
+      sourceSegment.projected.distance > maxSnapDistanceMeters ||
+      headingDifference > Math.PI / 4
+    ) {
+      return {
+        road: null,
+        reason: `No aligned Census road geometry matches the selected route within ${Math.round(
+          maxSnapDistanceMeters * 3.28084,
+        )} ft.`,
+      };
+    }
+    if (sourceSegment.road) {
+      return { road: sourceSegment.road, distance: 0, snapDistance: sourceSegment.projected.distance };
+    }
+
+    const distances = new Map();
+    const queue = [];
+    const push = (entry) => {
+      let index = queue.length;
+      queue.push(entry);
+      while (index > 0) {
+        const parent = Math.floor((index - 1) / 2);
+        if (queue[parent].distance <= entry.distance) {
+          break;
+        }
+        queue[index] = queue[parent];
+        index = parent;
+      }
+      queue[index] = entry;
+    };
+    const pop = () => {
+      const first = queue[0];
+      const last = queue.pop();
+      if (queue.length && last) {
+        let index = 0;
+        while (true) {
+          const left = index * 2 + 1;
+          const right = left + 1;
+          if (left >= queue.length) {
+            break;
+          }
+          const child =
+            right < queue.length && queue[right].distance < queue[left].distance
+              ? right
+              : left;
+          if (queue[child].distance >= last.distance) {
+            break;
+          }
+          queue[index] = queue[child];
+          index = child;
+        }
+        queue[index] = last;
+      }
+      return first;
+    };
+    const firstDistance = sourceSegment.projected.fraction * sourceSegment.length;
+    const secondDistance = (1 - sourceSegment.projected.fraction) * sourceSegment.length;
+    distances.set(sourceSegment.firstNode, firstDistance);
+    distances.set(sourceSegment.secondNode, secondDistance);
+    push({ node: sourceSegment.firstNode, distance: firstDistance });
+    push({ node: sourceSegment.secondNode, distance: secondDistance });
+
+    const maxNetworkDistanceMeters = 50000;
+    while (queue.length) {
+      const current = pop();
+      if (current.distance !== distances.get(current.node)) {
+        continue;
+      }
+      if (current.distance > maxNetworkDistanceMeters) {
+        break;
+      }
+      const edges = adjacency.get(current.node) ?? [];
+      const namedEdge = edges.find((edge) => edge.road);
+      if (namedEdge) {
+        return {
+          road: namedEdge.road,
+          distance: current.distance,
+          snapDistance: sourceSegment.projected.distance,
+        };
+      }
+      edges.forEach((edge) => {
+        if (edge.road) {
+          return;
+        }
+        const nextDistance = current.distance + edge.length;
+        if (
+          nextDistance <= maxNetworkDistanceMeters &&
+          nextDistance < (distances.get(edge.node) ?? Infinity)
+        ) {
+          distances.set(edge.node, nextDistance);
+          push({ node: edge.node, distance: nextDistance });
+        }
+      });
+    }
+    return {
+      road: null,
+      reason: "No connected named road was found within 31 mi of mapped road travel.",
+    };
+  }
+
+  function nearestRoadDescription(result) {
+    if (!result.road) {
+      return `No named road found within ${distanceDescription(nearbyRoadSearchMeters)}.`;
+    }
+    return `${result.road.name} · ${result.road.type} · ${distanceDescription(result.road.distance)} straight-line${
+      result.incomplete ? " (nearby results may be incomplete)" : ""
+    }`;
+  }
+
+  async function loadNearestRoadDescription(location, target) {
+    const lookupId = ++nearestRoadLookupSequence;
+    map.attributionControl.addAttribution(
+      '<a href="https://tigerweb.geo.census.gov/">U.S. Census Bureau TIGERweb Roads</a>',
+    );
+    try {
+      const result = await findNearestNamedRoad(location);
+      if (lookupId === nearestRoadLookupSequence && target.isConnected) {
+        target.textContent = nearestRoadDescription(result);
+      }
+    } catch (error) {
+      console.error("Could not find a nearby named road.", error);
+      if (lookupId === nearestRoadLookupSequence && target.isConnected) {
+        target.textContent = "Named-road distance could not be looked up.";
+      }
+    }
+  }
+
+  function openPointInformationPopup(location) {
+    map.closePopup();
+    noteForm.hidden = true;
+    const popup = L.popup({ maxWidth: 320, maxHeight: 320 })
+      .setLatLng(location)
+      .setContent(`
+        <div class="map-popup">
+          <div class="map-popup-label">Selected location</div>
+          <h3>Map point</h3>
+          <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
+          <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
+          <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
+          <div class="feature-note-action"><button type="button" class="point-note-button">Write a note here</button></div>
+        </div>`)
+      .openOn(map);
+    void loadNearestRoadDescription(
+      location,
+      popup.getElement().querySelector(".nearest-road-value"),
+    );
+    popup.getElement().querySelector(".point-note-button").addEventListener("click", () => {
+      openNoteEditor(location);
+      map.closePopup();
+    });
   }
 
   function roadRestrictionDetails(road) {
@@ -1262,7 +1516,16 @@
     return `about ${(distance / 1609.344).toFixed(2)} mi`;
   }
 
-  function formatRoadPopup(road, land, nearestRoad, location, landError, nearbyRoadError) {
+  function formatRoadPopup(
+    road,
+    land,
+    nearestRoad,
+    networkRoad,
+    location,
+    landError,
+    nearbyRoadError,
+    networkRoadError,
+  ) {
     const properties = road.properties;
     const name =
       propertyValue(properties, "name", "ROUTE_PRMRY_NM") || "Unnamed mapped route";
@@ -1297,8 +1560,15 @@
         nearestMarkup += " (nearby road results may be incomplete)";
       }
     } else {
-      nearestMarkup = "No named public road found within 6.2 mi.";
+      nearestMarkup = "No named road found within 6.2 mi.";
     }
+    const networkMarkup = networkRoadError
+      ? "Unavailable (road-network lookup failed)."
+      : networkRoad?.road
+        ? `${escapeHtml(networkRoad.road.name)} · ${escapeHtml(
+            networkRoad.road.type,
+          )} · ${distanceDescription(networkRoad.distance)} along mapped roads`
+        : `Unavailable (${escapeHtml(networkRoad?.reason || "no reliable connected route was found")})`;
     return `
       <div class="map-popup road-location-popup">
         <div class="map-popup-label">${escapeHtml(road.definition.label)}</div>
@@ -1307,20 +1577,26 @@
         <p><strong>Road type:</strong> ${escapeHtml(roadType)}</p>
         <div class="road-restrictions"><strong>Restrictions and status</strong>${restrictionMarkup}</div>
         <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
-        <p><strong>Nearest named public road:</strong> ${nearestMarkup}</p>
+        <p><strong>Road-network distance to a named Census road:</strong> ${networkMarkup}</p>
+        <p><strong>Nearest named road by straight-line distance (Census):</strong> ${nearestMarkup}</p>
+        <p class="popup-warning">Road-network distance is calculated only when this selected route closely matches connected Census TIGERweb road geometry. It may identify a different named road than the straight-line result; unavailable means the data could not support a reliable route.</p>
+        <p class="popup-warning">Census road data does not confirm legal public access or current conditions.</p>
         <p class="popup-warning">Reference data only. Road records may be incomplete or outdated and do not establish current access or camping permission. Confirm route restrictions, closures, and land rules with the responsible agency.</p>
         <div class="feature-note-action"><button type="button" class="road-note-button">Write a note here</button></div>
       </div>`;
   }
 
   async function handleMapClick(event, fromLandFeature = false) {
+    const location = event.latlng;
     if (activeRoadOverlays.size === 0) {
-      openNoteEditor(event.latlng);
+      if (event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
+        return;
+      }
+      openPointInformationPopup(location);
       return;
     }
     layerStatus.textContent = "";
     const lookupId = ++roadLookupSequence;
-    const location = event.latlng;
     const toleranceMeters = roadClickToleranceMeters(location);
     const activeOverlays = [...activeRoadOverlays.values()];
     const roadResults = await Promise.allSettled(
@@ -1358,7 +1634,7 @@
           : `No selected road was found within ${distanceDescription(toleranceMeters)}. Zoom in and click closer to a mapped route.`;
       }
       if (!fromLandFeature && !event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
-        openNoteEditor(location);
+        openPointInformationPopup(location);
       }
       return;
     }
@@ -1374,29 +1650,36 @@
     map.attributionControl.addAttribution(
       '<a href="https://tigerweb.geo.census.gov/">U.S. Census Bureau TIGERweb Roads</a>',
     );
-    const [landResult, nearbyRoadResult] = await Promise.allSettled([
+    const [landResult, nearbyRoadResult, networkRoadResult] = await Promise.allSettled([
       queryLandAtPoint(location),
       findNearestNamedRoad(location),
+      findRoadNetworkDistance(location, closestRoad.geometry),
     ]);
     if (lookupId !== roadLookupSequence) {
       return;
     }
     const landError = landResult.status === "rejected";
     const nearbyRoadError = nearbyRoadResult.status === "rejected";
+    const networkRoadError = networkRoadResult.status === "rejected";
     if (landError) {
       console.error("Could not identify land at the selected road location.", landResult.reason);
     }
     if (nearbyRoadError) {
       console.error("Could not find a nearby named public road.", nearbyRoadResult.reason);
     }
+    if (networkRoadError) {
+      console.error("Could not calculate a road-network distance.", networkRoadResult.reason);
+    }
     popup.setContent(
       formatRoadPopup(
         closestRoad,
         landError ? null : landResult.value,
         nearbyRoadError ? null : nearbyRoadResult.value,
+        networkRoadError ? null : networkRoadResult.value,
         location,
         landError,
         nearbyRoadError,
+        networkRoadError,
       ),
     );
     popup.getElement()?.querySelector(".road-note-button")?.addEventListener("click", () => {
