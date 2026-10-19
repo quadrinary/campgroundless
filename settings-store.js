@@ -16,6 +16,7 @@
     },
     overlays: {
       fsRecreation: false,
+      blmRecreation: false,
       fsRoads: false,
       fsClosedRoads: false,
       fsTrails: false,
@@ -23,6 +24,7 @@
       blmPublicRoads: false,
       blmLimitedRoads: false,
     },
+    recreationSitesMinZoom: 11,
     basemap: "esri",
     osmLayer: "standard",
     basemapUrl: "",
@@ -41,6 +43,14 @@
     caption: { min: 5, max: 15 },
   };
   const osmLayers = ["standard", "hot", "topographic"];
+  const recreationSiteZoomLevels = [11, 12, 13, 14, 15];
+
+  function normalizeRecreationSitesMinZoom(zoom) {
+    const normalizedZoom = Number(zoom);
+    return recreationSiteZoomLevels.includes(normalizedZoom)
+      ? normalizedZoom
+      : defaults.recreationSitesMinZoom;
+  }
 
   function normalizeOsmLayer(layer) {
     return osmLayers.includes(layer) ? layer : defaults.osmLayer;
@@ -84,6 +94,9 @@
         ...saved,
         layers: { ...defaults.layers, ...(saved.layers ?? {}) },
         overlays: normalizeOverlays(saved.overlays),
+        recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
+          saved.recreationSitesMinZoom,
+        ),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
         typography: normalizeTypography(saved.typography),
       };
@@ -99,6 +112,9 @@
       JSON.stringify({
         ...settings,
         overlays: normalizeOverlays(settings.overlays),
+        recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
+          settings.recreationSitesMinZoom,
+        ),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
         typography: normalizeTypography(settings.typography),
       }),

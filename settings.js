@@ -30,6 +30,7 @@
       dataAttribution: form.elements.dataAttribution.value.trim(),
       placeSearchUrl: form.elements.placeSearchUrl.value.trim(),
       layers,
+      recreationSitesMinZoom: Number(form.elements.recreationSitesMinZoom.value),
       basemap: form.elements.basemap.value,
       osmLayer: form.elements.osmLayer.value,
       basemapUrl: form.elements.basemapUrl.value.trim(),
@@ -70,6 +71,7 @@
     form.elements.dataApiKey.value = settings.dataApiKey;
     form.elements.dataAttribution.value = settings.dataAttribution;
     form.elements.placeSearchUrl.value = settings.placeSearchUrl;
+    form.elements.recreationSitesMinZoom.value = settings.recreationSitesMinZoom;
     Object.keys(layerNames).forEach((layer) => {
       form.querySelector(`input[name="layer"][value="${layer}"]`).checked = Boolean(settings.layers[layer]);
     });
@@ -138,6 +140,8 @@
       settings.placeSearchUrl === Settings.defaults.placeSearchUrl
         ? "OpenStreetMap Nominatim"
         : "Custom Nominatim-compatible service";
+    document.getElementById("summary-recreation-sites").textContent =
+      `Zoom ${settings.recreationSitesMinZoom}+`;
     document.getElementById("summary-typography").textContent =
       `${settings.typography.body} / ${settings.typography.search} / ${settings.typography.caption} px`;
     document.getElementById("summary-keys").textContent =

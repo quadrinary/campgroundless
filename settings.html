@@ -60,7 +60,7 @@
               <label class="choice-card">
                 <input type="radio" name="dataSource" value="padus" />
                 <span class="choice-content">
-                  <strong>USGS PAD-US 3.0 · California</strong>
+                  <strong>USGS PAD-US 3.0 · CA, OR, NV &amp; AZ</strong>
                   <small>Public ArcGIS-hosted layer · no key required · data last edited May 23, 2023</small>
                 </span>
                 <span class="choice-check" aria-hidden="true"></span>
@@ -143,9 +143,28 @@
             <p class="field-help layer-help">These filters are also available in the map sidebar. Changes are saved for this browser only.</p>
           </section>
 
-          <section class="settings-card" aria-labelledby="basemap-heading">
+          <section class="settings-card" aria-labelledby="recreation-visibility-heading">
             <div class="settings-card-heading">
               <span class="settings-step">03</span>
+              <div>
+                <h2 id="recreation-visibility-heading">Recreation-site visibility</h2>
+                <p>Set one minimum zoom level for both USFS and BLM recreation sites.</p>
+              </div>
+            </div>
+            <label class="field-label" for="recreation-sites-min-zoom">Show both site layers from</label>
+            <select id="recreation-sites-min-zoom" name="recreationSitesMinZoom" class="text-field select-field">
+              <option value="11">Zoom 11 or closer · USFS service limit</option>
+              <option value="12">Zoom 12 or closer</option>
+              <option value="13">Zoom 13 or closer</option>
+              <option value="14">Zoom 14 or closer</option>
+              <option value="15">Zoom 15 or closer</option>
+            </select>
+            <p class="field-help">The Forest Service service hides sites beyond about 1:400,000 scale. This setting makes BLM visibility match USFS and can require a closer zoom, but cannot make USFS sites appear beyond the service limit. Lower zoom numbers show sites farther out.</p>
+          </section>
+
+          <section class="settings-card" aria-labelledby="basemap-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">04</span>
               <div>
                 <h2 id="basemap-heading">Basemap</h2>
                 <p>Choose the background map. Tiles are loaded directly from the selected provider.</p>
@@ -217,7 +236,7 @@
 
           <section class="settings-card" aria-labelledby="place-search-heading">
             <div class="settings-card-heading">
-              <span class="settings-step">04</span>
+              <span class="settings-step">05</span>
               <div>
                 <h2 id="place-search-heading">Place search provider</h2>
                 <p>Searches use this provider when a query does not match a loaded land unit.</p>
@@ -237,7 +256,7 @@
 
           <section class="settings-card" aria-labelledby="typography-heading">
             <div class="settings-card-heading">
-              <span class="settings-step">05</span>
+              <span class="settings-step">06</span>
               <div>
                 <h2 id="typography-heading">Text size</h2>
                 <p>Adjust the map interface text. Changes preview as you select them and are saved with your settings.</p>
@@ -286,6 +305,7 @@
             <li><span>Land layers</span><strong id="summary-layers">4 selected</strong></li>
             <li><span>Basemap</span><strong id="summary-basemap">Esri World Street Map</strong></li>
             <li><span>Place search</span><strong id="summary-place-search">OpenStreetMap Nominatim</strong></li>
+            <li><span>Recreation sites</span><strong id="summary-recreation-sites">Zoom 11+</strong></li>
             <li><span>Text sizes</span><strong id="summary-typography">12 / 11 / 10 px</strong></li>
             <li><span>API keys</span><strong id="summary-keys">None saved</strong></li>
           </ul>
@@ -305,7 +325,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=9"></script>
-    <script src="./settings.js?v=8"></script>
+    <script src="./settings-store.js?v=11"></script>
+    <script src="./settings.js?v=9"></script>
   </body>
 </html>
