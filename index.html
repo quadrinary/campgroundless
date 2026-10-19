@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Explore public-land boundaries in California, Oregon, Nevada, and Arizona for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
+      content="Explore public-land boundaries in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
     />
     <meta name="theme-color" content="#f5f4ef" />
-    <title>Campgroundless — California, Oregon, Nevada &amp; Arizona public lands map</title>
+    <title>Campgroundless — Western &amp; Southwestern U.S. public lands map</title>
     <link rel="preconnect" href="https://unpkg.com" />
     <link rel="preconnect" href="https://services.arcgis.com" />
     <link rel="preconnect" href="https://server.arcgisonline.com" />
@@ -45,7 +45,7 @@
     <main id="top">
       <section class="intro" aria-labelledby="page-title">
         <div class="intro-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> CA · OR · NV · AZ · EARLY ACCESS</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> 10 WESTERN STATES · EARLY ACCESS</p>
           <h1 id="page-title">Find your way<br />to the <em>wide open.</em></h1>
           <p class="intro-description">
             A field guide to public-land boundaries that can help you start planning a dispersed-camping trip.
@@ -61,12 +61,12 @@
         </aside>
       </section>
 
-      <section class="explorer" id="map-section" aria-label="California, Oregon, Nevada, and Arizona public lands explorer">
+      <section class="explorer" id="map-section" aria-label="California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public lands explorer">
         <aside class="sidebar">
           <div class="sidebar-heading">
             <div>
               <p class="eyebrow">THE MAP</p>
-              <h2>CA · OR · NV · AZ</h2>
+              <h2>10 Western States</h2>
             </div>
             <span class="live-pill"><span></span> LIVE LAYERS</span>
           </div>
@@ -82,7 +82,7 @@
               <input id="place-search" type="search" placeholder="e.g. Inyo National Forest or restaurant" autocomplete="off" />
               <button id="search-submit" type="button" aria-label="Search places and land units">Go</button>
             </div>
-            <p id="search-message" class="search-message" aria-live="polite">Search for places or land units in California, Oregon, Nevada, and Arizona. Place searches go to OpenStreetMap when submitted; no autocomplete.</p>
+            <p id="search-message" class="search-message" aria-live="polite">Search for places or land units in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Place searches go to OpenStreetMap when submitted; no autocomplete.</p>
             <ul id="search-results" class="search-results" aria-label="Place search results" hidden></ul>
             <p class="search-attribution">Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
           </div>
@@ -187,7 +187,7 @@
             </div>
             <span class="map-toolbar-note"><span class="status-dot"></span> Camping access varies</span>
           </div>
-          <div id="map" role="application" aria-label="Interactive map of California, Oregon, Nevada, and Arizona public land boundaries">
+          <div id="map" role="application" aria-label="Interactive map of California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public land boundaries">
             <div class="map-loading" id="map-loading">
               <span class="loading-spinner" aria-hidden="true"></span>
               <span>Loading the map…</span>
@@ -241,7 +241,7 @@
         <div class="data-grid">
           <div class="data-copy">
             <p>
-              The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Nevada, and Arizona. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
+              The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
             </p>
             <p>
               PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. Coverage and update dates vary by source and state. Its boundaries are generalized and may overlap or be incomplete.
@@ -250,7 +250,7 @@
               <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
             </p>
             <p>
-              Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Nevada, and Arizona, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
+              Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
             </p>
           </div>
           <div class="source-list">
@@ -319,6 +319,6 @@
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=12"></script>
-    <script src="./app.js?v=69"></script>
+    <script src="./app.js?v=70"></script>
   </body>
 </html>
