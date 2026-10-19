@@ -1770,3 +1770,11 @@ h1 em {
 .leaflet-control-attribution {
   font-size: var(--font-caption-size) !important;
 }
+
+.nps-site-icon {
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid #75451f;
+  border-radius: 50%;
+  background: #fff;
+}

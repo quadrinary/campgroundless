@@ -88,20 +88,26 @@
   };
   const blmRecreationTypes = {
     "1": { label: "Information center site", color: "#cfeffc", usfsLabel: "Visitor Centers" },
-    "2": { label: "Water based site", color: "#fbb3fc" },
-    "3": { label: "Overnight site", color: "#b3fcb8" },
-    "4": { label: "Day use site", color: "#fcd1b6" },
-    "5": { label: "Toilet", color: "#bdc4fc" },
-    "6": { label: "Potable water", color: "#fcd4ee" },
+    "2": { label: "Water based site", color: "#fbb3fc", npsIcon: "boat-launch" },
+    "3": { label: "Overnight site", color: "#b3fcb8", npsIcon: "campsite" },
+    "4": { label: "Day use site", color: "#fcd1b6", npsIcon: "picnic-area" },
+    "5": { label: "Toilet", color: "#bdc4fc", npsIcon: "restrooms" },
+    "6": { label: "Potable water", color: "#fcd4ee", npsIcon: "drinking-water" },
     "7": { label: "Trail head", color: "#fbfcbb", usfsLabel: "Trailhead" },
-    "8": { label: "Parking area", color: "#b8fce6" },
-    "9": { label: "Airplane landing strip", color: "#fcb3d1" },
+    "8": { label: "Parking area", color: "#b8fce6", npsIcon: "parking" },
+    "9": { label: "Airplane landing strip", color: "#fcb3d1", npsIcon: "airfield" },
     "10": { label: "Campground", color: "#e3fcd7", usfsLabel: "Campground Camping" },
-    "11": { label: "Natural / endangered area", color: "#fcefd7" },
-    "12": { label: "OHV designated area", color: "#fcbebd" },
+    "11": { label: "Natural / endangered area", color: "#fcefd7", npsIcon: "point-of-interest" },
+    "12": { label: "OHV designated area", color: "#fcbebd", npsIcon: "all-terrain-trail" },
     "13": { label: "Recreation management area", color: "#c5d9fc" },
     "14": { label: "Unknown", color: "#e8c5fc", usfsLabel: "Unknown" },
   };
+  async function blmTypeIcon(category) {
+    if (category.usfsLabel) {
+      return usfsSiteTypeIconByLabel(category.usfsLabel);
+    }
+    return category.npsIcon ? `icons/nps/${category.npsIcon}.svg` : "";
+  }
   const blmRecreationDefaultType = { label: "Other / unclassified", color: "#828282" };
 
   function blmRecreationType(category) {
@@ -536,11 +542,13 @@
         if (definition.pointStyle) {
           for (const type of Object.values(blmRecreationTypes)) {
             const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
-            const typeIcon = type.usfsLabel
-              ? await usfsSiteTypeIconByLabel(type.usfsLabel)
-              : "";
+            const typeIcon = await blmTypeIcon(type);
             if (typeIcon) {
-              const symbol = L.DomUtil.create("img", "map-mvum-legend-symbol", item);
+              const symbol = L.DomUtil.create(
+                "img",
+                `map-mvum-legend-symbol${type.npsIcon ? " nps-site-icon" : ""}`,
+                item,
+              );
               symbol.src = typeIcon;
               symbol.alt = "";
             } else {
@@ -1701,9 +1709,8 @@
     const siteIconsByType = new Map();
     await Promise.all(
       Object.entries(blmRecreationTypes)
-        .filter(([, category]) => category.usfsLabel)
         .map(async ([type, category]) => {
-          const icon = await usfsSiteTypeIconByLabel(category.usfsLabel);
+          const icon = await blmTypeIcon(category);
           if (icon) {
             siteIconsByType.set(type, icon);
           }
@@ -1723,7 +1730,7 @@
               iconSize: [20, 20],
               iconAnchor: [10, 10],
               popupAnchor: [0, -10],
-              className: "blm-recreation-site-marker",
+              className: `blm-recreation-site-marker${category.npsIcon ? " nps-site-icon" : ""}`,
             }),
           });
         }
@@ -1777,7 +1784,7 @@
 
       const properties = closest.feature.properties ?? {};
       const category = blmRecreationType(properties.FET_TYPE);
-      const typeIcon = await usfsSiteTypeIconByLabel(category.usfsLabel);
+      const typeIcon = await blmTypeIcon(category);
       if (lookupId !== recreationLookupSequence) {
         return null;
       }
