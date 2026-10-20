@@ -128,7 +128,7 @@
     settings = structuredClone(window.CampgroundlessSettings.defaults);
   }
   window.CampgroundlessSettings.applyTypography(settings);
-
+  document.getElementById("land-disclaimer").hidden = settings.showLandDisclaimer === false;
   const mapStatus = document.getElementById("map-status");
   const mapLoading = document.getElementById("map-loading");
   const searchMessage = document.getElementById("search-message");
