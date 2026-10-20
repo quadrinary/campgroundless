@@ -2326,19 +2326,156 @@
     }
   }
 
-  function openPointInformationPopup(location) {
+  function osmTag(place, ...keys) {
+    const tags = place?.extratags ?? {};
+    for (const key of keys) {
+      const value = tags[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+    return "";
+  }
+
+  function safeHttpUrl(value) {
+    if (!value) {
+      return "";
+    }
+    try {
+      const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+      return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function placeName(place) {
+    return (place.name || place.display_name?.split(",")[0] || "Search result").trim();
+  }
+
+  function placeFacts(place) {
+    const facts = [];
+    const type = [place.category, place.type]
+      .filter((part) => part && part !== "yes")
+      .map((part) => String(part).replaceAll("_", " "))
+      .join(" · ");
+    if (type) {
+      facts.push(["Type", escapeHtml(type)]);
+    }
+    if (place.display_name) {
+      facts.push(["Address", escapeHtml(place.display_name)]);
+    }
+    const phone = osmTag(place, "phone", "contact:phone");
+    if (phone) {
+      const tel = phone.replace(/[^\d+]/g, "");
+      facts.push(["Phone", tel ? `<a href="tel:${escapeHtml(tel)}">${escapeHtml(phone)}</a>` : escapeHtml(phone)]);
+    }
+    const website = safeHttpUrl(osmTag(place, "website", "contact:website", "url"));
+    if (website) {
+      facts.push(["Website", `<a href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(website.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a>`]);
+    }
+    const email = osmTag(place, "email", "contact:email");
+    if (email && /^[^\s@<>]+@[^\s@<>]+$/.test(email)) {
+      facts.push(["Email", `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>`]);
+    }
+    const hours = osmTag(place, "opening_hours");
+    if (hours) {
+      facts.push(["Hours", escapeHtml(hours)]);
+    }
+    [
+      ["Operator", ["operator"]],
+      ["Fee", ["fee"]],
+      ["Reservation", ["reservation"]],
+      ["Capacity", ["capacity"]],
+      ["Description", ["description"]],
+    ].forEach(([label, keys]) => {
+      const value = osmTag(place, ...keys);
+      if (value) {
+        facts.push([label, escapeHtml(value)]);
+      }
+    });
+    return facts;
+  }
+
+  function placeNoteBody(place) {
+    const lines = [place.display_name];
+    const phone = osmTag(place, "phone", "contact:phone");
+    const website = safeHttpUrl(osmTag(place, "website", "contact:website", "url"));
+    if (phone) {
+      lines.push(`Phone: ${phone}`);
+    }
+    if (website) {
+      lines.push(`Website: ${website}`);
+    }
+    return lines.filter(Boolean).join("\n").slice(0, 1200);
+  }
+
+  function savePlace(place) {
+    const latitude = Number(place.lat);
+    const longitude = Number(place.lon);
+    const title = placeName(place).slice(0, 80);
+    if (notes.some((note) => note.title === title && Math.abs(note.lat - latitude) < 1e-5 && Math.abs(note.lng - longitude) < 1e-5)) {
+      return "already";
+    }
+    const now = new Date().toISOString();
+    const note = {
+      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      lat: latitude,
+      lng: longitude,
+      title,
+      icon: "landmark",
+      body: placeNoteBody(place) || title,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const nextNotes = [...notes, note];
+    try {
+      persistNotes(nextNotes);
+    } catch (error) {
+      console.error("Could not save place.", error);
+      return "error";
+    }
+    notes = nextNotes;
+    renderNotes();
+    return "saved";
+  }
+
+  function wireSaveButton(button, place) {
+    button.addEventListener("click", () => {
+      const result = savePlace(place);
+      button.textContent =
+        result === "error" ? "Could not save" : result === "already" ? "Already saved" : "Saved ✓";
+      button.disabled = result !== "error";
+      searchMessage.textContent =
+        result === "error"
+          ? "Could not save this place. Check this browser's storage settings."
+          : `${placeName(place)} is in Saved locations.`;
+    });
+  }
+
+  function openPointInformationPopup(location, place = null) {
     const lookupId = ++pointLandLookupSequence;
     map.closePopup();
     noteForm.hidden = true;
-    const popup = L.popup({ maxWidth: 320, maxHeight: 320 })
+    const placeMarkup = place
+      ? `<h3>${escapeHtml(placeName(place))}</h3>
+          <dl class="place-facts">${placeFacts(place)
+            .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${value}</dd></div>`)
+            .join("")}</dl>
+          <p class="place-source">Place details from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors; they may be incomplete or out of date.</p>
+          <button type="button" class="note-save-button place-save-button">Save to Saved locations</button>
+          <hr class="map-layer-separator" />`
+      : "";
+    const popup = L.popup({ maxWidth: 320, maxHeight: place ? 380 : 320 })
       .setLatLng(location)
       .setContent(`
         <div class="map-popup">
           <div class="site-popup-header">
-            <div class="map-popup-label">Selected location</div>
+            <div class="map-popup-label">${place ? "Search result" : "Selected location"}</div>
             ${popupNoteIconMarkup()}
           </div>
-          <h3>Map point</h3>
+          ${placeMarkup}
+          <h3>${place ? "Land at this location" : "Map point"}</h3>
           <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
           <p><strong>Mapped land:</strong> <span class="point-land-value">Looking up the land manager…</span></p>
           <p><strong>Contact:</strong> <span class="point-contact-value">Looking up manager information…</span></p>
@@ -2391,6 +2528,10 @@
       popup.getElement().querySelector(".nearest-road-value"),
     );
     bindPopupNoteIcon(popup, location);
+    const saveButton = popup.getElement().querySelector(".place-save-button");
+    if (saveButton && place) {
+      wireSaveButton(saveButton, place);
+    }
   }
 
   function managerContactLink(managerCode) {
@@ -2750,11 +2891,11 @@
       return;
     }
     searchMarkers.clearLayers();
-    const marker = L.marker(location)
-      .addTo(searchMarkers)
-      .bindPopup(`<div class="map-popup"><h3>${escapeHtml(place.display_name)}</h3><p>Place search result from OpenStreetMap.</p></div>`);
+    const marker = L.marker(location, { title: placeName(place), alt: `Search result: ${placeName(place)}` })
+      .addTo(searchMarkers);
+    marker.on("click", () => openPointInformationPopup(location, place));
     map.setView(location, 14);
-    marker.openPopup();
+    openPointInformationPopup(location, place);
     searchMessage.textContent = `Showing ${place.display_name}.`;
   }
 
@@ -2782,7 +2923,13 @@
       button.className = "search-result";
       button.textContent = place.display_name;
       button.addEventListener("click", () => showPlace(place));
-      item.append(button);
+      const saveButton = document.createElement("button");
+      saveButton.type = "button";
+      saveButton.className = "search-result-save";
+      saveButton.textContent = "Save";
+      saveButton.setAttribute("aria-label", `Save ${placeName(place)} to Saved locations`);
+      wireSaveButton(saveButton, place);
+      item.append(button, saveButton);
       searchResults.append(item);
     });
     searchResults.hidden = validPlaces.length === 0;
@@ -2807,6 +2954,8 @@
     endpoint.searchParams.set("q", term);
     endpoint.searchParams.set("format", "jsonv2");
     endpoint.searchParams.set("limit", "5");
+    endpoint.searchParams.set("addressdetails", "1");
+    endpoint.searchParams.set("extratags", "1");
     endpoint.searchParams.set("countrycodes", "us");
     endpoint.searchParams.set("viewbox", "-124.8,49.1,-93.5,25.8");
     endpoint.searchParams.set("bounded", "1");

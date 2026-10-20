@@ -315,6 +315,69 @@ body.app-body {
   color: var(--muted);
 }
 
+.map-search .search-results li {
+  display: flex;
+  align-items: stretch;
+}
+
+.map-search .search-result {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-save,
+.place-save-button {
+  flex: 0 0 auto;
+  margin: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--green);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.search-result-save:disabled,
+.place-save-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.leaflet-popup-content .map-popup {
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.map-popup .eyebrow,
+.map-popup > p:first-child {
+  padding-right: 44px;
+}
+
+.place-facts {
+  margin: 6px 0;
+}
+
+.place-facts div {
+  margin-bottom: 4px;
+}
+
+.place-facts dt {
+  font-weight: 700;
+}
+
+.place-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.place-source {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .map-search .search-message:empty,
 .map-search:not(:focus-within) .search-attribution {
   display: none;
