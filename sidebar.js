@@ -67,5 +67,10 @@
     if (event.key === "Escape" && current && panel.contains(document.activeElement)) hide();
   });
 
+  const mapEl = document.getElementById("map");
+  if (mapEl && "ResizeObserver" in window) {
+    new ResizeObserver(refreshMap).observe(mapEl);
+  }
+
   window.CampgroundlessSidebar = { show, hide };
 })();
