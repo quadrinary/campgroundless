@@ -177,11 +177,17 @@
   let selectedNoteLocation = null;
   let editingNoteId = null;
   let notes = [];
+  L.Popup.mergeOptions({
+    autoPan: true,
+    autoPanPaddingTopLeft: [24, 140],
+    autoPanPaddingBottomRight: [72, 24],
+  });
+
   const map = L.map("map", {
     zoomControl: false,
     minZoom: 5,
     maxZoom: 18,
-    maxBounds: coverageBounds.pad(0.14),
+    maxBounds: coverageBounds.pad(0.6),
     maxBoundsViscosity: 0.7,
   }).fitBounds(coverageBounds);
   const usfsRecreationPane = map.createPane("usfsRecreationSites");
@@ -352,9 +358,36 @@
     panel.setAttribute("role", "group");
     panel.setAttribute("aria-label", "Basemaps and reference overlays");
     const heading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    heading.textContent = "Map style";
+    heading.textContent = "Map layers";
     layerStatus = L.DomUtil.create("span", "map-layer-status", panel);
     layerStatus.setAttribute("role", "status");
+
+    const managerHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
+    managerHeading.textContent = "Land Managers";
+    [
+      ["forest", "U.S. Forest Service"],
+      ["blm", "Bureau of Land Management"],
+      ["state", "State public lands"],
+      ["other", "Other public lands"],
+    ].forEach(([value, label]) => {
+      const managerLabel = L.DomUtil.create("label", "map-layer-option", panel);
+      const managerInput = L.DomUtil.create("input", "", managerLabel);
+      managerInput.type = "checkbox";
+      managerInput.name = "manager";
+      managerInput.value = value;
+      const swatch = L.DomUtil.create("span", `filter-swatch swatch-${value}`, managerLabel);
+      swatch.setAttribute("aria-hidden", "true");
+      const managerText = L.DomUtil.create("span", "", managerLabel);
+      managerText.textContent = label;
+    });
+    const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
+    managerSeparator.setAttribute("aria-hidden", "true");
+    const styleSection = document.createElement("div");
+    styleSection.className = "map-layer-style-section";
+    const styleSeparator = L.DomUtil.create("hr", "map-layer-separator", styleSection);
+    styleSeparator.setAttribute("aria-hidden", "true");
+    const styleHeading = L.DomUtil.create("strong", "map-layer-heading", styleSection);
+    styleHeading.textContent = "Map Style";
 
     const options = [
       ["esri", "Esri World Street Map"],
@@ -370,7 +403,7 @@
     }
 
     options.forEach(([value, label], index) => {
-      const optionLabel = L.DomUtil.create("label", "map-layer-option", panel);
+      const optionLabel = L.DomUtil.create("label", "map-layer-option", styleSection);
       const radio = L.DomUtil.create("input", "", optionLabel);
       radio.type = "radio";
       radio.name = "map-style-choice";
@@ -389,10 +422,8 @@
       });
     });
 
-    const separator = L.DomUtil.create("hr", "map-layer-separator", panel);
-    separator.setAttribute("aria-hidden", "true");
     const overlayHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    overlayHeading.textContent = "Reference overlays";
+    overlayHeading.textContent = "Reference Overlays";
     const overlayHelp = L.DomUtil.create("p", "map-layer-help", panel);
     overlayHelp.textContent =
       "USFS and BLM recreation sites share the visibility threshold saved in Settings. Click a mapped road or site for details; overlays do not confirm current access or camping permission.";
@@ -740,6 +771,7 @@
       }
     });
 
+    panel.append(styleSection);
     button.setAttribute("aria-controls", panel.id);
     button.addEventListener("click", () => {
       panel.hidden = !panel.hidden;
@@ -1086,11 +1118,8 @@
     noteBody.value = note?.body ?? "";
     noteForm.querySelector(".note-save-button").textContent = note ? "Update note" : "Save note";
     setNoteMessage("");
-    if (window.matchMedia("(max-width: 700px)").matches) {
-      noteForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    } else {
-      noteTitle.focus({ preventScroll: true });
-    }
+    window.CampgroundlessSidebar?.show("saved");
+    noteTitle.focus({ preventScroll: true });
   }
 
   function buildNotePopup(note, shared = false) {
@@ -1113,8 +1142,39 @@
 
   const sharedNote = readSharedNoteFromUrl();
 
+  const noteMarkersById = new Map();
+  const savedList = document.getElementById("saved-list");
+  const savedEmpty = document.getElementById("saved-empty");
+
+  function renderSavedList() {
+    savedList.replaceChildren();
+    notes.forEach((note) => {
+      if (sharedNote?.id === note.id) {
+        return;
+      }
+      const type = noteTypes[note.icon];
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "list-item";
+      const name = document.createElement("strong");
+      name.textContent = `${type.icon} ${note.title.trim() || type.label}`;
+      const detail = document.createElement("small");
+      detail.textContent = note.body.slice(0, 80);
+      button.append(name, detail);
+      button.addEventListener("click", () => {
+        map.setView([note.lat, note.lng], Math.max(map.getZoom(), 11));
+        noteMarkersById.get(note.id)?.openPopup();
+      });
+      item.append(button);
+      savedList.append(item);
+    });
+    savedEmpty.hidden = savedList.children.length > 0;
+  }
+
   function renderNotes() {
     noteMarkers.clearLayers();
+    noteMarkersById.clear();
     notes.forEach((note) => {
       if (sharedNote?.id === note.id) {
         return;
@@ -1132,6 +1192,7 @@
         alt: `${type.label} map note`,
       }).addTo(noteMarkers);
       marker.bindPopup(buildNotePopup(note), { maxWidth: 280 });
+      noteMarkersById.set(note.id, marker);
       marker.on("popupopen", (event) => {
         event.popup.getElement().querySelectorAll("[data-note-action]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -1166,7 +1227,50 @@
       });
     });
     noteCount.textContent = `${notes.length} saved`;
+    renderSavedList();
   }
+
+  const popupPadding = { top: 140, right: 72, bottom: 24, left: 24 };
+
+  function keepPopupInView(popup) {
+    const element = popup.getElement();
+    if (!element || !popup.isOpen()) {
+      return;
+    }
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    let dx = 0;
+    let dy = 0;
+    if (rect.top < mapRect.top + popupPadding.top) {
+      dy = rect.top - (mapRect.top + popupPadding.top);
+    } else if (rect.bottom > mapRect.bottom - popupPadding.bottom) {
+      dy = rect.bottom - (mapRect.bottom - popupPadding.bottom);
+    }
+    if (rect.left < mapRect.left + popupPadding.left) {
+      dx = rect.left - (mapRect.left + popupPadding.left);
+    } else if (rect.right > mapRect.right - popupPadding.right) {
+      dx = rect.right - (mapRect.right - popupPadding.right);
+    }
+    if (dx || dy) {
+      map.panBy([dx, dy], { animate: true });
+    }
+  }
+
+  map.on("popupopen", (event) => {
+    const popup = event.popup;
+    const content = popup.getElement();
+    if (!content) {
+      return;
+    }
+    const check = () => window.setTimeout(() => keepPopupInView(popup), 50);
+    check();
+    content.addEventListener("load", check, true);
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(check);
+      observer.observe(content);
+      popup.once("remove", () => observer.disconnect());
+    }
+  });
 
   map.on("click", handleMapClick);
   document.getElementById("map-note-cancel").addEventListener("click", closeNoteEditor);
@@ -1208,6 +1312,7 @@
 
   if (sharedNote) {
     sharedNoteNotice.hidden = false;
+    window.CampgroundlessSidebar?.show("saved");
     const marker = L.marker([sharedNote.lat, sharedNote.lng], {
       icon: L.divIcon({
         className: "map-note-icon",
@@ -2732,6 +2837,69 @@
     }
   }
 
+  const recentKey = "campgroundless.recent-searches.v1";
+  const recentList = document.getElementById("recent-list");
+  const recentEmpty = document.getElementById("recent-empty");
+  const recentClear = document.getElementById("recent-clear");
+  const defaultSearchMessage = "";
+
+  function readRecent() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(recentKey) || "[]");
+      return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry?.term === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function renderRecent() {
+    const recent = readRecent();
+    recentList.replaceChildren();
+    recent.forEach((entry) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "list-item";
+      const name = document.createElement("strong");
+      name.textContent = entry.term;
+      const when = document.createElement("small");
+      const date = new Date(entry.at);
+      when.textContent = Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+      button.append(name, when);
+      button.addEventListener("click", () => {
+        searchInput.value = entry.term;
+        searchMap();
+      });
+      item.append(button);
+      recentList.append(item);
+    });
+    recentEmpty.hidden = recent.length > 0;
+    recentClear.hidden = recent.length === 0;
+  }
+
+  function recordRecent(term) {
+    try {
+      const next = [
+        { term, at: new Date().toISOString() },
+        ...readRecent().filter((entry) => entry.term.toLowerCase() !== term.toLowerCase()),
+      ].slice(0, 15);
+      localStorage.setItem(recentKey, JSON.stringify(next));
+    } catch (error) {
+      console.error("Could not save recent search.", error);
+    }
+    renderRecent();
+  }
+
+  recentClear.addEventListener("click", () => {
+    try {
+      localStorage.removeItem(recentKey);
+    } catch (error) {
+      console.error("Could not clear recent searches.", error);
+    }
+    renderRecent();
+  });
+  renderRecent();
+
   async function searchMap() {
     const term = searchInput.value.trim();
     if (!term) {
@@ -2741,6 +2909,7 @@
     if (placeSearchInProgress) {
       return;
     }
+    recordRecent(term);
     clearSearchResults();
     const match = refreshSearchableFeatures().find((featureLayer) => {
       const properties = featureLayer.feature.properties;
@@ -2810,6 +2979,6 @@
     map.fitBounds(coverageBounds);
     searchInput.value = "";
     clearSearchResults();
-    searchMessage.textContent = "Search for places or land units in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Place searches go to OpenStreetMap when submitted; no autocomplete.";
+    searchMessage.textContent = defaultSearchMessage;
   });
 })();

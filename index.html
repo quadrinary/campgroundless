@@ -20,297 +20,282 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=22" />
+    <link rel="stylesheet" href="./styles.css?v=23" />
+    <link rel="stylesheet" href="./shell.css?v=3" />
   </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="#top" aria-label="Campgroundless home">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 36 36" role="img">
-            <path d="M18 3 2 31h32L18 3Z" fill="currentColor" />
-            <path d="m18 15-8 14h16l-8-14Z" fill="#f5f4ef" />
-            <path d="M18 23v8" stroke="#f5f4ef" stroke-width="2" />
+  <body class="app-body">
+    <div class="app" id="app">
+      <aside class="rail" id="rail" aria-label="Sidebar">
+        <div class="rail-top">
+          <button
+            class="rail-toggle"
+            id="rail-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="rail-nav"
+            aria-label="Expand sidebar"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+          </button>
+          <a class="brand rail-brand" href="./" aria-label="Campgroundless home">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 36 36" role="img">
+                <path d="M18 3 2 31h32L18 3Z" fill="currentColor" />
+                <path d="m18 15-8 14h16l-8-14Z" fill="#f5f4ef" />
+                <path d="M18 23v8" stroke="#f5f4ef" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="rail-label">campgroundless<span class="brand-period">.</span></span>
+          </a>
+        </div>
+
+        <nav class="rail-nav" id="rail-nav" aria-label="Sidebar views">
+          <button class="rail-item" type="button" data-view="recent" aria-controls="view-panel" aria-expanded="false" title="Recent searches">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7v5l3.2 2"></path></svg>
+            <span class="rail-label">Recent searches</span>
+          </button>
+          <button class="rail-item" type="button" data-view="saved" aria-controls="view-panel" aria-expanded="false" title="Saved locations">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.400-6.500 11-6.500 11Z"></path><circle cx="12" cy="10" r="2.300"></circle></svg>
+            <span class="rail-label">Saved locations</span>
+          </button>
+          <button class="rail-item" type="button" data-view="before" aria-controls="view-panel" aria-expanded="false" title="Before you head out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="m8.500 9 1.500 1.500L13 7.500M8.500 15h7"></path></svg>
+            <span class="rail-label">Before you head out</span>
+          </button>
+          <button class="rail-item" type="button" data-view="about" aria-controls="view-panel" aria-expanded="false" title="About this map">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.500"></circle><path d="M12 11v5.500M12 7.500v.1"></path></svg>
+            <span class="rail-label">About this map</span>
+          </button>
+        </nav>
+
+        <a class="rail-item rail-settings" href="./settings.html" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.400 13.500a7.600 7.600 0 0 0 0-3l2-1.500-2-3.500-2.300 1a7.400 7.400 0 0 0-2.600-1.500L14 2.500h-4l-.5 2.500a7.400 7.400 0 0 0-2.600 1.500l-2.300-1-2 3.500 2 1.500a7.600 7.600 0 0 0 0 3l-2 1.500 2 3.500 2.300-1a7.400 7.400 0 0 0 2.600 1.500l.5 2.500h4l.5-2.500a7.400 7.400 0 0 0 2.600-1.500l2.300 1 2-3.500-2-1.500Z"></path>
           </svg>
-        </span>
-        <span>campgroundless<span class="brand-period">.</span></span>
-      </a>
-      <nav aria-label="Main navigation">
-        <a href="#map-section">Explore map</a>
-        <a href="#field-notes">Field notes</a>
-        <a href="#data-sources">Data &amp; sources</a>
-        <a class="nav-source" href="./settings.html">Settings</a>
-      </nav>
-    </header>
+          <span class="rail-label">Settings</span>
+        </a>
+      </aside>
 
-    <main id="top">
-      <section class="intro" aria-labelledby="page-title">
-        <div class="intro-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> 10 WESTERN STATES · EARLY ACCESS</p>
-          <h1 id="page-title">Find your way<br />to the <em>wide open.</em></h1>
-          <p class="intro-description">
-            A field guide to public-land boundaries that can help you start planning a dispersed-camping trip.
-            <strong>Land ownership is not permission to camp.</strong>
-          </p>
-        </div>
-        <aside class="intro-note" aria-label="Important trip planning notice">
-          <span class="note-icon" aria-hidden="true">!</span>
-          <div>
-            <strong>Verify before you go</strong>
-            <p>Closures, fire rules, access, and stay limits can change by place and date. Always confirm with the local land manager.</p>
-          </div>
-        </aside>
-      </section>
+      <section class="view-panel" id="view-panel" aria-labelledby="view-title" hidden>
+        <header class="view-header">
+          <h2 id="view-title" tabindex="-1"></h2>
+          <button class="view-close" id="view-close" type="button" aria-label="Close panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+          </button>
+        </header>
 
-      <section class="explorer" id="map-section" aria-label="California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public lands explorer">
-        <aside class="sidebar">
-          <div class="sidebar-heading">
-            <div>
-              <p class="eyebrow">THE MAP</p>
-              <h2>10 Western States</h2>
-            </div>
-            <span class="live-pill"><span></span> LIVE LAYERS</span>
-          </div>
-          <p class="sidebar-intro">Explore public-land boundaries. Tap an area to see its mapped manager.</p>
-
-          <div class="map-search">
-            <label for="place-search">Search places &amp; land units</label>
-            <div class="search-wrap">
-              <svg aria-hidden="true" viewBox="0 0 20 20">
-                <circle cx="8.5" cy="8.5" r="5.5"></circle>
-                <path d="m13 13 4 4"></path>
-              </svg>
-              <input id="place-search" type="search" placeholder="e.g. Inyo National Forest or restaurant" autocomplete="off" />
-              <button id="search-submit" type="button" aria-label="Search places and land units">Go</button>
-            </div>
-            <p id="search-message" class="search-message" aria-live="polite">Search for places or land units in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Place searches go to OpenStreetMap when submitted; no autocomplete.</p>
-            <ul id="search-results" class="search-results" aria-label="Place search results" hidden></ul>
-            <p class="search-attribution">Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
+        <div class="view-body">
+          <div class="view" id="view-recent" data-title="Recent searches" hidden>
+            <p class="view-lead">Places and land units you searched for on this device. Choose one to search again.</p>
+            <ul id="recent-list" class="recent-list" aria-label="Recent searches"></ul>
+            <p id="recent-empty" class="view-empty">No recent searches yet. Use the search box on the map.</p>
+            <button id="recent-clear" class="view-button" type="button" hidden>Clear recent searches</button>
+            <p class="view-privacy">Recent searches are saved only in this browser and are never sent anywhere except when you submit a place search.</p>
           </div>
 
-          <section class="map-notes" aria-labelledby="map-notes-heading">
-            <div class="map-notes-heading">
-              <div>
-                <h3 id="map-notes-heading">Map notes &amp; reviews</h3>
-                <p>Click a place on the map to add a private note.</p>
+          <div class="view" id="view-saved" data-title="Saved locations" hidden>
+            <section class="map-notes" aria-labelledby="map-notes-heading">
+              <div class="map-notes-heading">
+                <div>
+                  <h3 id="map-notes-heading">Map notes &amp; reviews</h3>
+                  <p>Click a place on the map to add a private note.</p>
+                </div>
+                <span id="map-note-count" class="map-note-count">0 saved</span>
               </div>
-              <span id="map-note-count" class="map-note-count">0 saved</span>
-            </div>
-            <form id="map-note-form" class="map-note-form" hidden>
-              <p id="map-note-location" class="map-note-location"></p>
-              <label class="note-field-label" for="map-note-title">Title <span>optional</span></label>
-              <input id="map-note-title" class="note-text-field" type="text" maxlength="80" placeholder="e.g. Quiet river access" />
-              <label class="note-field-label" for="map-note-icon">Map icon</label>
-              <select id="map-note-icon" class="note-text-field">
-                <optgroup label="Camping">
-                  <option value="camp">🏕️ Campsite</option>
-                  <option value="water">💧 Water</option>
-                  <option value="fire">🔥 Campfire area</option>
-                  <option value="wildlife">🐻 Wildlife</option>
-                </optgroup>
-                <optgroup label="Travel">
-                  <option value="trail">🥾 Trail</option>
-                  <option value="road">🚙 Road / access</option>
-                  <option value="fuel">⛽ Fuel</option>
-                  <option value="food">🍽️ Food</option>
-                </optgroup>
-                <optgroup label="Landmarks">
-                  <option value="viewpoint">🏞️ Viewpoint</option>
-                  <option value="landmark">📍 Landmark</option>
-                  <option value="photo">📷 Photo spot</option>
-                </optgroup>
-              </select>
-              <label class="note-field-label" for="map-note-body">Note or review</label>
-              <textarea id="map-note-body" class="note-text-field note-textarea" rows="3" maxlength="1200" required placeholder="Share useful details about this spot…"></textarea>
-              <div class="map-note-actions">
-                <button class="note-save-button" type="submit">Save note</button>
-                <button class="note-cancel-button" id="map-note-cancel" type="button">Cancel</button>
-              </div>
-            </form>
-            <p id="map-note-message" class="map-note-message" role="status" aria-live="polite"></p>
-            <p id="shared-note-notice" class="shared-note-notice" role="status" hidden>A shared note is shown in view-only mode. Anyone with this link can view its contents; it is not saved to this browser.</p>
-            <p class="map-note-privacy">Notes and icons are saved only in this browser. Share links include a snapshot of one note in the URL; anyone with the link can view it. Shared notes are view-only and do not confirm camping permission.</p>
-          </section>
-
-          <fieldset class="layer-filters">
-            <legend>Show land managers</legend>
-            <label class="filter-row">
-              <input type="checkbox" name="manager" value="forest" checked />
-              <span class="filter-swatch swatch-forest"></span>
-              <span>U.S. Forest Service</span>
-            </label>
-            <label class="filter-row">
-              <input type="checkbox" name="manager" value="blm" checked />
-              <span class="filter-swatch swatch-blm"></span>
-              <span>Bureau of Land Management</span>
-            </label>
-            <label class="filter-row">
-              <input type="checkbox" name="manager" value="state" checked />
-              <span class="filter-swatch swatch-state"></span>
-              <span>State &amp; local public land</span>
-            </label>
-            <label class="filter-row">
-              <input type="checkbox" name="manager" value="other" checked />
-              <span class="filter-swatch swatch-other"></span>
-              <span>Other federal public land</span>
-            </label>
-          </fieldset>
-
-          <div class="status-card" role="note">
-            <span class="status-icon" aria-hidden="true">?</span>
-            <div>
-              <strong>Camping status: not determined</strong>
-              <p>This map shows managers, not camping permission. Verify every location before setting up camp.</p>
-            </div>
+              <form id="map-note-form" class="map-note-form" hidden>
+                <p id="map-note-location" class="map-note-location"></p>
+                <label class="note-field-label" for="map-note-title">Title <span>optional</span></label>
+                <input id="map-note-title" class="note-text-field" type="text" maxlength="80" placeholder="e.g. Quiet river access" />
+                <label class="note-field-label" for="map-note-icon">Map icon</label>
+                <select id="map-note-icon" class="note-text-field">
+                  <optgroup label="Camping">
+                    <option value="camp">🏕️ Campsite</option>
+                    <option value="water">💧 Water</option>
+                    <option value="fire">🔥 Campfire area</option>
+                    <option value="wildlife">🐻 Wildlife</option>
+                  </optgroup>
+                  <optgroup label="Travel">
+                    <option value="trail">🥾 Trail</option>
+                    <option value="road">🚙 Road / access</option>
+                    <option value="fuel">⛽ Fuel</option>
+                    <option value="food">🍽️ Food</option>
+                  </optgroup>
+                  <optgroup label="Landmarks">
+                    <option value="viewpoint">🏞️ Viewpoint</option>
+                    <option value="landmark">📍 Landmark</option>
+                    <option value="photo">📷 Photo spot</option>
+                  </optgroup>
+                </select>
+                <label class="note-field-label" for="map-note-body">Note or review</label>
+                <textarea id="map-note-body" class="note-text-field note-textarea" rows="3" maxlength="1200" required placeholder="Share useful details about this spot…"></textarea>
+                <div class="map-note-actions">
+                  <button class="note-save-button" type="submit">Save note</button>
+                  <button class="note-cancel-button" id="map-note-cancel" type="button">Cancel</button>
+                </div>
+              </form>
+              <p id="map-note-message" class="map-note-message" role="status" aria-live="polite"></p>
+              <p id="shared-note-notice" class="shared-note-notice" role="status" hidden>A shared note is shown in view-only mode. Anyone with this link can view its contents; it is not saved to this browser.</p>
+              <ul id="saved-list" class="saved-list" aria-label="Saved locations"></ul>
+              <p id="saved-empty" class="view-empty">No saved locations yet.</p>
+              <p class="map-note-privacy">Notes and icons are saved only in this browser. Share links include a snapshot of one note in the URL; anyone with the link can view it. Shared notes are view-only and do not confirm camping permission.</p>
+            </section>
           </div>
 
-          <div class="map-actions">
-            <button class="action-button" id="locate-button" type="button">
-              <svg aria-hidden="true" viewBox="0 0 20 20">
-                <circle cx="10" cy="10" r="5.5"></circle>
-                <circle cx="10" cy="10" r="1.5"></circle>
-                <path d="M10 1v3M10 16v3M1 10h3M16 10h3"></path>
-              </svg>
-              Use my location
-            </button>
-            <button class="action-button action-button-muted" id="reset-button" type="button">
-              Reset map
-            </button>
-          </div>
-          <p class="location-privacy">Your location stays in your browser and is never saved.</p>
-        </aside>
-
-        <div class="map-column">
-          <div class="map-toolbar">
-            <div>
-              <span class="map-toolbar-label">LAND OWNERSHIP &amp; MANAGEMENT</span>
-              <span id="map-status" class="map-status" role="status" aria-live="polite">Connecting to land data…</span>
-            </div>
-            <span class="map-toolbar-note"><span class="status-dot"></span> Camping access varies</span>
-          </div>
-          <div id="map" role="application" aria-label="Interactive map of California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public land boundaries">
-            <div class="map-loading" id="map-loading">
-              <span class="loading-spinner" aria-hidden="true"></span>
-              <span>Loading the map…</span>
-            </div>
-          </div>
-          <div class="map-caption">
-            <span><strong>BOUNDARY DATA</strong> · <span id="map-data-source-label">USGS PAD-US 3.0</span></span>
-            <span>Use for broad planning only · <a href="#data-sources">Read data limitations</a></span>
-          </div>
-        </div>
-      </section>
-
-      <section class="field-notes" id="field-notes" aria-labelledby="field-notes-title">
-        <div class="section-title">
-          <div>
+          <div class="view" id="view-before" data-title="Before you head out" hidden>
             <p class="eyebrow">A BETTER TRIP STARTS HERE</p>
-            <h2 id="field-notes-title">Before you head out</h2>
+            <p class="view-lead">Three checks. Every trip.</p>
+            <div class="notes-grid">
+              <article class="note-card">
+                <span class="card-number">01</span>
+                <h3>Confirm access &amp; rules</h3>
+                <p>Ask the responsible office about camping permission, road access, stay limits, permits, and current closures.</p>
+                <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">BLM camping guidance <span aria-hidden="true">↗</span></a>
+              </article>
+              <article class="note-card">
+                <span class="card-number">02</span>
+                <h3>Check fire restrictions</h3>
+                <p>Restrictions can change quickly with weather. Check local rules and permit requirements; CAL FIRE guidance applies in California.</p>
+                <a href="https://www.fire.ca.gov/prepare/campfire-permits" target="_blank" rel="noreferrer">CAL FIRE (California) permits &amp; safety <span aria-hidden="true">↗</span></a>
+              </article>
+              <article class="note-card">
+                <span class="card-number">03</span>
+                <h3>Leave it better</h3>
+                <p>Use existing sites, stay on designated roads, pack out all waste, and keep a safe distance from water and wildlife.</p>
+                <a href="https://www.fs.usda.gov/visit/know-before-you-go/camping" target="_blank" rel="noreferrer">Forest Service camping tips <span aria-hidden="true">↗</span></a>
+              </article>
+            </div>
           </div>
-          <span class="section-side-note">Three checks. Every trip.</span>
-        </div>
-        <div class="notes-grid">
-          <article class="note-card">
-            <span class="card-number">01</span>
-            <h3>Confirm access &amp; rules</h3>
-            <p>Ask the responsible office about camping permission, road access, stay limits, permits, and current closures.</p>
-            <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">BLM camping guidance <span aria-hidden="true">↗</span></a>
-          </article>
-          <article class="note-card">
-            <span class="card-number">02</span>
-            <h3>Check fire restrictions</h3>
-            <p>Restrictions can change quickly with weather. Check local rules and permit requirements; CAL FIRE guidance applies in California.</p>
-            <a href="https://www.fire.ca.gov/prepare/campfire-permits" target="_blank" rel="noreferrer">CAL FIRE (California) permits &amp; safety <span aria-hidden="true">↗</span></a>
-          </article>
-          <article class="note-card">
-            <span class="card-number">03</span>
-            <h3>Leave it better</h3>
-            <p>Use existing sites, stay on designated roads, pack out all waste, and keep a safe distance from water and wildlife.</p>
-            <a href="https://www.fs.usda.gov/visit/know-before-you-go/camping" target="_blank" rel="noreferrer">Forest Service camping tips <span aria-hidden="true">↗</span></a>
-          </article>
+
+          <div class="view" id="view-about" data-title="About this map" hidden>
+            <p class="eyebrow">10 WESTERN STATES · EARLY ACCESS</p>
+            <p class="view-lead">
+              A field guide to public-land boundaries that can help you start planning a dispersed-camping trip.
+              <strong>Land ownership is not permission to camp.</strong>
+            </p>
+            <div class="status-card" role="note">
+              <span class="status-icon" aria-hidden="true">?</span>
+              <div>
+                <strong>Camping status: not determined</strong>
+                <p>This map shows managers, not camping permission. Verify every location before setting up camp.</p>
+              </div>
+            </div>
+            <span class="data-badge">BOUNDARIES ≠ PERMISSION</span>
+            <div class="data-copy">
+              <p>
+                The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
+              </p>
+              <p>
+                PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. Coverage and update dates vary by source and state. Its boundaries are generalized and may overlap or be incomplete.
+              </p>
+              <p class="data-warning">
+                <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
+              </p>
+              <p>
+                Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
+              </p>
+            </div>
+            <div class="source-list">
+              <h3>Sources &amp; verification</h3>
+              <a href="https://doi.org/10.5066/P9Q9LQ4B" target="_blank" rel="noreferrer">
+                <span><strong>USGS PAD-US 3.0</strong><small>Dataset record · DOI P9Q9LQ4B</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview" target="_blank" rel="noreferrer">
+                <span><strong>USGS PAD-US overview</strong><small>Scope, use, and limitations</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">
+                <span><strong>BLM camping guidance</strong><small>Rules vary by state and local office</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.fs.usda.gov/visit/know-before-you-go" target="_blank" rel="noreferrer">
+                <span><strong>U.S. Forest Service</strong><small>Check current local conditions</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>USGS The National Map Topo</strong><small>Topographic reference basemap</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>USFS Recreation Opportunities</strong><small>Service reports nightly updates</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.arcgis.com/home/item.html?id=7438e9e800914c94bad99f70a4f2092d" target="_blank" rel="noreferrer">
+                <span><strong>BLM National Recreation Site Points</strong><small>Public-release point records; interim data standard</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>USFS National Forest System Roads</strong><small>Includes mapped motorized closures</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>USFS National Forest System Trails</strong><small>Trail detail varies by forest</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_MVUM_01/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>USFS Motor Vehicle Use Map routes</strong><small>Designated vehicle use; coverage varies by forest</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer" target="_blank" rel="noreferrer">
+                <span><strong>U.S. Census Bureau TIGERweb roads</strong><small>Named primary, secondary, and local road reference</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0" target="_blank" rel="noreferrer">
+                <span><strong>U.S. Census Bureau TIGERweb state boundaries</strong><small>Boundary clipping for BLM recreation points</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://github.com/nationalparkservice/symbol-library" target="_blank" rel="noreferrer">
+                <span><strong>NPS Map Symbol Library</strong><small>BLM site-type symbols (BSD license, © Mapbox, Inc.)</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.arcgis.com/home/item.html?id=f94999eb674d4085be0c86729fe4a151" target="_blank" rel="noreferrer">
+                <span><strong>BLM National GTLF public motorized roads</strong><small>National public-release dataset subset</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936" target="_blank" rel="noreferrer">
+                <span><strong>BLM National GTLF limited-public motorized roads</strong><small>National limited-public dataset subset</small></span><span aria-hidden="true">↗</span>
+              </a>
+              <p class="source-timestamp" id="source-layer-note">The default ArcGIS layer reports PAD-US 3.0 data last edited March 20, 2024. This is not a current inventory of restrictions or conditions.</p>
+            </div>
+            <p class="view-privacy">Your location stays in your browser and is never saved. Made for thoughtful trips, not a substitute for local guidance.</p>
+          </div>
         </div>
       </section>
 
-      <section class="data-section" id="data-sources" aria-labelledby="data-title">
-        <div class="data-heading">
-          <div>
-            <p class="eyebrow">KNOW WHAT YOU'RE LOOKING AT</p>
-            <h2 id="data-title">About this map</h2>
-          </div>
-          <span class="data-badge">BOUNDARIES ≠ PERMISSION</span>
-        </div>
-        <div class="data-grid">
-          <div class="data-copy">
-            <p>
-              The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
-            </p>
-            <p>
-              PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. Coverage and update dates vary by source and state. Its boundaries are generalized and may overlap or be incomplete.
-            </p>
-            <p class="data-warning">
-              <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
-            </p>
-            <p>
-              Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
-            </p>
-          </div>
-          <div class="source-list">
-            <h3>Sources &amp; verification</h3>
-            <a href="https://doi.org/10.5066/P9Q9LQ4B" target="_blank" rel="noreferrer">
-              <span><strong>USGS PAD-US 3.0</strong><small>Dataset record · DOI P9Q9LQ4B</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview" target="_blank" rel="noreferrer">
-              <span><strong>USGS PAD-US overview</strong><small>Scope, use, and limitations</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.blm.gov/programs/recreation/camping" target="_blank" rel="noreferrer">
-              <span><strong>BLM camping guidance</strong><small>Rules vary by state and local office</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.fs.usda.gov/visit/know-before-you-go" target="_blank" rel="noreferrer">
-              <span><strong>U.S. Forest Service</strong><small>Check current local conditions</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>USGS The National Map Topo</strong><small>Topographic reference basemap</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>USFS Recreation Opportunities</strong><small>Service reports nightly updates</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.arcgis.com/home/item.html?id=7438e9e800914c94bad99f70a4f2092d" target="_blank" rel="noreferrer">
-              <span><strong>BLM National Recreation Site Points</strong><small>Public-release point records; interim data standard</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RoadBasic_01/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>USFS National Forest System Roads</strong><small>Includes mapped motorized closures</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_TrailNFSPublish_01/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>USFS National Forest System Trails</strong><small>Trail detail varies by forest</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_MVUM_01/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>USFS Motor Vehicle Use Map routes</strong><small>Designated vehicle use; coverage varies by forest</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer" target="_blank" rel="noreferrer">
-              <span><strong>U.S. Census Bureau TIGERweb roads</strong><small>Named primary, secondary, and local road reference</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0" target="_blank" rel="noreferrer">
-              <span><strong>U.S. Census Bureau TIGERweb state boundaries</strong><small>Boundary clipping for BLM recreation points</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://github.com/nationalparkservice/symbol-library" target="_blank" rel="noreferrer">
-              <span><strong>NPS Map Symbol Library</strong><small>BLM site-type symbols (BSD license, © Mapbox, Inc.)</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.arcgis.com/home/item.html?id=f94999eb674d4085be0c86729fe4a151" target="_blank" rel="noreferrer">
-              <span><strong>BLM National GTLF public motorized roads</strong><small>National public-release dataset subset</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936" target="_blank" rel="noreferrer">
-              <span><strong>BLM National GTLF limited-public motorized roads</strong><small>National limited-public dataset subset</small></span><span aria-hidden="true">↗</span>
-            </a>
-            <p class="source-timestamp" id="source-layer-note">The default ArcGIS layer reports PAD-US 3.0 data last edited March 20, 2024. This is not a current inventory of restrictions or conditions.</p>
-          </div>
-        </div>
-      </section>
-    </main>
+      <main class="map-stage" id="map-section">
+        <h1 class="sr-only">Campgroundless — public lands map for dispersed-camping planning</h1>
 
-    <footer class="footer">
-      <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">▲</span><span>campgroundless<span class="brand-period">.</span></span></a>
-      <p>Made for thoughtful trips, not a substitute for local guidance.</p>
-      <a href="#data-sources">Data &amp; limitations</a>
-    </footer>
+        <div class="map-search">
+          <label class="sr-only" for="place-search">Search places &amp; land units</label>
+          <div class="search-wrap">
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <circle cx="8.5" cy="8.5" r="5.5"></circle>
+              <path d="m13 13 4 4"></path>
+            </svg>
+            <input id="place-search" type="search" placeholder="Search places &amp; land units" autocomplete="off" />
+            <button id="search-submit" type="button" aria-label="Search places and land units">Go</button>
+          </div>
+          <p id="search-message" class="search-message" aria-live="polite"></p>
+          <ul id="search-results" class="search-results" aria-label="Place search results" hidden></ul>
+          <p class="search-attribution">Place searches go to OpenStreetMap when submitted; no autocomplete. Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
+        </div>
+
+        <div class="map-tools" role="group" aria-label="Map tools">
+          <button class="map-tool" id="locate-button" type="button" title="Use my location" aria-label="Use my location">
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="5.500"></circle>
+              <circle cx="10" cy="10" r="1.500"></circle>
+              <path d="M10 1v3M10 16v3M1 10h3M16 10h3"></path>
+            </svg>
+          </button>
+          <button class="map-tool" id="reset-button" type="button" title="Reset map view" aria-label="Reset map view">
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <path d="M3.500 10a6.500 6.500 0 1 0 2-4.700M3.500 3v3.500H7"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div id="map" role="application" aria-label="Interactive map of California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public land boundaries">
+          <div class="map-loading" id="map-loading">
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <span>Loading the map…</span>
+          </div>
+        </div>
+
+        <div class="map-notice">
+          <span class="map-notice-text"><strong>Land ownership is not permission to camp.</strong> Verify closures, fire rules, and access with the land manager.</span>
+          <span id="map-status" class="map-status" role="status" aria-live="polite">Connecting to land data…</span>
+          <span class="map-notice-source"><strong>BOUNDARY DATA</strong> · <span id="map-data-source-label">USGS PAD-US 3.0</span> · <button class="link-button" type="button" data-open-view="about">About &amp; limitations</button></span>
+        </div>
+      </main>
+    </div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -319,6 +304,7 @@
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=12"></script>
-    <script src="./app.js?v=72"></script>
+    <script src="./sidebar.js?v=2"></script>
+    <script src="./app.js?v=78"></script>
   </body>
 </html>
