@@ -32,6 +32,7 @@
       layers,
       recreationSitesMinZoom: Number(form.elements.recreationSitesMinZoom.value),
       showLandDisclaimer: form.elements.showLandDisclaimer.checked,
+      showBoundaryData: form.elements.showBoundaryData.checked,
       basemap: form.elements.basemap.value,
       osmLayer: form.elements.osmLayer.value,
       basemapUrl: form.elements.basemapUrl.value.trim(),
@@ -74,6 +75,7 @@
     form.elements.placeSearchUrl.value = settings.placeSearchUrl;
     form.elements.recreationSitesMinZoom.value = settings.recreationSitesMinZoom;
     form.elements.showLandDisclaimer.checked = settings.showLandDisclaimer !== false;
+    form.elements.showBoundaryData.checked = settings.showBoundaryData !== false;
     Object.keys(layerNames).forEach((layer) => {
       form.querySelector(`input[name="layer"][value="${layer}"]`).checked = Boolean(settings.layers[layer]);
     });

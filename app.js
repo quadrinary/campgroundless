@@ -129,6 +129,7 @@
   }
   window.CampgroundlessSettings.applyTypography(settings);
   document.getElementById("land-disclaimer").hidden = settings.showLandDisclaimer === false;
+  document.getElementById("boundary-data-notice").hidden = settings.showBoundaryData === false;
   const mapStatus = document.getElementById("map-status");
   const mapLoading = document.getElementById("map-loading");
   const searchMessage = document.getElementById("search-message");

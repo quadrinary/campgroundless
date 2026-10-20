@@ -26,6 +26,7 @@
     },
     recreationSitesMinZoom: 11,
     showLandDisclaimer: true,
+    showBoundaryData: true,
     osmLayer: "standard",
     basemapUrl: "",
     basemapAttribution: "",
@@ -99,6 +100,7 @@
         ),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
         showLandDisclaimer: saved.showLandDisclaimer !== false,
+        showBoundaryData: saved.showBoundaryData !== false,
         typography: normalizeTypography(saved.typography),
       };
     } catch (error) {
@@ -118,6 +120,7 @@
         ),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
         showLandDisclaimer: settings.showLandDisclaimer !== false,
+        showBoundaryData: settings.showBoundaryData !== false,
         typography: normalizeTypography(settings.typography),
       }),
     );
