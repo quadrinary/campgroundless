@@ -315,6 +315,11 @@ body.app-body {
   color: var(--muted);
 }
 
+.map-search .search-message:empty,
+.map-search:not(:focus-within) .search-attribution {
+  display: none;
+}
+
 .map-tools {
   position: absolute;
   top: 12px;

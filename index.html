@@ -21,7 +21,7 @@
       crossorigin=""
     />
     <link rel="stylesheet" href="./styles.css?v=23" />
-    <link rel="stylesheet" href="./shell.css?v=2" />
+    <link rel="stylesheet" href="./shell.css?v=3" />
   </head>
   <body class="app-body">
     <div class="app" id="app">
@@ -262,9 +262,9 @@
             <input id="place-search" type="search" placeholder="Search places &amp; land units" autocomplete="off" />
             <button id="search-submit" type="button" aria-label="Search places and land units">Go</button>
           </div>
-          <p id="search-message" class="search-message" aria-live="polite">Place searches go to OpenStreetMap when submitted; no autocomplete.</p>
+          <p id="search-message" class="search-message" aria-live="polite"></p>
           <ul id="search-results" class="search-results" aria-label="Place search results" hidden></ul>
-          <p class="search-attribution">Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
+          <p class="search-attribution">Place searches go to OpenStreetMap when submitted; no autocomplete. Place search by <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noreferrer">usage policy</a></p>
         </div>
 
         <div class="map-tools" role="group" aria-label="Map tools">
@@ -305,6 +305,6 @@
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=12"></script>
     <script src="./sidebar.js?v=2"></script>
-    <script src="./app.js?v=73"></script>
+    <script src="./app.js?v=74"></script>
   </body>
 </html>

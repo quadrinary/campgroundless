@@ -2790,7 +2790,7 @@
   const recentList = document.getElementById("recent-list");
   const recentEmpty = document.getElementById("recent-empty");
   const recentClear = document.getElementById("recent-clear");
-  const defaultSearchMessage = "Place searches go to OpenStreetMap when submitted; no autocomplete.";
+  const defaultSearchMessage = "";
 
   function readRecent() {
     try {
