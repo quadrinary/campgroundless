@@ -352,9 +352,32 @@
     panel.setAttribute("role", "group");
     panel.setAttribute("aria-label", "Basemaps and reference overlays");
     const heading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    heading.textContent = "Map style";
+    heading.textContent = "Map layers";
     layerStatus = L.DomUtil.create("span", "map-layer-status", panel);
     layerStatus.setAttribute("role", "status");
+
+    const managerHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
+    managerHeading.textContent = "Land managers";
+    [
+      ["forest", "U.S. Forest Service"],
+      ["blm", "Bureau of Land Management"],
+      ["state", "State public lands"],
+      ["other", "Other public lands"],
+    ].forEach(([value, label]) => {
+      const managerLabel = L.DomUtil.create("label", "map-layer-option", panel);
+      const managerInput = L.DomUtil.create("input", "", managerLabel);
+      managerInput.type = "checkbox";
+      managerInput.name = "manager";
+      managerInput.value = value;
+      const swatch = L.DomUtil.create("span", `filter-swatch swatch-${value}`, managerLabel);
+      swatch.setAttribute("aria-hidden", "true");
+      const managerText = L.DomUtil.create("span", "", managerLabel);
+      managerText.textContent = label;
+    });
+    const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
+    managerSeparator.setAttribute("aria-hidden", "true");
+    const styleHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
+    styleHeading.textContent = "Map style";
 
     const options = [
       ["esri", "Esri World Street Map"],
@@ -1086,11 +1109,8 @@
     noteBody.value = note?.body ?? "";
     noteForm.querySelector(".note-save-button").textContent = note ? "Update note" : "Save note";
     setNoteMessage("");
-    if (window.matchMedia("(max-width: 700px)").matches) {
-      noteForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    } else {
-      noteTitle.focus({ preventScroll: true });
-    }
+    window.CampgroundlessSidebar?.show("saved");
+    noteTitle.focus({ preventScroll: true });
   }
 
   function buildNotePopup(note, shared = false) {
@@ -1113,8 +1133,39 @@
 
   const sharedNote = readSharedNoteFromUrl();
 
+  const noteMarkersById = new Map();
+  const savedList = document.getElementById("saved-list");
+  const savedEmpty = document.getElementById("saved-empty");
+
+  function renderSavedList() {
+    savedList.replaceChildren();
+    notes.forEach((note) => {
+      if (sharedNote?.id === note.id) {
+        return;
+      }
+      const type = noteTypes[note.icon];
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "list-item";
+      const name = document.createElement("strong");
+      name.textContent = `${type.icon} ${note.title.trim() || type.label}`;
+      const detail = document.createElement("small");
+      detail.textContent = note.body.slice(0, 80);
+      button.append(name, detail);
+      button.addEventListener("click", () => {
+        map.setView([note.lat, note.lng], Math.max(map.getZoom(), 11));
+        noteMarkersById.get(note.id)?.openPopup();
+      });
+      item.append(button);
+      savedList.append(item);
+    });
+    savedEmpty.hidden = savedList.children.length > 0;
+  }
+
   function renderNotes() {
     noteMarkers.clearLayers();
+    noteMarkersById.clear();
     notes.forEach((note) => {
       if (sharedNote?.id === note.id) {
         return;
@@ -1132,6 +1183,7 @@
         alt: `${type.label} map note`,
       }).addTo(noteMarkers);
       marker.bindPopup(buildNotePopup(note), { maxWidth: 280 });
+      noteMarkersById.set(note.id, marker);
       marker.on("popupopen", (event) => {
         event.popup.getElement().querySelectorAll("[data-note-action]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -1166,6 +1218,7 @@
       });
     });
     noteCount.textContent = `${notes.length} saved`;
+    renderSavedList();
   }
 
   map.on("click", handleMapClick);
@@ -1208,6 +1261,7 @@
 
   if (sharedNote) {
     sharedNoteNotice.hidden = false;
+    window.CampgroundlessSidebar?.show("saved");
     const marker = L.marker([sharedNote.lat, sharedNote.lng], {
       icon: L.divIcon({
         className: "map-note-icon",
@@ -2732,6 +2786,69 @@
     }
   }
 
+  const recentKey = "campgroundless.recent-searches.v1";
+  const recentList = document.getElementById("recent-list");
+  const recentEmpty = document.getElementById("recent-empty");
+  const recentClear = document.getElementById("recent-clear");
+  const defaultSearchMessage = "Place searches go to OpenStreetMap when submitted; no autocomplete.";
+
+  function readRecent() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(recentKey) || "[]");
+      return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry?.term === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function renderRecent() {
+    const recent = readRecent();
+    recentList.replaceChildren();
+    recent.forEach((entry) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "list-item";
+      const name = document.createElement("strong");
+      name.textContent = entry.term;
+      const when = document.createElement("small");
+      const date = new Date(entry.at);
+      when.textContent = Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+      button.append(name, when);
+      button.addEventListener("click", () => {
+        searchInput.value = entry.term;
+        searchMap();
+      });
+      item.append(button);
+      recentList.append(item);
+    });
+    recentEmpty.hidden = recent.length > 0;
+    recentClear.hidden = recent.length === 0;
+  }
+
+  function recordRecent(term) {
+    try {
+      const next = [
+        { term, at: new Date().toISOString() },
+        ...readRecent().filter((entry) => entry.term.toLowerCase() !== term.toLowerCase()),
+      ].slice(0, 15);
+      localStorage.setItem(recentKey, JSON.stringify(next));
+    } catch (error) {
+      console.error("Could not save recent search.", error);
+    }
+    renderRecent();
+  }
+
+  recentClear.addEventListener("click", () => {
+    try {
+      localStorage.removeItem(recentKey);
+    } catch (error) {
+      console.error("Could not clear recent searches.", error);
+    }
+    renderRecent();
+  });
+  renderRecent();
+
   async function searchMap() {
     const term = searchInput.value.trim();
     if (!term) {
@@ -2741,6 +2858,7 @@
     if (placeSearchInProgress) {
       return;
     }
+    recordRecent(term);
     clearSearchResults();
     const match = refreshSearchableFeatures().find((featureLayer) => {
       const properties = featureLayer.feature.properties;
@@ -2810,6 +2928,6 @@
     map.fitBounds(coverageBounds);
     searchInput.value = "";
     clearSearchResults();
-    searchMessage.textContent = "Search for places or land units in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Place searches go to OpenStreetMap when submitted; no autocomplete.";
+    searchMessage.textContent = defaultSearchMessage;
   });
 })();
