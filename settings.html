@@ -17,7 +17,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
     />
     <link rel="stylesheet" href="./styles.css?v=7" />
-    <link rel="stylesheet" href="./settings.css?v=3" />
+    <link rel="stylesheet" href="./settings.css?v=5" />
   </head>
   <body>
     <header class="topbar">
@@ -328,13 +328,16 @@
             <li><span>Text sizes</span><strong id="summary-typography">12 / 11 / 10 px</strong></li>
             <li><span>API keys</span><strong id="summary-keys">None saved</strong></li>
           </ul>
-          <div class="settings-actions">
-            <button class="save-button" type="submit">Save settings</button>
-            <button class="reset-settings-button" id="reset-settings" type="button">Reset to defaults</button>
-            <a class="back-to-map" href="./index.html">← Back to map</a>
-          </div>
-          <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
         </aside>
+
+        <div class="settings-bar">
+          <p id="settings-message" class="settings-message" role="status" aria-live="polite"></p>
+          <div class="settings-actions">
+            <a class="back-to-map" href="./index.html">← Back to map</a>
+            <button class="reset-settings-button" id="reset-settings" type="button">Reset to defaults</button>
+            <button class="save-button" type="submit">Save settings</button>
+          </div>
+        </div>
       </form>
     </main>
 

@@ -19,6 +19,10 @@
   line-height: 1.6;
 }
 
+body {
+  padding-bottom: 52px;
+}
+
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 285px;
@@ -360,14 +364,37 @@
   font-weight: 600;
 }
 
+.settings-bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 8px 18px;
+  background: rgba(245, 244, 239, 0.97);
+  border-top: 1px solid #e2e7df;
+  box-shadow: 0 -2px 8px rgba(25, 40, 29, 0.08);
+}
+
+.settings-bar .settings-message {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+}
+
 .settings-actions {
-  margin-top: 16px;
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .save-button {
-  min-height: 36px;
+  min-height: 28px;
+  padding: 0 14px;
   border: 1px solid #315a43;
   border-radius: 4px;
   background: #315a43;
@@ -382,7 +409,8 @@
 }
 
 .reset-settings-button {
-  min-height: 32px;
+  min-height: 28px;
+  padding: 0 12px;
   border: 1px solid #d3ddd0;
   border-radius: 4px;
   background: transparent;
@@ -397,12 +425,13 @@
 }
 
 .back-to-map {
-  padding: 8px 0 0;
+  padding: 0 6px;
   color: #57745a;
   font-size: 8px;
   font-weight: 700;
   text-align: center;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .back-to-map:hover {
@@ -530,6 +559,21 @@
 }
 
 @media (max-width: 640px) {
+  .settings-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 10px;
+    padding: 6px 10px;
+  }
+
+  .settings-bar .settings-message:empty {
+    display: none;
+  }
+
+  body {
+    padding-bottom: 72px;
+  }
+
   .settings-main {
     padding-top: 32px;
   }
