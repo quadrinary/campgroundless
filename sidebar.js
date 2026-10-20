@@ -7,6 +7,7 @@
   const closeButton = document.getElementById("view-close");
   const items = Array.from(document.querySelectorAll(".rail-item[data-view]"));
   const views = Array.from(document.querySelectorAll(".view"));
+  const menuButton = document.getElementById("search-menu-button");
   let current = null;
 
   function refreshMap() {
@@ -17,6 +18,10 @@
     app.classList.toggle("rail-expanded", expanded);
     toggle.setAttribute("aria-expanded", String(expanded));
     toggle.setAttribute("aria-label", expanded ? "Collapse sidebar" : "Expand sidebar");
+    if (menuButton) {
+      menuButton.setAttribute("aria-expanded", String(expanded));
+      menuButton.setAttribute("aria-label", expanded ? "Close menu" : "Open menu");
+    }
   }
 
   function hide() {
@@ -50,6 +55,19 @@
   }
 
   toggle.addEventListener("click", () => setExpanded(!app.classList.contains("rail-expanded")));
+  if (menuButton) {
+    menuButton.addEventListener("click", () => setExpanded(!app.classList.contains("rail-expanded")));
+  }
+  document.addEventListener("pointerdown", (event) => {
+    if (
+      app.classList.contains("rail-expanded") &&
+      window.matchMedia("(max-width: 800px)").matches &&
+      !rail.contains(event.target) &&
+      !(menuButton && menuButton.contains(event.target))
+    ) {
+      setExpanded(false);
+    }
+  });
   items.forEach((item) =>
     item.addEventListener("click", () => {
       if (current === item.dataset.view) hide();
