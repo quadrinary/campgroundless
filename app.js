@@ -177,11 +177,17 @@
   let selectedNoteLocation = null;
   let editingNoteId = null;
   let notes = [];
+  L.Popup.mergeOptions({
+    autoPan: true,
+    autoPanPaddingTopLeft: [24, 140],
+    autoPanPaddingBottomRight: [72, 24],
+  });
+
   const map = L.map("map", {
     zoomControl: false,
     minZoom: 5,
     maxZoom: 18,
-    maxBounds: coverageBounds.pad(0.14),
+    maxBounds: coverageBounds.pad(0.6),
     maxBoundsViscosity: 0.7,
   }).fitBounds(coverageBounds);
   const usfsRecreationPane = map.createPane("usfsRecreationSites");
@@ -1220,6 +1226,48 @@
     noteCount.textContent = `${notes.length} saved`;
     renderSavedList();
   }
+
+  const popupPadding = { top: 140, right: 72, bottom: 24, left: 24 };
+
+  function keepPopupInView(popup) {
+    const element = popup.getElement();
+    if (!element || !popup.isOpen()) {
+      return;
+    }
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    let dx = 0;
+    let dy = 0;
+    if (rect.top < mapRect.top + popupPadding.top) {
+      dy = rect.top - (mapRect.top + popupPadding.top);
+    } else if (rect.bottom > mapRect.bottom - popupPadding.bottom) {
+      dy = rect.bottom - (mapRect.bottom - popupPadding.bottom);
+    }
+    if (rect.left < mapRect.left + popupPadding.left) {
+      dx = rect.left - (mapRect.left + popupPadding.left);
+    } else if (rect.right > mapRect.right - popupPadding.right) {
+      dx = rect.right - (mapRect.right - popupPadding.right);
+    }
+    if (dx || dy) {
+      map.panBy([dx, dy], { animate: true });
+    }
+  }
+
+  map.on("popupopen", (event) => {
+    const popup = event.popup;
+    const content = popup.getElement();
+    if (!content) {
+      return;
+    }
+    const check = () => window.setTimeout(() => keepPopupInView(popup), 50);
+    check();
+    content.addEventListener("load", check, true);
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(check);
+      observer.observe(content);
+      popup.once("remove", () => observer.disconnect());
+    }
+  });
 
   map.on("click", handleMapClick);
   document.getElementById("map-note-cancel").addEventListener("click", closeNoteEditor);
