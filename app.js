@@ -403,13 +403,17 @@
       options.push(["custom", "Custom XYZ tiles"]);
     }
 
+    const activeStyle = options.some(([value]) => value === activeBasemapOption())
+      ? activeBasemapOption()
+      : "esri";
+
     options.forEach(([value, label], index) => {
       const optionLabel = L.DomUtil.create("label", "map-layer-option", styleSection);
       const radio = L.DomUtil.create("input", "", optionLabel);
       radio.type = "radio";
       radio.name = "map-style-choice";
       radio.value = value;
-      radio.checked = value === activeBasemapOption();
+      radio.checked = value === activeStyle;
       radio.id = `map-style-choice-${index}`;
       const text = L.DomUtil.create("span", "", optionLabel);
       text.textContent = label;
