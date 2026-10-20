@@ -288,6 +288,24 @@
             </div>
           </section>
 
+          <section class="settings-card" aria-labelledby="notice-heading">
+            <div class="settings-card-heading">
+              <span class="settings-step">07</span>
+              <div>
+                <h2 id="notice-heading">Map notice</h2>
+                <p>Control the reminder strip shown below the map.</p>
+              </div>
+            </div>
+            <label class="typography-option" for="show-land-disclaimer">
+              <span><strong>Show “Land ownership is not permission to camp” reminder</strong><small>The same guidance always remains in About &amp; limitations.</small></span>
+              <input id="show-land-disclaimer" name="showLandDisclaimer" type="checkbox" checked />
+            </label>
+            <label class="typography-option" for="show-boundary-data">
+              <span><strong>Show “Boundary data” source line</strong><small>The data source name and About link under the map. Full sources always remain in About &amp; limitations.</small></span>
+              <input id="show-boundary-data" name="showBoundaryData" type="checkbox" checked />
+            </label>
+          </section>
+
           <aside class="security-note">
             <span class="security-icon" aria-hidden="true">!</span>
             <div>
@@ -326,7 +344,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=11"></script>
-    <script src="./settings.js?v=9"></script>
+    <script src="./settings-store.js?v=14"></script>
+    <script src="./settings.js?v=11"></script>
   </body>
 </html>

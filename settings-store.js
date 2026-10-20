@@ -25,7 +25,8 @@
       blmLimitedRoads: false,
     },
     recreationSitesMinZoom: 11,
-    basemap: "esri",
+    showLandDisclaimer: true,
+    showBoundaryData: true,
     osmLayer: "standard",
     basemapUrl: "",
     basemapAttribution: "",
@@ -98,6 +99,8 @@
           saved.recreationSitesMinZoom,
         ),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
+        showLandDisclaimer: saved.showLandDisclaimer !== false,
+        showBoundaryData: saved.showBoundaryData !== false,
         typography: normalizeTypography(saved.typography),
       };
     } catch (error) {
@@ -116,6 +119,8 @@
           settings.recreationSitesMinZoom,
         ),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
+        showLandDisclaimer: settings.showLandDisclaimer !== false,
+        showBoundaryData: settings.showBoundaryData !== false,
         typography: normalizeTypography(settings.typography),
       }),
     );

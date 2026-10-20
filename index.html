@@ -22,7 +22,7 @@
       crossorigin=""
     />
     <link rel="stylesheet" href="./styles.css?v=23" />
-    <link rel="stylesheet" href="./shell.css?v=5" />
+    <link rel="stylesheet" href="./shell.css?v=6" />
   </head>
   <body class="app-body">
     <div class="app" id="app">
@@ -256,6 +256,9 @@
         <div class="map-search">
           <label class="sr-only" for="place-search">Search places &amp; land units</label>
           <div class="search-wrap">
+            <button class="search-menu-button" id="search-menu-button" type="button" aria-expanded="false" aria-controls="rail" aria-label="Open menu">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
             <svg aria-hidden="true" viewBox="0 0 20 20">
               <circle cx="8.5" cy="8.5" r="5.5"></circle>
               <path d="m13 13 4 4"></path>
@@ -291,9 +294,9 @@
         </div>
 
         <div class="map-notice">
-          <span class="map-notice-text"><strong>Land ownership is not permission to camp.</strong> Verify closures, fire rules, and access with the land manager.</span>
+          <span class="map-notice-text" id="land-disclaimer"><strong>Land ownership is not permission to camp.</strong> Verify closures, fire rules, and access with the land manager.</span>
           <span id="map-status" class="map-status" role="status" aria-live="polite">Connecting to land data…</span>
-          <span class="map-notice-source"><strong>BOUNDARY DATA</strong> · <span id="map-data-source-label">USGS PAD-US 3.0</span> · <button class="link-button" type="button" data-open-view="about">About &amp; limitations</button></span>
+          <span class="map-notice-source" id="boundary-data-notice"><strong>BOUNDARY DATA</strong> · <span id="map-data-source-label">USGS PAD-US 3.0</span> · <button class="link-button" type="button" data-open-view="about">About &amp; limitations</button></span>
         </div>
       </main>
     </div>
@@ -304,8 +307,8 @@
       crossorigin=""
     ></script>
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
-    <script src="./settings-store.js?v=12"></script>
-    <script src="./sidebar.js?v=2"></script>
-    <script src="./app.js?v=81"></script>
+    <script src="./settings-store.js?v=14"></script>
+    <script src="./sidebar.js?v=3"></script>
+    <script src="./app.js?v=83"></script>
   </body>
 </html>
