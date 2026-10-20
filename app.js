@@ -363,7 +363,7 @@
     layerStatus.setAttribute("role", "status");
 
     const managerHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    managerHeading.textContent = "Land managers";
+    managerHeading.textContent = "Land Managers";
     [
       ["forest", "U.S. Forest Service"],
       ["blm", "Bureau of Land Management"],
@@ -382,8 +382,12 @@
     });
     const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
     managerSeparator.setAttribute("aria-hidden", "true");
-    const styleHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    styleHeading.textContent = "Map style";
+    const styleSection = document.createElement("div");
+    styleSection.className = "map-layer-style-section";
+    const styleSeparator = L.DomUtil.create("hr", "map-layer-separator", styleSection);
+    styleSeparator.setAttribute("aria-hidden", "true");
+    const styleHeading = L.DomUtil.create("strong", "map-layer-heading", styleSection);
+    styleHeading.textContent = "Map Style";
 
     const options = [
       ["esri", "Esri World Street Map"],
@@ -399,7 +403,7 @@
     }
 
     options.forEach(([value, label], index) => {
-      const optionLabel = L.DomUtil.create("label", "map-layer-option", panel);
+      const optionLabel = L.DomUtil.create("label", "map-layer-option", styleSection);
       const radio = L.DomUtil.create("input", "", optionLabel);
       radio.type = "radio";
       radio.name = "map-style-choice";
@@ -418,10 +422,8 @@
       });
     });
 
-    const separator = L.DomUtil.create("hr", "map-layer-separator", panel);
-    separator.setAttribute("aria-hidden", "true");
     const overlayHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
-    overlayHeading.textContent = "Reference overlays";
+    overlayHeading.textContent = "Reference Overlays";
     const overlayHelp = L.DomUtil.create("p", "map-layer-help", panel);
     overlayHelp.textContent =
       "USFS and BLM recreation sites share the visibility threshold saved in Settings. Click a mapped road or site for details; overlays do not confirm current access or camping permission.";
@@ -769,6 +771,7 @@
       }
     });
 
+    panel.append(styleSection);
     button.setAttribute("aria-controls", panel.id);
     button.addEventListener("click", () => {
       panel.hidden = !panel.hidden;
