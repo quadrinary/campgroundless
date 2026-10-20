@@ -3104,6 +3104,22 @@
     }
   });
 
+  searchInput.addEventListener("input", () => {
+    if (!searchInput.value.trim()) {
+      clearSearchResults();
+      searchMessage.textContent = defaultSearchMessage;
+    }
+  });
+
+  map.on("popupclose", () => {
+    setTimeout(() => {
+      if (!(map._popup && map.hasLayer(map._popup)) && searchMarkers.getLayers().length) {
+        clearSearchResults();
+        searchMessage.textContent = defaultSearchMessage;
+      }
+    }, 0);
+  });
+
   document.getElementById("locate-button").addEventListener("click", () => {
     map.locate({ setView: true, maxZoom: 10, enableHighAccuracy: false });
   });
