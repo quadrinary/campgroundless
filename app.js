@@ -1305,7 +1305,15 @@
     const unit = properties.Unit_Nm || properties.Loc_Nm || "Unnamed land unit";
     const access = properties.Pub_Access;
     const sourceDate = properties.Src_Date;
-    const accessText = access ? escapeHtml(access) : "Not provided";
+    const accessLabels = {
+      OA: "Open access",
+      RA: "Restricted access (permit, fee, or seasonal limits may apply)",
+      XA: "Closed access",
+      UK: "Unknown access",
+    };
+    const accessText = access
+      ? escapeHtml(accessLabels[String(access).toUpperCase()] || `Unrecognized code (${access})`)
+      : "Not provided";
     const sourceDateText = sourceDate ? escapeHtml(sourceDate) : "Not provided";
     const popup = `
       <div class="map-popup">
@@ -1314,15 +1322,15 @@
           ${popupNoteIconMarkup("Write a note at this location")}
         </div>
         <h3>${escapeHtml(unit)}</h3>
-        <p>Public-access field: <strong>${accessText}</strong></p>
-        <p>Source date recorded: ${sourceDateText}</p>
+        <p><strong>Public access type:</strong> ${accessText}</p>
         <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
-        <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
-        <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
         <div class="feature-note-action">
           <label for="feature-note-icon">Choose a note marker icon</label>
           <select id="feature-note-icon" class="feature-note-icon-select" aria-label="Choose a note icon">${noteIconOptions}</select>
         </div>
+        <p class="popup-warning">Distance is straight-line to the nearest mapped road segment. Census data does not confirm legal public access or current conditions.</p>
+        <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
+        <p>Source date recorded: ${sourceDateText}</p>
       </div>`;
     layer.bindPopup(popup, { maxWidth: 300, maxHeight: 320 });
     layer.on("popupopen", (event) => {
