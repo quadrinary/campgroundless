@@ -86,7 +86,7 @@ All map and data services used by the app allow requests from the app's `capacit
 
 ### Building on a Mac
 
-Requirements: macOS with Xcode 16 or newer, Node 22 or newer, and an Apple ID.
+Requirements: macOS with Xcode 26 or newer (required by Capacitor 8), Node 22 or newer, and an Apple ID.
 
 ```sh
 npm ci
