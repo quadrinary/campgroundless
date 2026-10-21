@@ -116,14 +116,20 @@ html.is-standalone[data-theme="dark"] .status-strip {
   background: #1d1e1a;
 }
 
+/* Offset (3% of the map height) that clears the iOS 26 top-edge blur. */
+html.is-standalone .app {
+  --ctl-off: calc((var(--app-h, 100vh) - env(safe-area-inset-top, 0px)) * 0.03);
+}
+
+/* Center the sidebar toggle on the search bar's menu button. */
 html.is-standalone .rail {
-  padding-top: 10px;
+  padding-top: calc(15.5px + var(--ctl-off));
 }
 
 /* Standalone: keep the search bar and tools clear of the iOS 26 top-edge blur. */
 html.is-standalone .map-search,
 html.is-standalone .map-tools {
-  top: calc(12px + 2%);
+  top: calc(12px + var(--ctl-off));
 }
 
 @media (max-width: 800px) {
