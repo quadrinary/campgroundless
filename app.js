@@ -3404,7 +3404,11 @@
 
   // ---- Offline areas: save a map area on this device and use it with no signal.
   const offlineApi = window.CampgroundlessOffline;
-  const offlineMaxTiles = 40000;
+  // Downloads are limited by this device's free storage rather than a fixed size.
+  const offlineStorageShare = 0.8;
+  const offlineUnknownStorageLimit = 2 * 1024 ** 3;
+  const offlineLargeDownloadBytes = 500 * 1024 ** 2;
+  const offlineVectorCheckpointParts = 10;
   // Large areas download in parts so each data query and tile batch stays small.
   const offlinePartTiles = 5000;
   const offlinePartDegrees = 0.5;
@@ -3779,18 +3783,22 @@
             }
           });
         }
-        dataBytes = 0;
-        for (const job of vectorJobs) {
-          const features = collected[job.data] ?? [];
-          if (pack.featureCounts[job.data] !== features.length || index === 0) {
-            await offlineApi.putData(pack.id, job.data, features);
-            pack.featureCounts[job.data] = features.length;
+        // Rewriting all saved records after every part is slow for very large areas.
+        const lastPart = index === chunks.length - 1;
+        if (index === 0 || lastPart || index % offlineVectorCheckpointParts === 0) {
+          dataBytes = 0;
+          for (const job of vectorJobs) {
+            const features = collected[job.data] ?? [];
+            if (pack.featureCounts[job.data] !== features.length || index === 0) {
+              await offlineApi.putData(pack.id, job.data, features);
+              pack.featureCounts[job.data] = features.length;
+            }
           }
+          Object.values(collected).forEach((features) => {
+            dataBytes += JSON.stringify(features).length;
+          });
+          pack.dataBytes = dataBytes;
         }
-        Object.values(collected).forEach((features) => {
-          dataBytes += JSON.stringify(features).length;
-        });
-        pack.dataBytes = dataBytes;
         pack.partsDone = index;
         await offlineApi.savePack(pack);
         saved = true;
@@ -4303,12 +4311,13 @@
       return;
     }
     const options = selectedOfflineOptions();
+    const limit = offlineDownloadLimit();
     let bestAllowed = null;
     [...offlineDetail.options].forEach((option) => {
       const plan = offlineTilePlan({ ...options, maxZoom: Number(option.value) });
-      const allowed = plan.tileCount <= offlineMaxTiles;
+      const allowed = plan.bytes <= limit;
       option.disabled = !allowed;
-      option.textContent = `${option.dataset.label} (zoom ${option.value}) · ~${offlineApi.formatBytes(plan.bytes)}`;
+      option.textContent = `${option.dataset.label} (zoom ${option.value}) · ~${offlineApi.formatBytes(plan.bytes)}${allowed ? "" : " · not enough space"}`;
       if (allowed) {
         bestAllowed = option;
       }
@@ -4317,16 +4326,41 @@
       offlineDetail.value = bestAllowed.value;
     }
     const plan = offlineTilePlan(selectedOfflineOptions());
-    const tooLarge = plan.tileCount > offlineMaxTiles;
+    const tooLarge = plan.bytes > limit;
     offlineDownloadButton.disabled = tooLarge;
     offlineEstimate.classList.toggle("is-error", tooLarge);
     offlineEstimate.textContent = tooLarge
-      ? `This view (${areaDimensions(options.bounds)}) is too large to save. Zoom the map in and try again.`
-      : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.${partsNote(options, plan)}`;
+      ? `This view (${areaDimensions(options.bounds)}) needs about ${offlineApi.formatBytes(plan.bytes)}, more than the ${offlineApi.formatBytes(limit)} this device can spare for saved maps. Zoom the map in or delete other saved areas.`
+      : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.${partsNote(options, plan)}${plan.bytes > offlineLargeDownloadBytes ? ` Estimated time on fast Wi-Fi: ${formatDownloadTime(plan)}.` : ""}`;
     if (!offlineName.value) {
       const center = map.getCenter();
       offlineName.placeholder = `Area near ${center.lat.toFixed(3)}, ${center.lng.toFixed(3)}`;
     }
+  }
+
+  function offlineDownloadLimit() {
+    const { usage, quota } = offlineState.storage ?? {};
+    if (!Number.isFinite(usage) || !Number.isFinite(quota) || quota <= 0) {
+      return offlineUnknownStorageLimit;
+    }
+    return Math.max(0, quota - usage) * offlineStorageShare;
+  }
+
+  async function refreshOfflineStorage() {
+    offlineState.storage = await offlineApi.storageSummary().catch(() => ({}));
+    updateOfflineEstimate();
+    return offlineState.storage;
+  }
+
+  // Rough rates measured on a fast connection: basemap tiles are quick, while
+  // overlay images are drawn on demand by the agency servers.
+  function formatDownloadTime(plan) {
+    const seconds = plan.jobs.reduce(
+      (sum, job) => sum + job.count / (job.layer.startsWith("basemap:") ? 40 : 3),
+      0,
+    );
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    return minutes < 90 ? `about ${minutes} min` : `about ${Math.round(minutes / 6) / 10} hours`;
   }
 
   function partsNote(options, plan) {
@@ -4439,7 +4473,7 @@
     const packs = await offlineApi.listPacks().catch(() => []);
     offlinePackList.replaceChildren(...packs.map(packListItem));
     offlineEmpty.hidden = packs.length > 0;
-    const storage = await offlineApi.storageSummary().catch(() => ({}));
+    const storage = await refreshOfflineStorage();
     offlineStorage.textContent = Number.isFinite(storage.usage)
       ? `This site is using ${offlineApi.formatBytes(storage.usage)}${Number.isFinite(storage.quota) ? ` of about ${offlineApi.formatBytes(storage.quota)} available` : ""} on this device.${storage.persisted ? "" : " If the device runs low on space, the browser may remove saved areas."}`
       : "";
@@ -4521,8 +4555,18 @@
     offlineForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const options = selectedOfflineOptions();
-      if (offlineTilePlan(options).tileCount > offlineMaxTiles) {
+      const plan = offlineTilePlan(options);
+      const limit = offlineDownloadLimit();
+      if (plan.bytes > limit) {
         updateOfflineEstimate();
+        return;
+      }
+      if (
+        plan.bytes > offlineLargeDownloadBytes &&
+        !window.confirm(
+          `This is a large download: about ${offlineApi.formatBytes(plan.bytes)} (${plan.tileCount.toLocaleString()} map images), ${formatDownloadTime(plan)} on fast Wi-Fi. This device can spare about ${offlineApi.formatBytes(limit)} for saved maps.\n\nUse Wi-Fi and keep the app open until it finishes. If it stops, choose Resume.\n\nStart the download?`,
+        )
+      ) {
         return;
       }
       void downloadOfflinePack({
