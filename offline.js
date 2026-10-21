@@ -190,11 +190,26 @@
   // Downloads tiles for one layer into the shared tile cache. Tiles already
   // cached (from another pack or an interrupted attempt) are skipped unless
   // refresh is set.
-  async function downloadTiles({ layer, urlFor, bounds, minZoom, maxZoom, signal, onTile, refresh = false, concurrency = 4 }) {
+  function* unseenTiles(layer, bounds, minZoom, maxZoom, seen) {
+    for (const tile of tiles(bounds, minZoom, maxZoom)) {
+      if (seen) {
+        const key = tileKey(layer, tile);
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+      }
+      yield tile;
+    }
+  }
+
+  // `seen` lets a large area be downloaded in parts without fetching or counting
+  // tiles on shared part edges twice.
+  async function downloadTiles({ layer, urlFor, bounds, minZoom, maxZoom, signal, onTile, refresh = false, concurrency = 4, seen = null }) {
     const cache = await caches.open(TILE_CACHE);
     let bytes = 0;
     await runQueue(
-      tiles(bounds, minZoom, maxZoom),
+      unseenTiles(layer, bounds, minZoom, maxZoom, seen),
       concurrency,
       async (tile) => {
         const key = tileKey(layer, tile);
@@ -235,11 +250,11 @@
     if (window.caches) {
       const cache = await caches.open(TILE_CACHE);
       for (const [layer, range] of Object.entries(pack.tileLayers ?? {})) {
-        for (const tile of tiles(pack.bounds, range.minZoom, range.maxZoom)) {
+        await runQueue(tiles(pack.bounds, range.minZoom, range.maxZoom), 16, async (tile) => {
           if (!others.some((other) => tileInPack(other, layer, tile))) {
             await cache.delete(tileKey(layer, tile));
           }
-        }
+        });
       }
     }
     await transact("data", "readwrite", (store) =>

@@ -3404,7 +3404,10 @@
 
   // ---- Offline areas: save a map area on this device and use it with no signal.
   const offlineApi = window.CampgroundlessOffline;
-  const offlineMaxTiles = 10000;
+  const offlineMaxTiles = 40000;
+  // Large areas download in parts so each data query and tile batch stays small.
+  const offlinePartTiles = 5000;
+  const offlinePartDegrees = 0.5;
   const offlineBasemapMinZoom = 8;
   const offlineOverlayMinZoom = 11;
   const offlineOverlayMaxZoom = 14;
@@ -3543,6 +3546,45 @@
       tileCount: jobs.reduce((sum, job) => sum + job.count, 0),
       bytes: jobs.reduce((sum, job) => sum + job.count * job.averageBytes, 0),
     };
+  }
+
+  function splitOfflineBounds(options) {
+    const { bounds } = options;
+    const tileCount = offlineTilePlan(options).tileCount;
+    const parts = Math.max(1, Math.ceil(tileCount / offlinePartTiles));
+    const middleLatitude = (bounds.north + bounds.south) / 2;
+    const lonSpan = bounds.east - bounds.west;
+    const latSpan = bounds.north - bounds.south;
+    const aspect = Math.max(0.05, (lonSpan * Math.cos((middleLatitude * Math.PI) / 180)) / Math.max(latSpan, 1e-6));
+    let columns = Math.max(1, Math.round(Math.sqrt(parts * aspect)));
+    let rows = Math.max(1, Math.ceil(parts / columns));
+    columns = Math.max(columns, Math.ceil(lonSpan / offlinePartDegrees));
+    rows = Math.max(rows, Math.ceil(latSpan / offlinePartDegrees));
+    const grow = () => {
+      if (lonSpan / columns >= latSpan / rows) columns += 1;
+      else rows += 1;
+    };
+    const cell = (row, column) => ({
+      west: bounds.west + (lonSpan * column) / columns,
+      east: bounds.west + (lonSpan * (column + 1)) / columns,
+      south: bounds.north - (latSpan * (row + 1)) / rows,
+      north: bounds.north - (latSpan * row) / rows,
+    });
+    while (offlineTilePlan({ ...options, bounds: cell(0, 0) }).tileCount > offlinePartTiles && columns * rows < 400) {
+      grow();
+    }
+    const chunks = [];
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        chunks.push(cell(row, column));
+      }
+    }
+    return chunks;
+  }
+
+  function offlineFeatureKey(feature) {
+    const id = feature.id ?? feature.properties?.OBJECTID ?? feature.properties?.FID ?? feature.properties?.objectid;
+    return id === undefined || id === null ? null : `${feature.layerId ?? ""}:${id}`;
   }
 
   function offlineVectorJobs(layers) {
@@ -3705,50 +3747,82 @@
       bytes: 0,
       complete: false,
     };
+    const chunks = splitOfflineBounds({ bounds, maxZoom, basemap, layers });
+    pack.parts = chunks.length;
     let saved = false;
     try {
       void offlineApi.requestPersistence();
-      offlineProgress.removeAttribute("value");
+      const vectorJobs = offlineVectorJobs(layers);
       const collected = {};
-      for (const job of offlineVectorJobs(layers)) {
-        setOfflineMessage(`Saving ${job.label.toLowerCase()}…`);
-        (collected[job.data] ??= []).push(...(await queryAreaFeatures(job, bounds, controller.signal)));
-      }
-      let dataBytes = 0;
-      for (const [key, features] of Object.entries(collected)) {
-        await offlineApi.putData(pack.id, key, features);
-        pack.featureCounts[key] = features.length;
-        dataBytes += JSON.stringify(features).length;
-      }
-      pack.dataBytes = dataBytes;
-      await offlineApi.savePack(pack);
-      saved = true;
-      offlineState.dataCache.clear();
-      warmOfflineAssets();
-
+      const featureKeys = {};
+      const seenTiles = new Set();
       let done = 0;
       let tileBytes = 0;
+      let dataBytes = 0;
       offlineProgress.max = Math.max(1, plan.tileCount);
       offlineProgress.value = 0;
-      for (const job of plan.jobs) {
-        tileBytes += await offlineApi.downloadTiles({
-          layer: job.layer,
-          urlFor: job.urlFor,
-          bounds,
-          minZoom: job.minZoom,
-          maxZoom: job.maxZoom,
-          signal: controller.signal,
-          refresh,
-          onTile: () => {
-            done += 1;
-            if (done % 8 === 0 || done === plan.tileCount) {
-              offlineProgress.value = done;
-              setOfflineMessage(
-                `Saving map images… ${done.toLocaleString()} of ${plan.tileCount.toLocaleString()}`,
-              );
+      for (const [index, chunk] of chunks.entries()) {
+        const step = (text) =>
+          chunks.length > 1
+            ? `Part ${index + 1} of ${chunks.length}: ${text}`
+            : `${text[0].toUpperCase()}${text.slice(1)}`;
+        for (const job of vectorJobs) {
+          setOfflineMessage(step(`saving ${job.label.replace(/^[A-Z](?=[a-z])/, (letter) => letter.toLowerCase())}…`));
+          const features = await queryAreaFeatures(job, chunk, controller.signal);
+          const list = (collected[job.data] ??= []);
+          const keys = (featureKeys[job.data] ??= new Set());
+          features.forEach((feature) => {
+            const key = offlineFeatureKey(feature);
+            if (key === null || !keys.has(key)) {
+              if (key !== null) keys.add(key);
+              list.push(feature);
             }
-          },
+          });
+        }
+        dataBytes = 0;
+        for (const job of vectorJobs) {
+          const features = collected[job.data] ?? [];
+          if (pack.featureCounts[job.data] !== features.length || index === 0) {
+            await offlineApi.putData(pack.id, job.data, features);
+            pack.featureCounts[job.data] = features.length;
+          }
+        }
+        Object.values(collected).forEach((features) => {
+          dataBytes += JSON.stringify(features).length;
         });
+        pack.dataBytes = dataBytes;
+        pack.partsDone = index;
+        await offlineApi.savePack(pack);
+        saved = true;
+        offlineState.dataCache.clear();
+        if (index === 0) {
+          warmOfflineAssets();
+        }
+
+        for (const job of plan.jobs) {
+          tileBytes += await offlineApi.downloadTiles({
+            layer: job.layer,
+            urlFor: job.urlFor,
+            bounds: chunk,
+            minZoom: job.minZoom,
+            maxZoom: job.maxZoom,
+            signal: controller.signal,
+            refresh,
+            seen: seenTiles,
+            onTile: () => {
+              done += 1;
+              if (done % 8 === 0 || done === plan.tileCount) {
+                offlineProgress.value = Math.min(done, plan.tileCount);
+                setOfflineMessage(
+                  step(`saving map images… ${Math.min(done, plan.tileCount).toLocaleString()} of ${plan.tileCount.toLocaleString()}`),
+                );
+              }
+            },
+          });
+        }
+        pack.partsDone = index + 1;
+        pack.bytes = tileBytes + dataBytes;
+        await offlineApi.savePack(pack);
       }
       pack.bytes = tileBytes + dataBytes;
       pack.complete = true;
@@ -4248,11 +4322,19 @@
     offlineEstimate.classList.toggle("is-error", tooLarge);
     offlineEstimate.textContent = tooLarge
       ? `This view (${areaDimensions(options.bounds)}) is too large to save. Zoom the map in and try again.`
-      : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.`;
+      : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.${partsNote(options, plan)}`;
     if (!offlineName.value) {
       const center = map.getCenter();
       offlineName.placeholder = `Area near ${center.lat.toFixed(3)}, ${center.lng.toFixed(3)}`;
     }
+  }
+
+  function partsNote(options, plan) {
+    if (plan.tileCount <= offlinePartTiles) {
+      return "";
+    }
+    const parts = splitOfflineBounds(options).length;
+    return ` Large area: it downloads in ${parts} parts as one saved area. Stay on Wi-Fi with the app open; if it stops, choose Resume.`;
   }
 
   function describePackLayers(pack) {
@@ -4288,6 +4370,7 @@
       pack.complete === false ? null : offlineApi.formatBytes(pack.bytes),
       offlineApi.basemaps[pack.basemap]?.label,
       `detail zoom ${pack.maxZoom}`,
+      pack.complete === false && pack.parts > 1 ? `${pack.partsDone ?? 0} of ${pack.parts} parts done` : null,
     ].filter(Boolean).join(" · ");
     const layers = document.createElement("p");
     layers.className = "offline-pack-meta";
