@@ -202,6 +202,108 @@
     }
   });
 
+  const storageCategories = [
+    { key: "campgroundless.settings.v1", label: "Map settings", note: "Your preferences, including any saved API keys" },
+    { key: "campgroundless.map-notes.v1", label: "Saved places & notes", note: "Notes and saved search results", count: (v) => (Array.isArray(v) ? v.length : 0) },
+    { key: "campgroundless.recent-searches.v1", label: "Recent searches", note: "Place searches shown under the search bar", count: (v) => (Array.isArray(v) ? v.length : 0) },
+  ];
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function localStorageBytes(key) {
+    const value = localStorage.getItem(key);
+    return value === null ? 0 : new Blob([key, value]).size;
+  }
+
+  async function appCacheStats() {
+    if (!("caches" in window)) return { bytes: 0, files: 0, supported: false };
+    let bytes = 0;
+    let files = 0;
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const request of await cache.keys()) {
+        const response = await cache.match(request);
+        if (response) {
+          bytes += (await response.clone().blob()).size;
+          files += 1;
+        }
+      }
+    }
+    return { bytes, files, supported: true };
+  }
+
+  async function refreshStorage() {
+    const list = document.getElementById("storage-list");
+    const total = document.getElementById("storage-total");
+    const rows = storageCategories.map((category) => {
+      let items = null;
+      if (category.count) {
+        try {
+          items = category.count(JSON.parse(localStorage.getItem(category.key) || "[]"));
+        } catch {
+          items = null;
+        }
+      }
+      return { label: category.label, note: category.note, bytes: localStorageBytes(category.key), items };
+    });
+    const cache = await appCacheStats();
+    rows.push({
+      label: "App file cache",
+      note: cache.supported ? "Page, script and icon copies kept for faster, offline-capable launches" : "Not supported in this browser",
+      bytes: cache.bytes,
+      items: cache.supported ? cache.files : null,
+    });
+    list.replaceChildren(
+      ...rows.map((row) => {
+        const item = document.createElement("li");
+        const text = document.createElement("span");
+        const strong = document.createElement("strong");
+        strong.textContent = row.label;
+        const small = document.createElement("small");
+        small.textContent = row.items === null ? row.note : `${row.note} · ${row.items} item${row.items === 1 ? "" : "s"}`;
+        text.append(strong, small);
+        const size = document.createElement("span");
+        size.className = "storage-size";
+        size.textContent = formatBytes(row.bytes);
+        item.append(text, size);
+        return item;
+      }),
+    );
+    const sum = rows.reduce((acc, row) => acc + row.bytes, 0);
+    let summary = `Total tracked here: ${formatBytes(sum)}.`;
+    if (navigator.storage?.estimate) {
+      try {
+        const { usage, quota } = await navigator.storage.estimate();
+        if (usage !== undefined) {
+          summary += ` Browser reports ${formatBytes(usage)} used by this site${quota ? ` of ${formatBytes(quota)} available` : ""}.`;
+        }
+      } catch {
+        // The estimate is optional.
+      }
+    }
+    total.textContent = summary;
+  }
+
+  document.getElementById("storage-refresh").addEventListener("click", () => refreshStorage());
+  document.getElementById("storage-clear-recent").addEventListener("click", () => {
+    localStorage.removeItem("campgroundless.recent-searches.v1");
+    refreshStorage();
+    setMessage("Recent searches cleared.");
+  });
+  document.getElementById("storage-clear-files").addEventListener("click", async () => {
+    if ("caches" in window) {
+      await Promise.all((await caches.keys()).map((name) => caches.delete(name)));
+    }
+    await refreshStorage();
+    setMessage("App file cache cleared. It refills the next time you load the map.");
+  });
+  document.getElementById("reset-settings").addEventListener("click", () => setTimeout(refreshStorage, 0));
+  refreshStorage();
+
   try {
     loadForm(Settings.read());
   } catch (error) {
