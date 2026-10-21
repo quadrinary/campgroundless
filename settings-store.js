@@ -28,6 +28,8 @@
     showLandDisclaimer: true,
     showBoundaryData: true,
     osmLayer: "standard",
+    theme: "auto",
+    popupClickBehavior: "close",
     basemapUrl: "",
     basemapAttribution: "",
     esriApiKey: "",
@@ -44,6 +46,7 @@
     caption: { min: 5, max: 15 },
   };
   const osmLayers = ["standard", "hot", "topographic"];
+  const themes = ["auto", "light", "dark"];
   const recreationSiteZoomLevels = [11, 12, 13, 14, 15];
 
   function normalizeRecreationSitesMinZoom(zoom) {
@@ -55,6 +58,14 @@
 
   function normalizeOsmLayer(layer) {
     return osmLayers.includes(layer) ? layer : defaults.osmLayer;
+  }
+
+  function normalizeTheme(theme) {
+    return themes.includes(theme) ? theme : defaults.theme;
+  }
+
+  function normalizePopupClickBehavior(value) {
+    return value === "replace" ? "replace" : "close";
   }
 
   function normalizeOverlays(overlays = {}) {
@@ -99,6 +110,8 @@
           saved.recreationSitesMinZoom,
         ),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
+        theme: normalizeTheme(saved.theme),
+        popupClickBehavior: normalizePopupClickBehavior(saved.popupClickBehavior),
         showLandDisclaimer: saved.showLandDisclaimer !== false,
         showBoundaryData: saved.showBoundaryData !== false,
         typography: normalizeTypography(saved.typography),
@@ -119,6 +132,8 @@
           settings.recreationSitesMinZoom,
         ),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
+        theme: normalizeTheme(settings.theme),
+        popupClickBehavior: normalizePopupClickBehavior(settings.popupClickBehavior),
         showLandDisclaimer: settings.showLandDisclaimer !== false,
         showBoundaryData: settings.showBoundaryData !== false,
         typography: normalizeTypography(settings.typography),

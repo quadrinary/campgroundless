@@ -35,6 +35,8 @@
       showBoundaryData: form.elements.showBoundaryData.checked,
       basemap: form.elements.basemap.value,
       osmLayer: form.elements.osmLayer.value,
+      theme: form.elements.theme.value,
+      popupClickBehavior: form.elements.popupClickBehavior.value,
       basemapUrl: form.elements.basemapUrl.value.trim(),
       basemapAttribution: form.elements.basemapAttribution.value.trim(),
       esriApiKey: form.elements.esriApiKey.value.trim(),
@@ -81,6 +83,9 @@
     });
     form.elements.basemap.value = settings.basemap;
     form.elements.osmLayer.value = settings.osmLayer;
+    form.elements.theme.value = settings.theme;
+    form.elements.popupClickBehavior.value = settings.popupClickBehavior;
+    window.CampgroundlessTheme.apply(settings.theme);
     form.elements.basemapUrl.value = settings.basemapUrl;
     form.elements.basemapAttribution.value = settings.basemapAttribution;
     form.elements.esriApiKey.value = settings.esriApiKey;
@@ -155,6 +160,7 @@
   form.addEventListener("change", () => {
     const settings = currentFormSettings();
     Settings.applyTypography(settings);
+    window.CampgroundlessTheme.apply(settings.theme);
     updateConditionalFields();
     updateSummary(settings);
     setMessage("");
