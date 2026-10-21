@@ -232,6 +232,21 @@
   const referencePane = map.createPane("referenceOverlays");
   referencePane.style.zIndex = "420";
   referencePane.style.pointerEvents = "none";
+  // Canvas-rendered land clicks target the canvas, not an SVG path, so they are
+  // tracked by their DOM event instead of the .leaflet-interactive class.
+  const landClickEvents = new WeakSet();
+  // BLM road layers hold ~131,000 lines across the coverage area; drawing them
+  // at regional zoom freezes the page.
+  const vectorRoadMinZoom = 10;
+  const zoomHints = new Set();
+  function clickedMapFeature(event) {
+    const original = event.originalEvent;
+    return Boolean(
+      original &&
+        (landClickEvents.has(original) ||
+          original.target?.closest?.(".leaflet-interactive")),
+    );
+  }
   function supportsWebGL() {
     try {
       return Boolean(document.createElement("canvas").getContext("webgl2") ||
@@ -541,7 +556,7 @@
         isRoad: true,
         type: "feature",
         label: "BLM public-release motorized roads",
-        description: "National GTLF subset; not proof of public access",
+        description: "National GTLF subset; zoom 10+; not proof of public access",
         legendTitle: "BLM GTLF road marking",
         legendDescription:
           "Solid green identifies this source dataset subset, not legal public access or current road status.",
@@ -555,7 +570,7 @@
         isRoad: true,
         type: "feature",
         label: "BLM limited-public motorized roads",
-        description: "National GTLF subset; not a live access status",
+        description: "National GTLF subset; zoom 10+; not a live access status",
         legendTitle: "BLM GTLF road marking",
         legendDescription:
           "Dashed rust identifies this source dataset subset, not legal access or current road status.",
@@ -569,6 +584,11 @@
     const overlayLayers = {};
     const overlayLoadRequests = new Map();
     const legendRequests = new Map();
+    let sharedRoadRenderer;
+    function roadRenderer() {
+      sharedRoadRenderer ??= L.canvas({ pane: "referenceOverlays", padding: 0.3 });
+      return sharedRoadRenderer;
+    }
 
     Object.entries(overlayDefinitions).forEach(([key, definition]) => {
       const overlayEntry = L.DomUtil.create("div", "map-overlay-entry", panel);
@@ -755,6 +775,14 @@
                     url: definition.url,
                     where: definition.where,
                     pane: "referenceOverlays",
+                    renderer: roadRenderer(),
+                    // Road details come from a point query on click, so the
+                    // drawn lines need no attributes or hit testing.
+                    interactive: false,
+                    fields: ["OBJECTID"],
+                    minZoom: vectorRoadMinZoom,
+                    simplifyFactor: 0.5,
+                    precision: 5,
                     attribution: definition.attribution,
                     style: () => ({
                       color: definition.color,
@@ -822,19 +850,29 @@
   layerControl.addTo(map);
 
   function updateRecreationSiteVisibility() {
-    const visible = map.getZoom() >= settings.recreationSitesMinZoom;
+    const zoom = map.getZoom();
+    const visible = zoom >= settings.recreationSitesMinZoom;
     usfsRecreationPane.style.visibility = visible ? "visible" : "hidden";
     blmRecreationPane.style.visibility = visible ? "visible" : "hidden";
     const anyRecreationOverlayEnabled = [...recreationOverlayCheckboxes.values()].some(
       (checkbox) => checkbox.checked,
     );
-    if (!anyRecreationOverlayEnabled) {
-      return;
+    const anyVectorRoadEnabled =
+      settings.overlays.blmPublicRoads || settings.overlays.blmLimitedRoads;
+    const messages = [];
+    if (anyRecreationOverlayEnabled && !visible) {
+      messages.push(
+        `Zoom in to level ${settings.recreationSitesMinZoom} or closer to show both USFS and BLM recreation sites.`,
+      );
     }
-    const zoomMessage = `Zoom in to level ${settings.recreationSitesMinZoom} or closer to show both USFS and BLM recreation sites.`;
-    if (!visible) {
-      layerStatus.textContent = zoomMessage;
-    } else if (layerStatus.textContent === zoomMessage) {
+    if (anyVectorRoadEnabled && zoom < vectorRoadMinZoom) {
+      messages.push(`Zoom in to level ${vectorRoadMinZoom} or closer to show BLM roads.`);
+    }
+    const message = messages.join(" ");
+    if (message) {
+      layerStatus.textContent = message;
+      zoomHints.add(message);
+    } else if (zoomHints.has(layerStatus.textContent)) {
       layerStatus.textContent = "";
     }
   }
@@ -866,7 +904,7 @@
   function bindBlmRecreationPopup(feature, layer, siteIconsByType) {
     const properties = feature.properties ?? {};
     const category = blmRecreationType(properties.FET_TYPE);
-    layer.bindPopup(recreationSitePopup("Bureau of Land Management", {
+    layer.bindPopup(() => recreationSitePopup("Bureau of Land Management", {
       name: propertyValue(properties, "FET_NAME"),
       type: propertyValue(properties, "FET_SUBTYPE"),
       typeIcon: siteIconsByType.get(String(properties.FET_TYPE)) || "",
@@ -1484,7 +1522,7 @@
     container.append(logo);
   }
 
-  function createPopup(feature, layer) {
+  function buildLandPopup(feature) {
     const properties = feature.properties ?? {};
     const managerCode = properties.Mang_Name;
     const manager = managerNames[managerCode] ?? "Public land manager (not specified)";
@@ -1518,7 +1556,12 @@
         <p class="popup-warning">Camping permission is not determined here. Contact this land manager before camping.</p>
         <p>Source date recorded: ${sourceDateText}</p>
       </div>`;
-    layer.bindPopup(popup, { maxWidth: 300, maxHeight: 320 });
+    return popup;
+  }
+
+  // Popup markup is built on demand; thousands of land features load at once.
+  function createPopup(feature, layer) {
+    layer.bindPopup(() => buildLandPopup(feature), { maxWidth: 300, maxHeight: 320 });
     layer.on("popupopen", (event) => {
       const popupElement = event.popup.getElement();
       bindManagerIconFallback(popupElement);
@@ -1560,11 +1603,16 @@
     simplifyFactor: 0.35,
     precision: 5,
     minZoom: 5,
+    // Canvas keeps tens of thousands of polygons out of the DOM.
+    renderer: L.canvas({ padding: 0.3 }),
     style: featureStyle,
     onEachFeature: createPopup,
   };
   const landLayer = L.esri.featureLayer(landLayerOptions);
   landLayer.on("click", (event) => {
+    if (event.originalEvent) {
+      landClickEvents.add(event.originalEvent);
+    }
     if (activeRoadOverlays.size === 0) {
       return;
     }
@@ -1581,7 +1629,6 @@
         ? "Custom land boundaries loaded"
         : "Public land boundaries loaded · PAD-US 3.0";
     mapStatus.classList.remove("error");
-    refreshSearchableFeatures();
   });
 
   landLayer.on("requesterror", () => {
@@ -1791,14 +1838,59 @@
     }
   }
 
+  // Edges bucketed into horizontal bands so a point test only scans edges
+  // near its latitude; state boundaries have tens of thousands of vertices.
+  const ringIndexes = new WeakMap();
+  function ringIndex(ring) {
+    let index = ringIndexes.get(ring);
+    if (index) {
+      return index;
+    }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    ring.forEach(([x, y]) => {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    });
+    const bandCount = Math.max(1, Math.min(1024, Math.floor(ring.length / 8)));
+    const bandHeight = (maxY - minY) / bandCount || 1;
+    const bands = Array.from({ length: bandCount }, () => []);
+    const bandOf = (y) =>
+      Math.min(bandCount - 1, Math.max(0, Math.floor((y - minY) / bandHeight)));
+    for (let edge = 0, previous = ring.length - 1; edge < ring.length; previous = edge++) {
+      const y1 = ring[previous][1];
+      const y2 = ring[edge][1];
+      for (let band = bandOf(Math.min(y1, y2)); band <= bandOf(Math.max(y1, y2)); band += 1) {
+        bands[band].push(edge);
+      }
+    }
+    index = { minX, minY, maxX, maxY, bands, bandOf };
+    ringIndexes.set(ring, index);
+    return index;
+  }
+
   function pointInRing(point, ring) {
     if (!Array.isArray(ring) || ring.length < 3) {
       return false;
     }
+    const index = ringIndex(ring);
+    if (
+      point[0] < index.minX - 1e-10 ||
+      point[0] > index.maxX + 1e-10 ||
+      point[1] < index.minY - 1e-10 ||
+      point[1] > index.maxY + 1e-10
+    ) {
+      return false;
+    }
     let inside = false;
-    for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    for (const edge of index.bands[index.bandOf(point[1])]) {
+      const previous = edge === 0 ? ring.length - 1 : edge - 1;
       const [x1, y1] = ring[previous];
-      const [x2, y2] = ring[index];
+      const [x2, y2] = ring[edge];
       const cross = (point[0] - x1) * (y2 - y1) - (point[1] - y1) * (x2 - x1);
       if (
         Math.abs(cross) < 1e-10 &&
@@ -1916,7 +2008,7 @@
           }
         }),
     );
-    return L.geoJSON({ type: "FeatureCollection", features }, {
+    const sites = L.geoJSON({ type: "FeatureCollection", features }, {
       attribution: definition.attribution,
       pointToLayer: (feature, latlng) => {
         const type = String(feature.properties?.FET_TYPE ?? "");
@@ -1944,6 +2036,34 @@
       onEachFeature: (feature, layer) =>
         bindBlmRecreationPopup(feature, layer, siteIconsByType),
     });
+    return createViewportLayer(sites.getLayers(), definition.attribution);
+  }
+
+  // Keeps only markers near the current view on the map, and none below the
+  // recreation-site zoom threshold, instead of thousands of DOM markers.
+  function createViewportLayer(markers, attribution) {
+    const group = L.layerGroup([], { attribution });
+    const shown = new Set();
+    function update() {
+      const zoomVisible = map.getZoom() >= settings.recreationSitesMinZoom;
+      const bounds = map.getBounds().pad(0.25);
+      markers.forEach((marker) => {
+        const show = zoomVisible && bounds.contains(marker.getLatLng());
+        if (show && !shown.has(marker)) {
+          group.addLayer(marker);
+          shown.add(marker);
+        } else if (!show && shown.has(marker)) {
+          group.removeLayer(marker);
+          shown.delete(marker);
+        }
+      });
+    }
+    group.on("add", () => {
+      map.on("moveend", update);
+      update();
+    });
+    group.on("remove", () => map.off("moveend", update));
+    return group;
   }
 
   async function showBlmRecreationDetails(location) {
@@ -2833,7 +2953,7 @@
       return;
     }
     if (activeRoadOverlays.size === 0) {
-      if (event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
+      if (clickedMapFeature(event)) {
         return;
       }
       openPointInformationPopup(location);
@@ -2877,7 +2997,7 @@
           ? "No selected road was found here. Showing the land information."
           : `No selected road was found within ${distanceDescription(toleranceMeters)}. Zoom in and click closer to a mapped route.`;
       }
-      if (!fromLandFeature && !event.originalEvent?.target?.closest?.(".leaflet-interactive")) {
+      if (!fromLandFeature && !clickedMapFeature(event)) {
         openPointInformationPopup(location);
       }
       return;
