@@ -258,8 +258,9 @@
       }
       return { label: category.label, note: category.note, bytes: localStorageBytes(category.key), items };
     });
-    const cache = await appCacheStats();
-    rows.push({
+    const isNativeApp = Boolean(window.CampgroundlessNative?.isNative);
+    const cache = isNativeApp ? { bytes: 0, files: 0, supported: false } : await appCacheStats();
+    if (!isNativeApp) rows.push({
       label: "App file cache",
       note: cache.supported ? "Page, script and icon copies kept for faster, offline-capable launches" : "Not supported in this browser",
       bytes: cache.bytes,
@@ -293,7 +294,7 @@
     );
     const sum = rows.reduce((acc, row) => acc + row.bytes, 0);
     let summary = `Total tracked here: ${formatBytes(sum)}.`;
-    if (navigator.storage?.estimate) {
+    if (navigator.storage?.estimate && !isNativeApp) {
       try {
         const { usage, quota } = await navigator.storage.estimate();
         if (usage !== undefined) {

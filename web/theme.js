@@ -27,7 +27,7 @@
   }
 
   apply();
-  if (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
+  if (window.Capacitor?.isNativePlatform?.() || window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
     root.classList.add("is-standalone");
     // iOS reports the layout viewport minus the status bar although the page is drawn from y=0.
     const fitHeight = () => {

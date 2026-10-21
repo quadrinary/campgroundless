@@ -1,6 +1,12 @@
 (() => {
   "use strict";
 
+  const nativeApp = window.CampgroundlessNative ?? {
+    isNative: false,
+    publicUrl: (href) => href,
+    haptic: () => {},
+    share: async () => "unavailable",
+  };
   const coverageStates = [
     { abbreviation: "CA", fips: "06", name: "California" },
     { abbreviation: "OR", fips: "41", name: "Oregon" },
@@ -1138,13 +1144,23 @@
   }
 
   function shareUrlForNote(note) {
-    const url = new URL(window.location.href);
+    const url = new URL(nativeApp.publicUrl(window.location.href));
     url.hash = `shared-note=${encodeSharedNote(note)}`;
     return url.href;
   }
 
   async function shareNote(note) {
     const shareUrl = shareUrlForNote(note);
+    if (nativeApp.isNative) {
+      const result = await nativeApp.share({
+        title: note.title || "Campgroundless map note",
+        text: "View-only map note from Campgroundless",
+        url: shareUrl,
+      });
+      if (result !== "unavailable") {
+        return;
+      }
+    }
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("Clipboard access is not available.");
@@ -1438,7 +1454,8 @@
       notes = nextNotes;
       renderNotes();
       closeNoteEditor();
-      setNoteMessage("Map note saved in this browser.");
+      setNoteMessage(nativeApp.isNative ? "Map note saved on this device." : "Map note saved in this browser.");
+      nativeApp.haptic("success");
     } catch (error) {
       console.error("Could not save map note.", error);
       setNoteMessage("Could not save the note. Check this browser's storage settings.", true);
@@ -2687,6 +2704,7 @@
       button.textContent =
         result === "error" ? "Could not save" : result === "already" ? "Already saved" : "Saved ✓";
       button.disabled = result !== "error";
+      nativeApp.haptic(result === "error" ? "error" : "success");
       searchMessage.textContent =
         result === "error"
           ? "Could not save this place. Check this browser's storage settings."
@@ -3379,6 +3397,7 @@
 
   let locationMarker = null;
   map.on("locationfound", (event) => {
+    nativeApp.haptic("light");
     if (locationMarker) map.removeLayer(locationMarker);
     locationMarker = L.circleMarker(event.latlng, {
       radius: 7,
@@ -3388,11 +3407,13 @@
       fillOpacity: 1,
     })
       .addTo(map)
-      .bindPopup("Your location (only visible in this browser)");
+      .bindPopup(nativeApp.isNative ? "Your location (only visible on this device)" : "Your location (only visible in this browser)");
   });
 
   map.on("locationerror", () => {
-    searchMessage.textContent = "Location access was unavailable. Check your browser permission and try again.";
+    searchMessage.textContent = nativeApp.isNative
+      ? "Location access was unavailable. Allow location for Campgroundless in iPhone Settings and try again."
+      : "Location access was unavailable. Check your browser permission and try again.";
   });
 
   document.getElementById("reset-button").addEventListener("click", () => {
@@ -3520,14 +3541,18 @@
 
   function offlineTilePlan({ bounds, maxZoom, basemap, layers }) {
     const base = offlineApi.basemaps[basemap] ?? offlineApi.basemaps["usgs-topo"];
+    const vector = base.kind === "vector";
     const jobs = [
       {
         layer: `basemap:${basemap}`,
         minZoom: offlineBasemapMinZoom,
         maxZoom: Math.min(maxZoom, base.maxNativeZoom),
         averageBytes: base.averageTileBytes,
-        urlFor: ({ z, x, y }) =>
-          base.url.replace("{z}", z).replace("{y}", y).replace("{x}", x),
+        vector,
+        concurrency: base.concurrency,
+        urlFor: vector
+          ? (tile) => offlineApi.vector.tileUrl(tile)
+          : ({ z, x, y }) => base.url.replace("{z}", z).replace("{y}", y).replace("{x}", x),
       },
     ];
     layers.forEach((key) => {
@@ -3549,6 +3574,9 @@
       jobs,
       tileCount: jobs.reduce((sum, job) => sum + job.count, 0),
       bytes: jobs.reduce((sum, job) => sum + job.count * job.averageBytes, 0),
+      // OpenFreeMap counts every request (tiles, style, fonts, icons) per download.
+      providerRequests: vector ? jobs[0].count + offlineApi.vector.assetRequests() : 0,
+      providerLimit: vector ? base.maxRequests : Infinity,
     };
   }
 
@@ -3765,6 +3793,23 @@
       let dataBytes = 0;
       offlineProgress.max = Math.max(1, plan.tileCount);
       offlineProgress.value = 0;
+      let providerBytes = 0;
+      const vectorBase = offlineApi.basemaps[basemap]?.kind === "vector" ? offlineApi.basemaps[basemap] : null;
+      const countProviderBytes = (size) => {
+        providerBytes += size;
+        if (providerBytes > vectorBase.maxBytes) {
+          throw new Error(
+            `this area needs more than OpenFreeMap's ${offlineApi.formatBytes(vectorBase.maxBytes)} per-download limit. Zoom in or choose a lower detail level.`,
+          );
+        }
+      };
+      if (vectorBase) {
+        if (plan.providerRequests > plan.providerLimit) {
+          throw new Error("this area needs more than OpenFreeMap's 3,000-tile per-download limit.");
+        }
+        setOfflineMessage("Saving the OpenFreeMap style, fonts and icons…");
+        await offlineApi.vector.prepare({ signal: controller.signal, onBytes: countProviderBytes });
+      }
       for (const [index, chunk] of chunks.entries()) {
         const step = (text) =>
           chunks.length > 1
@@ -3817,6 +3862,9 @@
             signal: controller.signal,
             refresh,
             seen: seenTiles,
+            vector: job.vector,
+            concurrency: job.concurrency ?? 4,
+            onBytes: job.vector ? countProviderBytes : undefined,
             onTile: () => {
               done += 1;
               if (done % 8 === 0 || done === plan.tileCount) {
@@ -3839,6 +3887,7 @@
       setOfflineMessage(
         `Saved “${name}” (${offlineApi.formatBytes(pack.bytes)}). It will open automatically when you have no signal.`,
       );
+      nativeApp.haptic("success");
     } catch (error) {
       if (error.name === "AbortError") {
         if (isNew) {
@@ -3855,6 +3904,7 @@
           `Download stopped: ${error.message}${saved ? " Progress was kept; choose Resume to finish." : ""}`,
           true,
         );
+        nativeApp.haptic("error");
       }
     } finally {
       offlineState.download = null;
@@ -4110,15 +4160,26 @@
       list.push(pack);
       packsByBasemap.set(pack.basemap, list);
     });
-    packsByBasemap.forEach((packs, basemap) => {
-      const layer = offlineApi.createCachedTileLayer(`basemap:${basemap}`, {
-        maxZoom: 19,
-        bounds: unionPackBounds(packs),
-        attribution: offlineApi.basemaps[basemap]?.attribution ?? "Saved basemap",
-      });
-      layer.addTo(map).bringToBack();
+    for (const [basemap, packs] of packsByBasemap) {
+      const definition = offlineApi.basemaps[basemap];
+      const layer =
+        definition?.kind === "vector"
+          ? await offlineApi.vector.createLayer({ attribution: definition.attribution }).catch((error) => {
+              console.warn("Could not open the saved vector map.", error);
+              return null;
+            })
+          : offlineApi.createCachedTileLayer(`basemap:${basemap}`, {
+              maxZoom: 19,
+              bounds: unionPackBounds(packs),
+              attribution: definition?.attribution ?? "Saved basemap",
+            });
+      if (!layer || !offlineState.active) {
+        continue;
+      }
+      layer.addTo(map);
+      layer.bringToBack?.();
       offlineState.baseLayers.push(layer);
-    });
+    }
     offlineState.outlines = L.layerGroup(
       offlineState.packs.map((pack) =>
         L.rectangle(packLatLngBounds(pack), {
@@ -4315,9 +4376,10 @@
     let bestAllowed = null;
     [...offlineDetail.options].forEach((option) => {
       const plan = offlineTilePlan({ ...options, maxZoom: Number(option.value) });
-      const allowed = plan.bytes <= limit;
+      const overProvider = plan.providerRequests > plan.providerLimit;
+      const allowed = plan.bytes <= limit && !overProvider;
       option.disabled = !allowed;
-      option.textContent = `${option.dataset.label} (zoom ${option.value}) · ~${offlineApi.formatBytes(plan.bytes)}${allowed ? "" : " · not enough space"}`;
+      option.textContent = `${option.dataset.label} (zoom ${option.value}) · ~${offlineApi.formatBytes(plan.bytes)}${allowed ? "" : overProvider ? " · over OpenFreeMap limit" : " · not enough space"}`;
       if (allowed) {
         bestAllowed = option;
       }
@@ -4326,10 +4388,13 @@
       offlineDetail.value = bestAllowed.value;
     }
     const plan = offlineTilePlan(selectedOfflineOptions());
-    const tooLarge = plan.bytes > limit;
+    const overProvider = plan.providerRequests > plan.providerLimit;
+    const tooLarge = plan.bytes > limit || overProvider;
     offlineDownloadButton.disabled = tooLarge;
     offlineEstimate.classList.toggle("is-error", tooLarge);
-    offlineEstimate.textContent = tooLarge
+    offlineEstimate.textContent = overProvider
+      ? `OpenFreeMap allows ${plan.providerLimit.toLocaleString()} tiles per download; this view (${areaDimensions(options.bounds)}) needs about ${plan.providerRequests.toLocaleString()}. Zoom the map in or choose a lower detail level.`
+      : tooLarge
       ? `This view (${areaDimensions(options.bounds)}) needs about ${offlineApi.formatBytes(plan.bytes)}, more than the ${offlineApi.formatBytes(limit)} this device can spare for saved maps. Zoom the map in or delete other saved areas.`
       : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.${partsNote(options, plan)}${plan.bytes > offlineLargeDownloadBytes ? ` Estimated time on fast Wi-Fi: ${formatDownloadTime(plan)}.` : ""}`;
     if (!offlineName.value) {
@@ -4474,7 +4539,9 @@
     offlinePackList.replaceChildren(...packs.map(packListItem));
     offlineEmpty.hidden = packs.length > 0;
     const storage = await refreshOfflineStorage();
-    offlineStorage.textContent = Number.isFinite(storage.usage)
+    offlineStorage.textContent = storage.native
+      ? `Saved areas use about ${offlineApi.formatBytes(storage.usage)}${Number.isFinite(storage.quota) ? `; about ${offlineApi.formatBytes(storage.quota - storage.usage)} is free on this iPhone` : ""}. They stay until you delete them or remove the app.`
+      : Number.isFinite(storage.usage)
       ? `This site is using ${offlineApi.formatBytes(storage.usage)}${Number.isFinite(storage.quota) ? ` of about ${offlineApi.formatBytes(storage.quota)} available` : ""} on this device.${storage.persisted ? "" : " If the device runs low on space, the browser may remove saved areas."}`
       : "";
   }

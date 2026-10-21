@@ -156,3 +156,7 @@ html.is-standalone[data-theme="dark"]:has(body:not(.app-body)) {
 }
 
 html.is-standalone .map-notice { padding: 3px 12px 4px; line-height: 1.2; min-height: 0; }
+
+/* The iPhone app bundles its files, so there is no web file cache to clear. */
+html.is-native #storage-clear-files { display: none; }
+
