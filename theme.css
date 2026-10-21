@@ -67,6 +67,14 @@ html.is-standalone[data-theme="dark"] {
   background: #1d1e1a;
 }
 
+html.is-standalone body.app-body {
+  background: #26352b;
+}
+
+html.is-standalone[data-theme="dark"] body.app-body {
+  background: #1d1e1a;
+}
+
 html.is-standalone .app {
   top: 0;
   bottom: auto;
