@@ -1289,7 +1289,33 @@
     }
   });
 
-  map.on("click", handleMapClick);
+  // Single clicks wait briefly so a double tap/click zooms in instead of opening a popup first.
+  let pendingClick = null;
+  let lastClickAt = 0;
+  let lastClickPoint = null;
+  map.doubleClickZoom.disable();
+  map.on("click", (event) => {
+    const now = Date.now();
+    const point = event.containerPoint;
+    const isDouble =
+      lastClickPoint && now - lastClickAt < 320 && point.distanceTo(lastClickPoint) < 30;
+    if (isDouble) {
+      window.clearTimeout(pendingClick);
+      pendingClick = null;
+      lastClickAt = 0;
+      lastClickPoint = null;
+      map.closePopup();
+      map.setZoomAround(point, Math.min(map.getZoom() + 1, map.getMaxZoom()));
+      return;
+    }
+    lastClickAt = now;
+    lastClickPoint = point;
+    window.clearTimeout(pendingClick);
+    pendingClick = window.setTimeout(() => {
+      pendingClick = null;
+      handleMapClick(event);
+    }, 330);
+  });
   document.getElementById("map-note-cancel").addEventListener("click", closeNoteEditor);
   noteForm.addEventListener("submit", (event) => {
     event.preventDefault();
