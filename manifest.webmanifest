@@ -1,0 +1,14 @@
+{
+  "name": "Campgroundless",
+  "short_name": "Campgroundless",
+  "description": "Public-lands map for dispersed camping trip planning. Always verify with the land manager.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#f5f4ef",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

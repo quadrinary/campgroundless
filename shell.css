@@ -510,3 +510,37 @@ body.app-body {
     stroke-linecap: round;
   }
 }
+
+/* Installed home-screen app: safe areas, touch behavior, no input zoom. */
+html,
+body.app-body {
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  touch-action: manipulation;
+}
+
+.map-search {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: calc(12px + env(safe-area-inset-left, 0px));
+}
+
+.rail {
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.leaflet-bottom {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 800px) {
+  .map-search input,
+  .view-panel input,
+  .view-panel select,
+  .view-panel textarea {
+    font-size: 16px;
+  }
+}

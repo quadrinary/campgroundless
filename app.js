@@ -3129,8 +3129,10 @@
     map.locate({ setView: true, maxZoom: 10, enableHighAccuracy: false });
   });
 
+  let locationMarker = null;
   map.on("locationfound", (event) => {
-    L.circleMarker(event.latlng, {
+    if (locationMarker) map.removeLayer(locationMarker);
+    locationMarker = L.circleMarker(event.latlng, {
       radius: 7,
       color: "#fff",
       weight: 2,
