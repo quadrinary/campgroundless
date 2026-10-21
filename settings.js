@@ -304,6 +304,17 @@
   document.getElementById("reset-settings").addEventListener("click", () => setTimeout(refreshStorage, 0));
   refreshStorage();
 
+  // The build is the map script's cache-busting number in index.html, which changes with every deploy.
+  fetch("./index.html", { cache: "no-store" })
+    .then((response) => response.text())
+    .then((html) => {
+      const build = /app\.js\?v=(\d+)/.exec(html)?.[1];
+      document.getElementById("app-build").textContent = build ? `Build ${build}` : "Build unknown";
+    })
+    .catch(() => {
+      document.getElementById("app-build").textContent = "Build unavailable";
+    });
+
   try {
     loadForm(Settings.read());
   } catch (error) {
