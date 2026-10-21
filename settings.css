@@ -591,3 +591,8 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* iPhone home indicator clearance for the fixed action bar. */
+.settings-bar {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
