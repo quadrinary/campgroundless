@@ -120,9 +120,37 @@ html.is-standalone .rail {
   padding-top: 10px;
 }
 
-html.is-standalone .map-search,
+/*
+ * Solid header band (standalone only): the map starts below it, so the
+ * search bar and locate button sit on an opaque surface instead of map
+ * content that iOS would blur. The reset button drops onto the map.
+ */
+html.is-standalone .map-stage {
+  box-sizing: border-box;
+  padding-top: 64px;
+  background: #26352b;
+}
+
+html.is-standalone[data-theme="dark"] .map-stage {
+  background: #1d1e1a;
+}
+
+html.is-standalone .map-search {
+  top: 6px;
+  box-shadow: none;
+}
+
 html.is-standalone .map-tools {
-  top: 12px;
+  top: 13px;
+  gap: 23px;
+}
+
+html.is-standalone .map-tool {
+  box-shadow: none;
+}
+
+html.is-standalone .map-tool + .map-tool {
+  box-shadow: 0 2px 8px rgba(25, 40, 29, 0.28);
 }
 
 @media (max-width: 800px) {
