@@ -532,8 +532,8 @@ body.app-body {
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
-.leaflet-bottom {
-  margin-bottom: env(safe-area-inset-bottom, 0px);
+.map-notice {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 800px) {

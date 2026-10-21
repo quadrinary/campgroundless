@@ -28,6 +28,9 @@
   }
 
   apply();
+  if (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
+    root.classList.add("is-standalone");
+  }
   document.addEventListener("DOMContentLoaded", () => apply(root.dataset.themeMode));
   media.addEventListener("change", () => apply(root.dataset.themeMode));
   window.addEventListener("storage", (event) => {
