@@ -76,6 +76,8 @@ html.is-standalone[data-theme="dark"] body.app-body {
 }
 
 html.is-standalone .app {
+  bottom: auto;
+  height: var(--app-h, 100%);
   padding-top: env(safe-area-inset-top, 0px);
   background: #26352b;
 }
