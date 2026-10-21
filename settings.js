@@ -231,6 +231,7 @@
     let bytes = 0;
     let files = 0;
     for (const name of await caches.keys()) {
+      if (!name.startsWith("campgroundless-shell-")) continue;
       const cache = await caches.open(name);
       for (const request of await cache.keys()) {
         const response = await cache.match(request);
@@ -264,6 +265,16 @@
       bytes: cache.bytes,
       items: cache.supported ? cache.files : null,
     });
+    const offline = window.CampgroundlessOffline;
+    if (offline?.supported) {
+      const packs = await offline.listPacks().catch(() => []);
+      rows.push({
+        label: "Offline map areas",
+        note: "Maps saved for use without a connection · manage them in Offline maps on the map page",
+        bytes: packs.reduce((sum, pack) => sum + (Number(pack.bytes) || Number(pack.dataBytes) || 0), 0),
+        items: packs.length,
+      });
+    }
     list.replaceChildren(
       ...rows.map((row) => {
         const item = document.createElement("li");
@@ -303,10 +314,11 @@
   });
   document.getElementById("storage-clear-files").addEventListener("click", async () => {
     if ("caches" in window) {
-      await Promise.all((await caches.keys()).map((name) => caches.delete(name)));
+      const names = (await caches.keys()).filter((name) => name.startsWith("campgroundless-shell-"));
+      await Promise.all(names.map((name) => caches.delete(name)));
     }
     await refreshStorage();
-    setMessage("App file cache cleared. It refills the next time you load the map.");
+    setMessage("App file cache cleared. It refills the next time you load the map. Offline map areas were kept.");
   });
   document.getElementById("reset-settings").addEventListener("click", () => setTimeout(refreshStorage, 0));
   refreshStorage();

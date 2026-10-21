@@ -549,3 +549,234 @@ body.app-body {
     font-size: 16px;
   }
 }
+/* Offline maps panel */
+.offline-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fbefe9;
+  color: #8a3d2c;
+  font-size: 12px;
+}
+
+.offline-warning[hidden],
+.offline-form[hidden] {
+  display: none;
+}
+
+.offline-card {
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.offline-mode-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.offline-mode-row small,
+.offline-choice small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.offline-switch {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  border-radius: 11px;
+  background: #c9cec6;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.offline-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+
+.offline-switch:checked {
+  background: #365a43;
+}
+
+.offline-switch:checked::after {
+  transform: translateX(18px);
+}
+
+.offline-form {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+
+.offline-form h3,
+.offline-list-heading {
+  margin: 0;
+  font-size: 14px;
+}
+
+.offline-help,
+.offline-estimate,
+.offline-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.offline-estimate.is-error,
+.offline-message.is-error {
+  color: #9b3f35;
+}
+
+.offline-fieldset {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.offline-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.offline-choice input {
+  margin: 2px 0 0;
+  accent-color: #365a43;
+}
+
+.offline-choice strong {
+  font-weight: 600;
+}
+
+.offline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.offline-actions button {
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.offline-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.offline-actions button[hidden],
+.offline-progress[hidden] {
+  display: none;
+}
+
+.offline-progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #365a43;
+}
+
+.offline-pack-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offline-pack {
+  padding: 10px 0;
+}
+
+.offline-pack + .offline-pack {
+  border-top: 1px solid #edf0e9;
+}
+
+.offline-pack-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.offline-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #fbefe9;
+  color: #8a3d2c;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.offline-pack-meta {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.offline-pack-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.offline-pack-actions .view-button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.offline-pack-actions .offline-delete {
+  color: #9b3f35;
+}
+
+.map-status.is-offline {
+  color: #365a43;
+  font-weight: 600;
+}
+
+.map-status.is-offline.error {
+  color: #9e563e;
+}
+
+.about-offline {
+  margin: 0 0 16px;
+}
+
+.about-offline h3 {
+  margin: 0 0 7px;
+  color: #495d4b;
+  font-size: 10px;
+}
+
+.about-offline p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}

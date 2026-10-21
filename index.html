@@ -18,21 +18,15 @@
     <script>(function(){var m="auto";try{m=JSON.parse(localStorage.getItem("campgroundless.settings.v1")||"{}").theme||"auto"}catch(e){}var d=m==="dark"||(m!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.write('<meta name="theme-color" content="'+(d?"#1d1e1a":"#f5f4ef")+'">')})()</script>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Campgroundless — Western &amp; Southwestern U.S. public lands map</title>
-    <link rel="preconnect" href="https://unpkg.com" />
     <link rel="preconnect" href="https://services.arcgis.com" />
     <link rel="preconnect" href="https://server.arcgisonline.com" />
     <link rel="preconnect" href="https://apps.fs.usda.gov" />
     <link rel="preconnect" href="https://basemap.nationalmap.gov" />
     <link rel="preconnect" href="https://tiles.openfreemap.org" />
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+    <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
+    <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=23" />
-    <link rel="stylesheet" href="./shell.css?v=9" />
+    <link rel="stylesheet" href="./shell.css?v=10" />
     <link rel="stylesheet" href="./theme.css?v=17" />
   </head>
   <body class="app-body">
@@ -70,6 +64,10 @@
           <button class="rail-item" type="button" data-view="saved" aria-controls="view-panel" aria-expanded="false" title="Saved locations">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.400-6.500 11-6.500 11Z"></path><circle cx="12" cy="10" r="2.300"></circle></svg>
             <span class="rail-label">Saved locations</span>
+          </button>
+          <button class="rail-item" type="button" data-view="offline" aria-controls="view-panel" aria-expanded="false" title="Offline maps">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 6.500 9 4.500l6 2 5.500-2v13L15 19.500l-6-2-5.500 2z"></path><path d="M12 9v6.500M9.300 13 12 15.700 14.700 13"></path></svg>
+            <span class="rail-label">Offline maps</span>
           </button>
           <button class="rail-item" type="button" data-view="before" aria-controls="view-panel" aria-expanded="false" title="Before you head out">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="m8.500 9 1.500 1.500L13 7.500M8.500 15h7"></path></svg>
@@ -155,6 +153,49 @@
             </section>
           </div>
 
+          <div class="view" id="view-offline" data-title="Offline maps" hidden>
+            <p class="view-lead">Save an area before you lose signal. Saved areas open automatically when this device has no data connection.</p>
+            <p id="offline-unsupported" class="offline-warning" hidden>Offline maps need a current browser opened over a secure (https) connection. They are not available here.</p>
+
+            <section class="offline-card" aria-labelledby="offline-mode-heading">
+              <label class="offline-mode-row">
+                <span>
+                  <strong id="offline-mode-heading">Use saved maps only</strong>
+                  <small id="offline-mode-text"></small>
+                </span>
+                <input id="offline-mode-toggle" class="offline-switch" type="checkbox" role="switch" />
+              </label>
+            </section>
+
+            <form id="offline-download-form" class="offline-form" novalidate>
+              <h3>Download this area</h3>
+              <p class="offline-help">Frame the area you'll visit on the map first. On a phone, close this panel, move the map, then come back.</p>
+              <label class="note-field-label" for="offline-name">Name</label>
+              <input id="offline-name" class="note-text-field" type="text" maxlength="60" autocomplete="off" />
+              <fieldset id="offline-basemaps" class="offline-fieldset">
+                <legend class="note-field-label">Basemap</legend>
+              </fieldset>
+              <label class="note-field-label" for="offline-detail">Detail level</label>
+              <select id="offline-detail" class="note-text-field"></select>
+              <fieldset id="offline-layers" class="offline-fieldset">
+                <legend class="note-field-label">Include</legend>
+              </fieldset>
+              <p id="offline-estimate" class="offline-estimate" aria-live="polite"></p>
+              <div class="offline-actions">
+                <button id="offline-download" class="note-save-button" type="submit">Download area</button>
+                <button id="offline-cancel" class="note-cancel-button" type="button" hidden>Cancel</button>
+              </div>
+              <progress id="offline-progress" class="offline-progress" max="1" hidden></progress>
+              <p id="offline-message" class="offline-message" role="status" aria-live="polite"></p>
+            </form>
+
+            <h3 class="offline-list-heading">Saved areas</h3>
+            <ul id="offline-pack-list" class="offline-pack-list" aria-label="Saved offline areas"></ul>
+            <p id="offline-empty" class="view-empty">No saved areas yet.</p>
+            <p id="offline-storage" class="view-privacy"></p>
+            <p class="view-privacy">Saved areas are a snapshot from the day you download them. They cannot show new closures, fire restrictions, or road conditions, and they never establish camping permission. Check current rules with the land manager before you lose signal. Place search, nearest named roads, and the live Forest Service site details need a connection. Location uses your device's GPS, which works without a data signal.</p>
+          </div>
+
           <div class="view" id="view-before" data-title="Before you head out" hidden>
             <p class="eyebrow">A BETTER TRIP STARTS HERE</p>
             <p class="view-lead">Three checks. Every trip.</p>
@@ -207,6 +248,10 @@
               <p>
                 Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
               </p>
+            </div>
+            <div class="about-offline">
+              <h3>Offline maps</h3>
+              <p>Saved areas are snapshots from the day you download them. Offline, the map cannot show new closures, fire restrictions, or emergency orders, and place search and road-distance tools need a connection. Check current conditions with the land manager before you lose signal.</p>
             </div>
             <div class="source-list">
               <h3>Sources &amp; verification</h3>
@@ -313,19 +358,16 @@
       </main>
     </div>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-    <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+    <script src="./vendor/leaflet.js?v=1.9.4"></script>
+    <script src="./vendor/esri-leaflet.js?v=3.0.15"></script>
+    <script src="./vendor/maplibre-gl.js?v=4.7.1"></script>
+    <script src="./vendor/leaflet-maplibre-gl.js?v=0.0.22"></script>
     <script src="./settings-store.js?v=17"></script>
     <script src="./sidebar.js?v=3"></script>
-    <script src="./app.js?v=114"></script>
+    <script src="./offline.js?v=1"></script>
+    <script src="./app.js?v=115"></script>
     <script>
-      if ("serviceWorker" in navigator && location.protocol === "https:") {
+      if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
       }
     </script>

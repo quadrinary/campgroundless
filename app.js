@@ -239,6 +239,10 @@
   // at regional zoom freezes the page.
   const vectorRoadMinZoom = 10;
   const zoomHints = new Set();
+  // Declared early: the layer control's startup change handlers consult it.
+  const offlineState = { active: false, reason: "", packs: [], layers: [], overlayLayers: new Map() };
+  let liveOverlayLayers = {};
+  let overlayDefinitionsByKey = {};
   function clickedMapFeature(event) {
     const original = event.originalEvent;
     return Boolean(
@@ -369,6 +373,10 @@
       layerStatus.textContent = "Style changed for this visit, but could not be saved.";
     }
 
+    if (offlineState.active) {
+      layerStatus.textContent = "Style saved. Offline areas keep the basemap they were downloaded with.";
+      return;
+    }
     map.removeLayer(basemapLayer);
     basemapLayer = createBasemap().addTo(map);
   }
@@ -582,6 +590,8 @@
       },
     };
     const overlayLayers = {};
+    liveOverlayLayers = overlayLayers;
+    overlayDefinitionsByKey = overlayDefinitions;
     const overlayLoadRequests = new Map();
     const legendRequests = new Map();
     let sharedRoadRenderer;
@@ -743,6 +753,13 @@
           layerStatus.textContent =
             "Overlay changed for this visit, but could not be saved in this browser.";
         }
+        if (offlineState.active) {
+          if (liveOverlayLayers[key]) {
+            map.removeLayer(liveOverlayLayers[key]);
+          }
+          syncOfflineOverlays();
+          return;
+        }
 
         if (checkbox.checked) {
           if (definition.type === "blm-sites") {
@@ -750,7 +767,7 @@
               const request = loadBlmRecreationOverlay(definition)
                 .then((overlay) => {
                   overlayLayers[key] = overlay;
-                  if (checkbox.checked) {
+                  if (checkbox.checked && !offlineState.active) {
                     overlay.addTo(map);
                   }
                 })
@@ -865,7 +882,7 @@
         `Zoom in to level ${settings.recreationSitesMinZoom} or closer to show both USFS and BLM recreation sites.`,
       );
     }
-    if (anyVectorRoadEnabled && zoom < vectorRoadMinZoom) {
+    if (anyVectorRoadEnabled && zoom < vectorRoadMinZoom && !offlineState.active) {
       messages.push(`Zoom in to level ${vectorRoadMinZoom} or closer to show BLM roads.`);
     }
     const message = messages.join(" ");
@@ -1609,7 +1626,7 @@
     onEachFeature: createPopup,
   };
   const landLayer = L.esri.featureLayer(landLayerOptions);
-  landLayer.on("click", (event) => {
+  function handleLandFeatureClick(event) {
     if (event.originalEvent) {
       landClickEvents.add(event.originalEvent);
     }
@@ -1620,7 +1637,8 @@
       L.DomEvent.stopPropagation(event.originalEvent);
     }
     handleMapClick(event, true);
-  });
+  }
+  landLayer.on("click", handleLandFeatureClick);
 
   landLayer.on("load", () => {
     mapLoading.hidden = true;
@@ -1632,9 +1650,13 @@
   });
 
   landLayer.on("requesterror", () => {
+    if (offlineState.active) {
+      return;
+    }
     mapLoading.hidden = true;
     mapStatus.textContent = "Land data unavailable · try again later";
     mapStatus.classList.add("error");
+    void checkConnectivityAfterFailure();
   });
 
   landLayer.addTo(map);
@@ -1998,6 +2020,10 @@
         isWithinCoverage(coordinates)
       );
     });
+    return buildBlmRecreationLayer(features, definition);
+  }
+
+  async function buildBlmRecreationLayer(features, definition) {
     const siteIconsByType = new Map();
     await Promise.all(
       Object.entries(blmRecreationTypes)
@@ -2165,6 +2191,9 @@
   }
 
   async function queryRoadOverlay(definition, location, toleranceMeters) {
+    if (offlineState.active) {
+      return offlineRoadsNear(definition, location, toleranceMeters);
+    }
     const nearbyGeometry = roadQueryEnvelope(location, toleranceMeters);
     const layerSources =
       definition.type === "feature"
@@ -2192,6 +2221,9 @@
   }
 
   async function queryLandAtPoint(location) {
+    if (offlineState.active) {
+      return offlineLandAtPoint(location);
+    }
     const data = await queryArcGisFeatures(dataSourceUrl, {
       where: buildWhere({ forest: true, blm: true, state: true, other: true }),
       geometry: {
@@ -2286,6 +2318,9 @@
   }
 
   async function findNearestNamedRoad(location) {
+    if (offlineState.active) {
+      throw new OfflineUnavailableError();
+    }
     const dataByLayer = await Promise.all(
       [2, 6, 8].map((layerId) =>
         queryArcGisFeatures(`${censusRoadService}/${layerId}`, {
@@ -2324,6 +2359,9 @@
   }
 
   async function findRoadNetworkDistance(location, sourceGeometry) {
+    if (offlineState.active) {
+      throw new OfflineUnavailableError();
+    }
     const sourcePoint = nearestPointOnRoad(location, sourceGeometry);
     if (!sourcePoint) {
       return { road: null, reason: "The selected overlay did not return usable road geometry." };
@@ -2522,7 +2560,9 @@
     } catch (error) {
       console.error("Could not find a nearby named road.", error);
       if (lookupId === nearestRoadLookupSequence && target.isConnected) {
-        target.textContent = "Named-road distance could not be looked up.";
+        target.textContent = offlineState.active
+          ? "Unavailable offline (needs a data connection)."
+          : "Named-road distance could not be looked up.";
       }
     }
   }
@@ -2891,7 +2931,9 @@
       : landTypeDescription(land);
     let nearestMarkup;
     if (nearbyRoadError) {
-      nearestMarkup = "Named-road distance could not be looked up.";
+      nearestMarkup = offlineState.active
+        ? "Unavailable offline (needs a data connection)."
+        : "Named-road distance could not be looked up.";
     } else if (nearestRoad?.road) {
       nearestMarkup = `${escapeHtml(nearestRoad.road.name)} · ${escapeHtml(
         nearestRoad.road.type,
@@ -2903,7 +2945,9 @@
       nearestMarkup = "No named road found within 6.2 mi.";
     }
     const networkMarkup = networkRoadError
-      ? "Unavailable (road-network lookup failed)."
+      ? offlineState.active
+        ? "Unavailable offline (needs a data connection)."
+        : "Unavailable (road-network lookup failed)."
       : networkRoad?.road
         ? `${escapeHtml(networkRoad.road.name)} · ${escapeHtml(
             networkRoad.road.type,
@@ -2931,6 +2975,7 @@
   async function handleMapClick(event, fromLandFeature = false) {
     const location = event.latlng;
     if (
+      !offlineState.active &&
       settings.overlays.blmRecreation &&
       event.originalEvent?.target?.closest?.(".blm-recreation-site-marker")
     ) {
@@ -2942,6 +2987,7 @@
       return;
     }
     if (
+      !offlineState.active &&
       settings.overlays.fsRecreation &&
       event.originalEvent?.target?.closest?.(".leaflet-usfsRecreationSites-pane")
     ) {
@@ -3059,6 +3105,10 @@
         console.error("Could not save layer preferences.", error);
         searchMessage.textContent =
           "Could not save layer preferences in this browser. Check storage settings.";
+      }
+      if (offlineState.active) {
+        void renderOfflineData();
+        return;
       }
       mapStatus.textContent = "Updating land boundaries…";
       landLayer.setWhere(buildWhere(settings.layers));
@@ -3287,8 +3337,9 @@
       await searchPlaces(term);
     } catch (error) {
       console.error("Place search failed.", error);
-      searchMessage.textContent =
-        error.name === "AbortError"
+      searchMessage.textContent = offlineState.active
+        ? "Place search needs a data connection. Offline, you can search land-unit names in your saved areas."
+        : error.name === "AbortError"
           ? "Place search timed out. Try again."
           : "Place search is unavailable. Check the provider endpoint or try again later.";
     } finally {
@@ -3322,7 +3373,8 @@
   });
 
   document.getElementById("locate-button").addEventListener("click", () => {
-    map.locate({ setView: true, maxZoom: 10, enableHighAccuracy: false });
+    // GPS still works without a data connection; Wi-Fi/cell positioning may not.
+    map.locate({ setView: true, maxZoom: offlineState.active ? 14 : 10, enableHighAccuracy: offlineState.active });
   });
 
   let locationMarker = null;
@@ -3349,4 +3401,1098 @@
     clearSearchResults();
     searchMessage.textContent = defaultSearchMessage;
   });
+
+  // ---- Offline areas: save a map area on this device and use it with no signal.
+  const offlineApi = window.CampgroundlessOffline;
+  const offlineMaxTiles = 10000;
+  const offlineBasemapMinZoom = 8;
+  const offlineOverlayMinZoom = 11;
+  const offlineOverlayMaxZoom = 14;
+  const offlineFeatureCap = 40000;
+  const offlinePrefsKey = "campgroundless.offline.prefs";
+  const offlineDetailLevels = [
+    [13, "Overview"],
+    [14, "Roads & trails"],
+    [15, "Detailed"],
+    [16, "Maximum"],
+  ];
+  const offlineView = document.getElementById("view-offline");
+  const offlineForm = document.getElementById("offline-download-form");
+  const offlineName = document.getElementById("offline-name");
+  const offlineBasemapChoices = document.getElementById("offline-basemaps");
+  const offlineDetail = document.getElementById("offline-detail");
+  const offlineLayerChoices = document.getElementById("offline-layers");
+  const offlineEstimate = document.getElementById("offline-estimate");
+  const offlineDownloadButton = document.getElementById("offline-download");
+  const offlineCancelButton = document.getElementById("offline-cancel");
+  const offlineProgress = document.getElementById("offline-progress");
+  const offlineMessage = document.getElementById("offline-message");
+  const offlinePackList = document.getElementById("offline-pack-list");
+  const offlineEmpty = document.getElementById("offline-empty");
+  const offlineStorage = document.getElementById("offline-storage");
+  const offlineToggle = document.getElementById("offline-mode-toggle");
+  const offlineModeText = document.getElementById("offline-mode-text");
+  Object.assign(offlineState, {
+    reason: "",
+    dataCache: new Map(),
+    baseLayers: [],
+    landLayer: null,
+    outlines: null,
+    checking: false,
+    probeTimer: null,
+    download: null,
+    renderSequence: 0,
+    overlaySequence: 0,
+  });
+  let offlineLandRenderer;
+  let offlineRoadRenderer;
+
+  class OfflineUnavailableError extends Error {
+    constructor() {
+      super("This lookup needs a data connection.");
+      this.name = "OfflineUnavailableError";
+    }
+  }
+
+  function readOfflinePrefs() {
+    try {
+      return JSON.parse(localStorage.getItem(offlinePrefsKey) || "{}") || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeOfflinePrefs(prefs) {
+    try {
+      localStorage.setItem(offlinePrefsKey, JSON.stringify(prefs));
+    } catch {}
+  }
+
+  function packLatLngBounds(pack) {
+    return L.latLngBounds(
+      [pack.bounds.south, pack.bounds.west],
+      [pack.bounds.north, pack.bounds.east],
+    );
+  }
+
+  function unionPackBounds(packs) {
+    return packs.reduce(
+      (bounds, pack) => bounds.extend(packLatLngBounds(pack)),
+      packLatLngBounds(packs[0]),
+    );
+  }
+
+  function currentDownloadBounds() {
+    const bounds = map.getBounds();
+    return {
+      west: Math.max(-180, bounds.getWest()),
+      south: Math.max(-85, bounds.getSouth()),
+      east: Math.min(180, bounds.getEast()),
+      north: Math.min(85, bounds.getNorth()),
+    };
+  }
+
+  function formatPackDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? "an unknown date"
+      : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function isRasterOverlay(definition) {
+    return Boolean(definition) && definition.type !== "feature" && definition.type !== "blm-sites";
+  }
+
+  function overlayExportUrl(definition) {
+    return (tile) => {
+      const bbox = offlineApi.tileMercatorBounds(tile).join(",");
+      // 512px at 192 dpi keeps lines and labels sharp on high-density screens.
+      return `${definition.url}/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=512,512&dpi=192&format=png32&transparent=true&layers=show:${definition.layers.join(",")}&f=image`;
+    };
+  }
+
+  function offlineTilePlan({ bounds, maxZoom, basemap, layers }) {
+    const base = offlineApi.basemaps[basemap] ?? offlineApi.basemaps["usgs-topo"];
+    const jobs = [
+      {
+        layer: `basemap:${basemap}`,
+        minZoom: offlineBasemapMinZoom,
+        maxZoom: Math.min(maxZoom, base.maxNativeZoom),
+        averageBytes: base.averageTileBytes,
+        urlFor: ({ z, x, y }) =>
+          base.url.replace("{z}", z).replace("{y}", y).replace("{x}", x),
+      },
+    ];
+    layers.forEach((key) => {
+      const definition = overlayDefinitionsByKey[key];
+      if (isRasterOverlay(definition)) {
+        jobs.push({
+          layer: `overlay:${key}`,
+          minZoom: offlineOverlayMinZoom,
+          maxZoom: Math.min(maxZoom, offlineOverlayMaxZoom),
+          averageBytes: 14000,
+          urlFor: overlayExportUrl(definition),
+        });
+      }
+    });
+    jobs.forEach((job) => {
+      job.count = offlineApi.countTiles(bounds, job.minZoom, job.maxZoom);
+    });
+    return {
+      jobs,
+      tileCount: jobs.reduce((sum, job) => sum + job.count, 0),
+      bytes: jobs.reduce((sum, job) => sum + job.count * job.averageBytes, 0),
+    };
+  }
+
+  function offlineVectorJobs(layers) {
+    const jobs = [
+      {
+        data: "land",
+        label: "Land boundaries",
+        url: dataSourceUrl,
+        where: buildWhere({ forest: true, blm: true, state: true, other: true }),
+        outFields: landLayerOptions.fields.join(","),
+        token: settings.dataApiKey || undefined,
+      },
+    ];
+    layers.forEach((key) => {
+      const definition = overlayDefinitionsByKey[key];
+      if (!definition) {
+        return;
+      }
+      if (definition.type === "feature") {
+        jobs.push({ data: `roads:${key}`, label: definition.label, url: definition.url, where: definition.where });
+      } else if (definition.type === "blm-sites") {
+        jobs.push({
+          data: "sites:blmRecreation",
+          label: definition.label,
+          url: definition.url,
+          where: definition.where,
+          outFields: definition.fields.join(","),
+          points: true,
+        });
+      } else if (definition.isRoad) {
+        // Saved so road clicks can show route details without a connection.
+        definition.layers.forEach((layerId) =>
+          jobs.push({
+            data: `roads:${key}`,
+            layerId,
+            label: definition.label,
+            url: `${definition.url}/${layerId}`,
+            where: "1=1",
+          }),
+        );
+      }
+    });
+    return jobs;
+  }
+
+  async function fetchOfflineJson(url, signal) {
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(url, { signal });
+        if (!response.ok) {
+          throw new Error(`Map data request failed (${response.status}).`);
+        }
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error.message || "Map data provider returned an error.");
+        }
+        return data;
+      } catch (error) {
+        if (signal?.aborted) {
+          throw error;
+        }
+        lastError = error;
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  }
+
+  async function queryAreaFeatures(job, bounds, signal) {
+    const features = [];
+    for (;;) {
+      const parameters = new URLSearchParams({
+        where: job.where ?? "1=1",
+        geometry: `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`,
+        geometryType: "esriGeometryEnvelope",
+        spatialRel: "esriSpatialRelIntersects",
+        inSR: "4326",
+        outSR: "4326",
+        outFields: job.outFields ?? "*",
+        returnGeometry: "true",
+        geometryPrecision: "6",
+        resultOffset: String(features.length),
+        resultRecordCount: "1000",
+        f: "geojson",
+      });
+      if (!job.points) {
+        parameters.set("maxAllowableOffset", "0.00005");
+      }
+      if (job.token) {
+        parameters.set("token", job.token);
+      }
+      const data = await fetchOfflineJson(
+        `${job.url.replace(/\/+$/, "")}/query?${parameters}`,
+        signal,
+      );
+      const page = Array.isArray(data.features) ? data.features : [];
+      page.forEach((feature) => {
+        if (job.layerId !== undefined) {
+          feature.layerId = job.layerId;
+        }
+        features.push(feature);
+      });
+      if (features.length > offlineFeatureCap) {
+        throw new Error(`${job.label} has too many features here. Zoom in and save a smaller area.`);
+      }
+      const more = data.exceededTransferLimit || data.properties?.exceededTransferLimit;
+      if (!more || page.length === 0) {
+        return features;
+      }
+    }
+  }
+
+  function setOfflineMessage(text, isError = false) {
+    offlineMessage.textContent = text;
+    offlineMessage.classList.toggle("is-error", isError);
+  }
+
+  function setDownloadInProgress(active) {
+    offlineDownloadButton.disabled = active;
+    offlineCancelButton.hidden = !active;
+    offlineProgress.hidden = !active;
+    offlineForm.querySelectorAll("input, select").forEach((input) => {
+      input.disabled = active || input.dataset.locked === "true";
+    });
+    offlinePackList.querySelectorAll("button[data-pack-action='download']").forEach((button) => {
+      button.disabled = active;
+    });
+  }
+
+  // Same-origin icons are fetched once while online so the service worker keeps them.
+  function warmOfflineAssets() {
+    const urls = Object.values(blmRecreationTypes)
+      .filter((type) => type.npsIcon)
+      .map((type) => `icons/nps/${type.npsIcon}.svg`);
+    urls.forEach((url) => fetch(url).catch(() => {}));
+  }
+
+  async function downloadOfflinePack({ id, name, bounds, maxZoom, basemap, layers, refresh = false }) {
+    if (offlineState.download) {
+      return;
+    }
+    const controller = new AbortController();
+    offlineState.download = controller;
+    setDownloadInProgress(true);
+    const plan = offlineTilePlan({ bounds, maxZoom, basemap, layers });
+    const isNew = !id;
+    const pack = {
+      id: id ?? `area-${Date.now().toString(36)}`,
+      name,
+      bounds,
+      maxZoom,
+      basemap,
+      layers,
+      createdAt: new Date().toISOString(),
+      tileLayers: Object.fromEntries(
+        plan.jobs.map((job) => [job.layer, { minZoom: job.minZoom, maxZoom: job.maxZoom }]),
+      ),
+      featureCounts: {},
+      bytes: 0,
+      complete: false,
+    };
+    let saved = false;
+    try {
+      void offlineApi.requestPersistence();
+      offlineProgress.removeAttribute("value");
+      const collected = {};
+      for (const job of offlineVectorJobs(layers)) {
+        setOfflineMessage(`Saving ${job.label.toLowerCase()}…`);
+        (collected[job.data] ??= []).push(...(await queryAreaFeatures(job, bounds, controller.signal)));
+      }
+      let dataBytes = 0;
+      for (const [key, features] of Object.entries(collected)) {
+        await offlineApi.putData(pack.id, key, features);
+        pack.featureCounts[key] = features.length;
+        dataBytes += JSON.stringify(features).length;
+      }
+      pack.dataBytes = dataBytes;
+      await offlineApi.savePack(pack);
+      saved = true;
+      offlineState.dataCache.clear();
+      warmOfflineAssets();
+
+      let done = 0;
+      let tileBytes = 0;
+      offlineProgress.max = Math.max(1, plan.tileCount);
+      offlineProgress.value = 0;
+      for (const job of plan.jobs) {
+        tileBytes += await offlineApi.downloadTiles({
+          layer: job.layer,
+          urlFor: job.urlFor,
+          bounds,
+          minZoom: job.minZoom,
+          maxZoom: job.maxZoom,
+          signal: controller.signal,
+          refresh,
+          onTile: () => {
+            done += 1;
+            if (done % 8 === 0 || done === plan.tileCount) {
+              offlineProgress.value = done;
+              setOfflineMessage(
+                `Saving map images… ${done.toLocaleString()} of ${plan.tileCount.toLocaleString()}`,
+              );
+            }
+          },
+        });
+      }
+      pack.bytes = tileBytes + dataBytes;
+      pack.complete = true;
+      pack.createdAt = new Date().toISOString();
+      await offlineApi.savePack(pack);
+      setOfflineMessage(
+        `Saved “${name}” (${offlineApi.formatBytes(pack.bytes)}). It will open automatically when you have no signal.`,
+      );
+    } catch (error) {
+      if (error.name === "AbortError") {
+        if (isNew) {
+          await offlineApi.deletePack(pack).catch(() => {});
+          saved = false;
+        }
+        setOfflineMessage("Download canceled.");
+      } else {
+        console.error("Could not save the offline area.", error);
+        if (isNew && !saved) {
+          await offlineApi.deletePack(pack).catch(() => {});
+        }
+        setOfflineMessage(
+          `Download stopped: ${error.message}${saved ? " Progress was kept; choose Resume to finish." : ""}`,
+          true,
+        );
+      }
+    } finally {
+      offlineState.download = null;
+      offlineState.dataCache.clear();
+      setDownloadInProgress(false);
+      await renderOfflinePackList();
+      updateOfflineEstimate();
+      if (offlineState.active) {
+        await loadOfflinePacks();
+        await rebuildOfflineLayers();
+      }
+    }
+  }
+
+  async function loadOfflinePacks() {
+    offlineState.packs = offlineApi?.supported
+      ? await offlineApi.listPacks().catch(() => [])
+      : [];
+    return offlineState.packs;
+  }
+
+  function packData(pack, key) {
+    const cacheKey = `${pack.id}:${key}`;
+    if (!offlineState.dataCache.has(cacheKey)) {
+      offlineState.dataCache.set(
+        cacheKey,
+        offlineApi.getData(pack.id, key).then((value) => value ?? []).catch(() => []),
+      );
+    }
+    return offlineState.dataCache.get(cacheKey);
+  }
+
+  // Overlapping areas save the same features; keep one copy of each.
+  async function combinedPackData(key) {
+    const seen = new Set();
+    const features = [];
+    for (const pack of offlineState.packs) {
+      for (const feature of await packData(pack, key)) {
+        const featureId =
+          feature.id ?? feature.properties?.OBJECTID ?? feature.properties?.FID;
+        if (featureId !== undefined && featureId !== null) {
+          const dedupeKey = `${feature.layerId ?? ""}:${featureId}`;
+          if (seen.has(dedupeKey)) {
+            continue;
+          }
+          seen.add(dedupeKey);
+        }
+        features.push(feature);
+      }
+    }
+    return features;
+  }
+
+  const featureBoxes = new WeakMap();
+  function featureBox(feature) {
+    let box = featureBoxes.get(feature);
+    if (!box) {
+      box = { xmin: Infinity, ymin: Infinity, xmax: -Infinity, ymax: -Infinity };
+      const visit = (coordinates) => {
+        if (typeof coordinates[0] === "number") {
+          box.xmin = Math.min(box.xmin, coordinates[0]);
+          box.xmax = Math.max(box.xmax, coordinates[0]);
+          box.ymin = Math.min(box.ymin, coordinates[1]);
+          box.ymax = Math.max(box.ymax, coordinates[1]);
+        } else {
+          coordinates.forEach(visit);
+        }
+      };
+      if (Array.isArray(feature.geometry?.coordinates)) {
+        visit(feature.geometry.coordinates);
+      }
+      featureBoxes.set(feature, box);
+    }
+    return box;
+  }
+
+  function insideSavedArea(location, dataKey) {
+    return offlineState.packs.some(
+      (pack) =>
+        (!dataKey || pack.featureCounts?.[dataKey] !== undefined) &&
+        packLatLngBounds(pack).contains(location),
+    );
+  }
+
+  async function offlineLandAtPoint(location) {
+    if (!insideSavedArea(location, "land")) {
+      throw new OfflineUnavailableError();
+    }
+    const point = [location.lng, location.lat];
+    const match = (await combinedPackData("land")).find((feature) => {
+      const box = featureBox(feature);
+      return (
+        point[0] >= box.xmin && point[0] <= box.xmax &&
+        point[1] >= box.ymin && point[1] <= box.ymax &&
+        pointInStateBoundary(point, feature.geometry)
+      );
+    });
+    return match?.properties ?? null;
+  }
+
+  async function offlineRoadsNear(definition, location, toleranceMeters) {
+    const key = `roads:${definition.key}`;
+    if (!insideSavedArea(location, key)) {
+      throw new OfflineUnavailableError();
+    }
+    const envelope = roadQueryEnvelope(location, toleranceMeters);
+    return (await combinedPackData(key))
+      .filter((feature) => {
+        const box = featureBox(feature);
+        return (
+          box.xmax >= envelope.xmin && box.xmin <= envelope.xmax &&
+          box.ymax >= envelope.ymin && box.ymin <= envelope.ymax
+        );
+      })
+      .map((feature) => ({
+        definition,
+        layerId: feature.layerId ?? null,
+        properties: feature.properties ?? {},
+        geometry: feature.geometry,
+      }));
+  }
+
+  async function renderOfflineData() {
+    const sequence = ++offlineState.renderSequence;
+    const features = await combinedPackData("land");
+    if (!offlineState.active || sequence !== offlineState.renderSequence) {
+      return;
+    }
+    const managers = new Set(
+      Object.keys(managersByGroup)
+        .filter((group) => settings.layers[group])
+        .flatMap((group) => managersByGroup[group]),
+    );
+    if (offlineState.landLayer) {
+      map.removeLayer(offlineState.landLayer);
+    }
+    offlineLandRenderer ??= L.canvas({ padding: 0.3 });
+    offlineState.landLayer = L.geoJSON(
+      {
+        type: "FeatureCollection",
+        features: features.filter((feature) => managers.has(feature.properties?.Mang_Name)),
+      },
+      {
+        renderer: offlineLandRenderer,
+        style: featureStyle,
+        onEachFeature: createPopup,
+        attribution: `${landLayerOptions.attribution} (saved offline)`,
+      },
+    );
+    offlineState.landLayer.on("click", handleLandFeatureClick);
+    offlineState.landLayer.addTo(map);
+  }
+
+  async function buildOfflineOverlay(key, definition) {
+    if (definition.type === "feature") {
+      const features = await combinedPackData(`roads:${key}`);
+      if (!features.length) {
+        return null;
+      }
+      offlineRoadRenderer ??= L.canvas({ pane: "referenceOverlays", padding: 0.3 });
+      return L.geoJSON({ type: "FeatureCollection", features }, {
+        pane: "referenceOverlays",
+        renderer: offlineRoadRenderer,
+        interactive: false,
+        attribution: definition.attribution,
+        style: () => ({
+          color: definition.color,
+          weight: 2,
+          opacity: 0.9,
+          dashArray: definition.dashArray,
+        }),
+      });
+    }
+    if (definition.type === "blm-sites") {
+      const features = (await combinedPackData("sites:blmRecreation")).filter(
+        (feature) => feature.geometry?.type === "Point",
+      );
+      return features.length ? buildBlmRecreationLayer(features, definition) : null;
+    }
+    const tileLayer = `overlay:${key}`;
+    const packs = offlineState.packs.filter((pack) => pack.tileLayers?.[tileLayer]);
+    if (!packs.length) {
+      return null;
+    }
+    return offlineApi.createCachedTileLayer(tileLayer, {
+      pane: definition.isRecreation ? "usfsRecreationSites" : "referenceOverlays",
+      opacity: 0.88,
+      minZoom: offlineOverlayMinZoom,
+      maxZoom: 19,
+      bounds: unionPackBounds(packs),
+      attribution: definition.attribution,
+    });
+  }
+
+  async function syncOfflineOverlays() {
+    if (!offlineState.active) {
+      return;
+    }
+    const sequence = ++offlineState.overlaySequence;
+    const missing = [];
+    for (const [key, definition] of Object.entries(overlayDefinitionsByKey)) {
+      const existing = offlineState.overlayLayers.get(key);
+      if (!settings.overlays[key]) {
+        if (existing) {
+          map.removeLayer(existing);
+        }
+        continue;
+      }
+      if (existing) {
+        existing.addTo(map);
+        continue;
+      }
+      const layer = await buildOfflineOverlay(key, definition);
+      if (sequence !== offlineState.overlaySequence || !offlineState.active) {
+        return;
+      }
+      if (layer) {
+        offlineState.overlayLayers.set(key, layer);
+        layer.addTo(map);
+      } else {
+        missing.push(definition.label);
+      }
+    }
+    if (layerStatus && missing.length) {
+      layerStatus.textContent = `Not saved in your offline areas: ${missing.join(", ")}.`;
+    }
+  }
+
+  function removeOfflineLayers() {
+    offlineState.baseLayers.forEach((layer) => map.removeLayer(layer));
+    offlineState.baseLayers = [];
+    offlineState.overlayLayers.forEach((layer) => map.removeLayer(layer));
+    offlineState.overlayLayers.clear();
+    if (offlineState.landLayer) {
+      map.removeLayer(offlineState.landLayer);
+      offlineState.landLayer = null;
+    }
+    if (offlineState.outlines) {
+      map.removeLayer(offlineState.outlines);
+      offlineState.outlines = null;
+    }
+  }
+
+  async function rebuildOfflineLayers() {
+    removeOfflineLayers();
+    if (!offlineState.packs.length) {
+      exitOfflineMode("No offline areas remain · showing the live map");
+      return;
+    }
+    const packsByBasemap = new Map();
+    offlineState.packs.forEach((pack) => {
+      const list = packsByBasemap.get(pack.basemap) ?? [];
+      list.push(pack);
+      packsByBasemap.set(pack.basemap, list);
+    });
+    packsByBasemap.forEach((packs, basemap) => {
+      const layer = offlineApi.createCachedTileLayer(`basemap:${basemap}`, {
+        maxZoom: 19,
+        bounds: unionPackBounds(packs),
+        attribution: offlineApi.basemaps[basemap]?.attribution ?? "Saved basemap",
+      });
+      layer.addTo(map).bringToBack();
+      offlineState.baseLayers.push(layer);
+    });
+    offlineState.outlines = L.layerGroup(
+      offlineState.packs.map((pack) =>
+        L.rectangle(packLatLngBounds(pack), {
+          className: "offline-area-outline",
+          color: "#315a43",
+          weight: 2,
+          dashArray: "6 6",
+          fill: false,
+          interactive: false,
+        }),
+      ),
+    ).addTo(map);
+    await renderOfflineData();
+    await syncOfflineOverlays();
+    updateOfflineStatus();
+  }
+
+  function updateOfflineStatus() {
+    if (!offlineState.active || !offlineState.packs.length) {
+      return;
+    }
+    const oldest = offlineState.packs.reduce((first, pack) =>
+      String(pack.createdAt) < String(first.createdAt) ? pack : first,
+    );
+    const stale = offlineApi.packAgeDays(oldest) >= offlineApi.staleDays;
+    const inside = offlineState.packs.some((pack) =>
+      packLatLngBounds(pack).contains(map.getCenter()),
+    );
+    let text = `Offline · showing maps saved ${formatPackDate(oldest.createdAt)}`;
+    if (stale) {
+      text += ` · over ${offlineApi.staleDays} days old`;
+    }
+    if (!inside) {
+      text += " · this view is outside your saved areas";
+    }
+    mapLoading.hidden = true;
+    mapStatus.textContent = text;
+    mapStatus.classList.add("is-offline");
+    mapStatus.classList.toggle("error", stale || !inside);
+  }
+
+  async function enterOfflineMode(reason) {
+    if (!offlineApi?.supported) {
+      return false;
+    }
+    await loadOfflinePacks();
+    if (!offlineState.packs.length) {
+      if (reason === "auto") {
+        mapLoading.hidden = true;
+        mapStatus.textContent = "No connection · no offline areas are saved on this device";
+        mapStatus.classList.add("error");
+      }
+      return false;
+    }
+    if (offlineState.active) {
+      if (reason === "manual") {
+        offlineState.reason = "manual";
+      }
+      updateOfflineToggle();
+      return true;
+    }
+    offlineState.active = true;
+    offlineState.reason = reason;
+    map.closePopup();
+    map.removeLayer(basemapLayer);
+    map.getContainer().dataset.basemap = "offline";
+    map.removeLayer(landLayer);
+    Object.values(liveOverlayLayers).forEach((layer) => {
+      if (layer && map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    });
+    updateRecreationSiteVisibility();
+    await rebuildOfflineLayers();
+    updateOfflineToggle();
+    if (reason === "auto") {
+      startConnectionProbe();
+    }
+    return true;
+  }
+
+  function exitOfflineMode(message) {
+    if (!offlineState.active) {
+      return;
+    }
+    offlineState.active = false;
+    offlineState.reason = "";
+    stopConnectionProbe();
+    map.closePopup();
+    removeOfflineLayers();
+    basemapLayer = createBasemap().addTo(map);
+    basemapLayer.bringToBack?.();
+    landLayer.addTo(map);
+    const where = buildWhere(settings.layers);
+    if (landLayer.options.where !== where) {
+      landLayer.setWhere(where);
+    }
+    document.querySelectorAll('input[name="map-reference-overlay"]').forEach((checkbox) => {
+      if (checkbox.checked) {
+        checkbox.dispatchEvent(new Event("change"));
+      }
+    });
+    mapStatus.classList.remove("is-offline", "error");
+    mapStatus.textContent = message ?? "Back online · loading live map data…";
+    updateOfflineToggle();
+  }
+
+  async function probeConnection() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const response = await fetch(`${dataSourceUrl.replace(/\/+$/, "")}?f=json`, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // A weak signal often leaves requests hanging instead of failing outright.
+  async function checkConnectivityAfterFailure() {
+    if (offlineState.active || offlineState.checking || !offlineApi?.supported) {
+      return;
+    }
+    offlineState.checking = true;
+    try {
+      const packs = await loadOfflinePacks();
+      if (packs.length && !(await probeConnection())) {
+        await enterOfflineMode("auto");
+      }
+    } finally {
+      offlineState.checking = false;
+    }
+  }
+
+  function startConnectionProbe() {
+    stopConnectionProbe();
+    offlineState.probeTimer = setInterval(async () => {
+      if (offlineState.reason !== "auto" || navigator.onLine === false) {
+        return;
+      }
+      if (await probeConnection()) {
+        exitOfflineMode("Back online · showing live map data");
+      }
+    }, 45000);
+  }
+
+  function stopConnectionProbe() {
+    clearInterval(offlineState.probeTimer);
+    offlineState.probeTimer = null;
+  }
+
+  function updateOfflineToggle() {
+    if (!offlineToggle) {
+      return;
+    }
+    offlineToggle.checked = offlineState.active;
+    offlineModeText.textContent = offlineState.active
+      ? offlineState.reason === "auto"
+        ? "On automatically: no data connection was detected. Live map data returns when the connection does."
+        : "On: the map shows only your saved areas, even when a connection is available."
+      : "Off: the live map is shown. Saved areas open automatically when there is no signal.";
+  }
+
+  function areaDimensions(bounds) {
+    const middleLatitude = (bounds.north + bounds.south) / 2;
+    const width = map.distance([middleLatitude, bounds.west], [middleLatitude, bounds.east]);
+    const height = map.distance([bounds.south, bounds.west], [bounds.north, bounds.west]);
+    return `${Math.max(1, Math.round(width / 1000))} × ${Math.max(1, Math.round(height / 1000))} km`;
+  }
+
+  function selectedOfflineOptions() {
+    return {
+      bounds: currentDownloadBounds(),
+      maxZoom: Number(offlineDetail.value),
+      basemap:
+        offlineBasemapChoices.querySelector("input:checked")?.value ?? "usgs-topo",
+      layers: [...offlineLayerChoices.querySelectorAll("input[data-overlay]:checked")].map(
+        (input) => input.value,
+      ),
+    };
+  }
+
+  function updateOfflineEstimate() {
+    if (!offlineApi?.supported || offlineState.download || offlineView.hidden) {
+      return;
+    }
+    const options = selectedOfflineOptions();
+    let bestAllowed = null;
+    [...offlineDetail.options].forEach((option) => {
+      const plan = offlineTilePlan({ ...options, maxZoom: Number(option.value) });
+      const allowed = plan.tileCount <= offlineMaxTiles;
+      option.disabled = !allowed;
+      option.textContent = `${option.dataset.label} (zoom ${option.value}) · ~${offlineApi.formatBytes(plan.bytes)}`;
+      if (allowed) {
+        bestAllowed = option;
+      }
+    });
+    if (offlineDetail.selectedOptions[0]?.disabled && bestAllowed) {
+      offlineDetail.value = bestAllowed.value;
+    }
+    const plan = offlineTilePlan(selectedOfflineOptions());
+    const tooLarge = plan.tileCount > offlineMaxTiles;
+    offlineDownloadButton.disabled = tooLarge;
+    offlineEstimate.classList.toggle("is-error", tooLarge);
+    offlineEstimate.textContent = tooLarge
+      ? `This view (${areaDimensions(options.bounds)}) is too large to save. Zoom the map in and try again.`
+      : `Saves the visible map area (${areaDimensions(options.bounds)}): about ${offlineApi.formatBytes(plan.bytes)} of map images plus land and road data.`;
+    if (!offlineName.value) {
+      const center = map.getCenter();
+      offlineName.placeholder = `Area near ${center.lat.toFixed(3)}, ${center.lng.toFixed(3)}`;
+    }
+  }
+
+  function describePackLayers(pack) {
+    const labels = ["Land boundaries"];
+    pack.layers.forEach((key) => {
+      const label = overlayDefinitionsByKey[key]?.label;
+      if (label) {
+        labels.push(label);
+      }
+    });
+    return labels.join(", ");
+  }
+
+  function packListItem(pack) {
+    const item = document.createElement("li");
+    item.className = "offline-pack";
+    const head = document.createElement("div");
+    head.className = "offline-pack-head";
+    const name = document.createElement("strong");
+    name.textContent = pack.name;
+    head.append(name);
+    const stale = offlineApi.packAgeDays(pack) >= offlineApi.staleDays;
+    if (pack.complete === false || stale) {
+      const badge = document.createElement("span");
+      badge.className = "offline-badge";
+      badge.textContent = pack.complete === false ? "Incomplete" : `Over ${offlineApi.staleDays} days old`;
+      head.append(badge);
+    }
+    const meta = document.createElement("p");
+    meta.className = "offline-pack-meta";
+    meta.textContent = [
+      `Saved ${formatPackDate(pack.createdAt)}`,
+      pack.complete === false ? null : offlineApi.formatBytes(pack.bytes),
+      offlineApi.basemaps[pack.basemap]?.label,
+      `detail zoom ${pack.maxZoom}`,
+    ].filter(Boolean).join(" · ");
+    const layers = document.createElement("p");
+    layers.className = "offline-pack-meta";
+    layers.textContent = `Includes: ${describePackLayers(pack)}`;
+    const actions = document.createElement("div");
+    actions.className = "offline-pack-actions";
+    const viewButton = document.createElement("button");
+    viewButton.type = "button";
+    viewButton.className = "view-button";
+    viewButton.textContent = "Show on map";
+    viewButton.addEventListener("click", () => {
+      map.fitBounds(packLatLngBounds(pack));
+      if (window.matchMedia("(max-width: 800px)").matches) {
+        window.CampgroundlessSidebar.hide();
+      }
+    });
+    const downloadButton = document.createElement("button");
+    downloadButton.type = "button";
+    downloadButton.className = "view-button";
+    downloadButton.dataset.packAction = "download";
+    downloadButton.textContent = pack.complete === false ? "Resume" : "Update";
+    downloadButton.disabled = Boolean(offlineState.download);
+    downloadButton.addEventListener("click", () => {
+      void downloadOfflinePack({
+        id: pack.id,
+        name: pack.name,
+        bounds: pack.bounds,
+        maxZoom: pack.maxZoom,
+        basemap: pack.basemap,
+        layers: pack.layers,
+        refresh: pack.complete !== false,
+      });
+    });
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "view-button offline-delete";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", async () => {
+      if (!window.confirm(`Delete “${pack.name}”? Its saved maps and data will be removed from this device.`)) {
+        return;
+      }
+      deleteButton.disabled = true;
+      try {
+        await offlineApi.deletePack(pack);
+        setOfflineMessage(`Deleted “${pack.name}”.`);
+      } catch (error) {
+        console.error("Could not delete the offline area.", error);
+        setOfflineMessage("That area could not be deleted. Try again.", true);
+      }
+      offlineState.dataCache.clear();
+      await renderOfflinePackList();
+      if (offlineState.active) {
+        await loadOfflinePacks();
+        await rebuildOfflineLayers();
+      }
+    });
+    actions.append(viewButton, downloadButton, deleteButton);
+    item.append(head, meta, layers, actions);
+    return item;
+  }
+
+  async function renderOfflinePackList() {
+    if (!offlineApi?.supported) {
+      return;
+    }
+    const packs = await offlineApi.listPacks().catch(() => []);
+    offlinePackList.replaceChildren(...packs.map(packListItem));
+    offlineEmpty.hidden = packs.length > 0;
+    const storage = await offlineApi.storageSummary().catch(() => ({}));
+    offlineStorage.textContent = Number.isFinite(storage.usage)
+      ? `This site is using ${offlineApi.formatBytes(storage.usage)}${Number.isFinite(storage.quota) ? ` of about ${offlineApi.formatBytes(storage.quota)} available` : ""} on this device.${storage.persisted ? "" : " If the device runs low on space, the browser may remove saved areas."}`
+      : "";
+  }
+
+  function initializeOfflinePanel() {
+    if (!offlineView) {
+      return;
+    }
+    if (!offlineApi?.supported) {
+      document.getElementById("offline-unsupported").hidden = false;
+      offlineForm.hidden = true;
+      offlineToggle.disabled = true;
+      return;
+    }
+    const prefs = readOfflinePrefs();
+    Object.entries(offlineApi.basemaps).forEach(([value, basemap]) => {
+      const label = document.createElement("label");
+      label.className = "offline-choice";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "offline-basemap";
+      input.value = value;
+      input.checked = value === (offlineApi.basemaps[prefs.basemap] ? prefs.basemap : "usgs-topo");
+      const copy = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = basemap.label;
+      const description = document.createElement("small");
+      description.textContent = basemap.description;
+      copy.append(title, description);
+      label.append(input, copy);
+      offlineBasemapChoices.append(label);
+    });
+    offlineDetailLevels.forEach(([zoom, label]) => {
+      const option = document.createElement("option");
+      option.value = String(zoom);
+      option.dataset.label = label;
+      option.textContent = `${label} (zoom ${zoom})`;
+      offlineDetail.append(option);
+    });
+    offlineDetail.value = String(prefs.maxZoom ?? 15);
+
+    const landLabel = document.createElement("label");
+    landLabel.className = "offline-choice";
+    const landInput = document.createElement("input");
+    landInput.type = "checkbox";
+    landInput.checked = true;
+    landInput.disabled = true;
+    landInput.dataset.locked = "true";
+    const landText = document.createElement("span");
+    landText.innerHTML = "<strong>Land boundaries</strong><small>Always included</small>";
+    landLabel.append(landInput, landText);
+    offlineLayerChoices.append(landLabel);
+    Object.entries(overlayDefinitionsByKey).forEach(([key, definition]) => {
+      const label = document.createElement("label");
+      label.className = "offline-choice";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = key;
+      input.dataset.overlay = "true";
+      input.checked = Boolean(settings.overlays[key]);
+      const copy = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = definition.label;
+      copy.append(title);
+      label.append(input, copy);
+      offlineLayerChoices.append(label);
+    });
+
+    offlineForm.addEventListener("change", (event) => {
+      if (event.target.name === "offline-basemap" || event.target === offlineDetail) {
+        writeOfflinePrefs({
+          basemap: offlineBasemapChoices.querySelector("input:checked")?.value,
+          maxZoom: Number(offlineDetail.value),
+        });
+      }
+      updateOfflineEstimate();
+    });
+    offlineForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const options = selectedOfflineOptions();
+      if (offlineTilePlan(options).tileCount > offlineMaxTiles) {
+        updateOfflineEstimate();
+        return;
+      }
+      void downloadOfflinePack({
+        ...options,
+        name: offlineName.value.trim() || offlineName.placeholder || "Saved area",
+      });
+      offlineName.value = "";
+    });
+    offlineCancelButton.addEventListener("click", () => offlineState.download?.abort());
+    offlineToggle.addEventListener("change", async () => {
+      if (offlineToggle.checked) {
+        if (!(await enterOfflineMode("manual"))) {
+          offlineToggle.checked = false;
+          setOfflineMessage("Download an area first; there are no saved maps to show.", true);
+        }
+      } else {
+        exitOfflineMode();
+      }
+    });
+    window.addEventListener("beforeunload", (event) => {
+      if (offlineState.download) {
+        event.preventDefault();
+      }
+    });
+    new MutationObserver(() => {
+      if (!offlineView.hidden) {
+        updateOfflineEstimate();
+        void renderOfflinePackList();
+      }
+    }).observe(offlineView, { attributes: true, attributeFilter: ["hidden"] });
+    map.on("moveend", () => {
+      updateOfflineEstimate();
+      updateOfflineStatus();
+    });
+    updateOfflineToggle();
+    void loadOfflinePacks().then((packs) => {
+      void renderOfflinePackList();
+      if (packs.length && navigator.onLine === false) {
+        void enterOfflineMode("auto");
+      }
+    });
+    setTimeout(() => {
+      if (!offlineState.active && !mapLoading.hidden) {
+        void checkConnectivityAfterFailure();
+      }
+    }, 12000);
+    window.addEventListener("offline", () => void enterOfflineMode("auto"));
+    window.addEventListener("online", () => {
+      if (offlineState.reason === "auto") {
+        exitOfflineMode("Back online · showing live map data");
+      }
+    });
+  }
+
+  initializeOfflinePanel();
 })();

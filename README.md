@@ -29,7 +29,7 @@ The web map uses the USGS PAD-US 3.0 land-ownership layer. PAD-US is a compiled 
 - Nearest named-road reference: [U.S. Census Bureau TIGERweb Transportation](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer), using primary, secondary, and local roads (service metadata dated January 1, 2026). Land and map-point popups show the nearest named Census road within 10 km and its straight-line distance to the closest mapped line segment. Road-detail popups also attempt to calculate distance along connected Census road geometry when the selected overlay route matches that geometry within 20 m (about 66 ft) and the local line directions are within 45 degrees. The route search is limited to returned data within 10 km of the click, and network results are withheld if the source route cannot be matched, the returned road data is truncated, or no named road is connected within the search graph. In those cases the popup says road distance is unavailable and retains the separately labeled straight-line reference. Calculated network distance is a mapped-geometry estimate, not driving directions; Census road names and classifications do not confirm local jurisdiction, legal public access, or current conditions.
 - Place search: [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/) search service and [usage policy](https://operations.osmfoundation.org/policies/nominatim/). Search results are limited to the ten-state region, attributed to OpenStreetMap, and requested only after the user submits a search; there is no autocomplete. Repeated searches are cached in memory for the page session, and this browser waits at least one second between uncached requests. Do not submit personal or confidential information. The public Nominatim service has a strict maximum of one request per second per application; if traffic grows beyond a modest level, use a provider or shared proxy with compliant global rate limiting and caching.
 
-The app uses Leaflet and Esri Leaflet from unpkg.com. It is a static client-side site; the browser contacts the map/data providers directly.
+The app bundles Leaflet, Esri Leaflet, MapLibre GL and the Leaflet MapLibre bridge in `vendor/` so it can start without a connection. It is a static client-side site; the browser contacts the map/data providers directly.
 
 ## Map settings and API keys
 
@@ -48,6 +48,14 @@ Preferences and API keys are stored in that browser's `localStorage` and are not
 Map notes and their selected icons are saved in browser storage only; they are not uploaded or synchronized. Clearing this browser's site data removes them. A share link contains the selected note's title, text, icon, and coordinates in its fragment. Anyone with the link can read that snapshot, and URL contents may be visible in browser history or wherever the link is forwarded. Shared notes are view-only, do not alter the recipient's saved notes, and do not confirm camping permission. Do not enter sensitive information.
 
 The data and basemap selections apply on the map page. Land-manager filters and reference overlays save when changed from the map; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
+
+## Offline maps
+
+Open **Offline maps** in the side rail to save the visible map area for use without a data connection. A saved area always includes PAD-US land boundaries; you choose a basemap (USGS Topo or USGS Imagery + Topo, both public domain), a detail level (up to zoom 16, capped at 10,000 tiles), and which reference overlays to include. Road and recreation-site records are saved as data, so their popups work offline; other overlays are saved as images.
+
+The app switches to saved maps automatically when it detects no connection, or you can turn on **Use saved maps only**. Offline, land and road popups use the saved records; place search, nearest-named-road and road-network distance need a connection. The OpenFreeMap vector basemap is not saved because its terms require identifying requests in ways a browser cannot. Saved areas are snapshots from the download date and are marked stale after 30 days. They cannot show new closures, fire restrictions, or emergency orders. Saved data stays in this browser (Cache Storage and IndexedDB) and can be updated or deleted from the panel; iOS may evict it if the device runs low on storage.
+
+A service worker (`sw.js`) keeps a copy of the app files so the app opens offline. It never caches map data itself.
 
 ## Local development
 
