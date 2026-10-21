@@ -1,0 +1,21 @@
+{
+  "appId": "com.quadrinary.campgroundless",
+  "appName": "Campgroundless",
+  "webDir": "web",
+  "ios": {
+    "contentInset": "never",
+    "appendUserAgent": "Campgroundless/1.0 (iPhone app; +https://github.com/quadrinary/campgroundless)",
+    "backgroundColor": "#f5f4ef",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 400,
+      "backgroundColor": "#f5f4ef",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true
+    }
+  }
+}

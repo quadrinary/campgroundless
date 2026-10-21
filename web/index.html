@@ -9,7 +9,8 @@
     <meta name="apple-mobile-web-app-title" content="Campgroundless" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
-    <script src="./theme.js?v=7"></script>
+    <script src="./theme.js?v=8"></script>
+    <script src="./native.js?v=1"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
@@ -27,7 +28,7 @@
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=23" />
     <link rel="stylesheet" href="./shell.css?v=10" />
-    <link rel="stylesheet" href="./theme.css?v=17" />
+    <link rel="stylesheet" href="./theme.css?v=18" />
   </head>
   <body class="app-body">
     <div class="status-strip" aria-hidden="true"></div>
@@ -252,6 +253,7 @@
             <div class="about-offline">
               <h3>Offline maps</h3>
               <p>Saved areas are snapshots from the day you download them. Offline, the map cannot show new closures, fire restrictions, or emergency orders, and place search and road-distance tools need a connection. Check current conditions with the land manager before you lose signal.</p>
+              <p>The iPhone app can also save the OpenFreeMap street map. Under OpenFreeMap&rsquo;s terms each download is limited to 3,000 tiles and 50 MB, so those areas must be smaller.</p>
             </div>
             <div class="source-list">
               <h3>Sources &amp; verification</h3>
@@ -302,7 +304,7 @@
               </a>
               <p class="source-timestamp" id="source-layer-note">The default ArcGIS layer reports PAD-US 3.0 data last edited March 20, 2024. This is not a current inventory of restrictions or conditions.</p>
             </div>
-            <p class="view-privacy">Your location stays in your browser and is never saved. Made for thoughtful trips, not a substitute for local guidance.</p>
+            <p class="view-privacy">Your location stays in your browser and is never saved. Made for thoughtful trips, not a substitute for local guidance. <a href="privacy.html">Privacy policy</a></p>
           </div>
         </div>
       </section>
@@ -364,10 +366,10 @@
     <script src="./vendor/leaflet-maplibre-gl.js?v=0.0.22"></script>
     <script src="./settings-store.js?v=17"></script>
     <script src="./sidebar.js?v=3"></script>
-    <script src="./offline.js?v=3"></script>
-    <script src="./app.js?v=119"></script>
+    <script src="./offline.js?v=4"></script>
+    <script src="./app.js?v=120"></script>
     <script>
-      if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
       }
     </script>
