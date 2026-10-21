@@ -123,7 +123,7 @@ html.is-standalone .rail {
 /* Standalone: keep the search bar and tools clear of the iOS 26 top-edge blur. */
 html.is-standalone .map-search,
 html.is-standalone .map-tools {
-  top: calc(12px + 10%);
+  top: calc(12px + 2%);
 }
 
 @media (max-width: 800px) {
