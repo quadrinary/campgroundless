@@ -321,6 +321,15 @@
       document.getElementById("app-build").textContent = "Build unavailable";
     });
 
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";
+  document.body.append(probe);
+  const probeStyle = getComputedStyle(probe);
+  document.getElementById("app-build").parentElement.append(
+    ` · display ${window.navigator.standalone ? "standalone" : "browser"}, inset ${probeStyle.paddingTop}/${probeStyle.paddingBottom}, view ${innerWidth}x${innerHeight}, screen ${screen.width}x${screen.height}`
+  );
+  probe.remove();
+
   try {
     loadForm(Settings.read());
   } catch (error) {
