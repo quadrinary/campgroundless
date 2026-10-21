@@ -75,6 +75,11 @@ html.is-standalone[data-theme="dark"] body.app-body {
   background: #1d1e1a;
 }
 
+html.is-standalone:has(body.app-body),
+html.is-standalone body.app-body {
+  height: var(--app-h, 100%);
+}
+
 html.is-standalone .app {
   bottom: auto;
   height: var(--app-h, 100%);
