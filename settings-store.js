@@ -29,6 +29,7 @@
     showBoundaryData: true,
     osmLayer: "standard",
     theme: "auto",
+    popupClickBehavior: "close",
     basemapUrl: "",
     basemapAttribution: "",
     esriApiKey: "",
@@ -61,6 +62,10 @@
 
   function normalizeTheme(theme) {
     return themes.includes(theme) ? theme : defaults.theme;
+  }
+
+  function normalizePopupClickBehavior(value) {
+    return value === "replace" ? "replace" : "close";
   }
 
   function normalizeOverlays(overlays = {}) {
@@ -106,6 +111,7 @@
         ),
         osmLayer: normalizeOsmLayer(saved.osmLayer),
         theme: normalizeTheme(saved.theme),
+        popupClickBehavior: normalizePopupClickBehavior(saved.popupClickBehavior),
         showLandDisclaimer: saved.showLandDisclaimer !== false,
         showBoundaryData: saved.showBoundaryData !== false,
         typography: normalizeTypography(saved.typography),
@@ -127,6 +133,7 @@
         ),
         osmLayer: normalizeOsmLayer(settings.osmLayer),
         theme: normalizeTheme(settings.theme),
+        popupClickBehavior: normalizePopupClickBehavior(settings.popupClickBehavior),
         showLandDisclaimer: settings.showLandDisclaimer !== false,
         showBoundaryData: settings.showBoundaryData !== false,
         typography: normalizeTypography(settings.typography),

@@ -1294,6 +1294,22 @@
   let lastClickAt = 0;
   let lastClickPoint = null;
   map.doubleClickZoom.disable();
+  map.getContainer().addEventListener(
+    "click",
+    (event) => {
+      if (settings.popupClickBehavior === "replace") {
+        return;
+      }
+      const popupOpen = map._popup && map.hasLayer(map._popup);
+      if (!popupOpen || event.target.closest(".leaflet-popup, .leaflet-control")) {
+        return;
+      }
+      event.stopPropagation();
+      event.preventDefault();
+      map.closePopup();
+    },
+    true,
+  );
   map.on("click", (event) => {
     const now = Date.now();
     const point = event.containerPoint;

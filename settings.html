@@ -300,7 +300,7 @@
             <div class="settings-card-heading">
               <span class="settings-step">07</span>
               <div>
-                <h2 id="theme-heading">Appearance</h2>
+                <h2 id="theme-heading">Appearance &amp; map clicks</h2>
                 <p>Choose a day or night look. Auto follows your device's light/dark setting. Changes preview immediately and are saved with your settings.</p>
               </div>
             </div>
@@ -309,6 +309,11 @@
               <option value="auto">Auto · follow device</option>
               <option value="light">Day</option>
               <option value="dark">Night</option>
+            </select>
+            <label class="field-label" for="popup-click-behavior">Clicking the map while a location popup is open</label>
+            <select id="popup-click-behavior" name="popupClickBehavior" class="text-field select-field">
+              <option value="close">Close the popup only</option>
+              <option value="replace">Close it and show info for the new spot</option>
             </select>
           </section>
 
@@ -387,7 +392,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=15"></script>
-    <script src="./settings.js?v=14"></script>
+    <script src="./settings-store.js?v=16"></script>
+    <script src="./settings.js?v=15"></script>
   </body>
 </html>
