@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Campgroundless" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
-    <script src="./theme.js?v=4"></script>
+    <script src="./theme.js?v=5"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <script>(function(){var m="auto";try{m=JSON.parse(localStorage.getItem("campgroundless.settings.v1")||"{}").theme||"auto"}catch(e){}var d=m==="dark"||(m!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.write('<meta name="theme-color" content="'+(d?"#1d1e1a":"#f5f4ef")+'">')})()</script>
     <meta
@@ -389,11 +389,11 @@
 
     <footer class="footer">
       <a class="brand footer-brand" href="./index.html"><span class="brand-mark" aria-hidden="true">▲</span><span>campgroundless<span class="brand-period">.</span></span></a>
-      <p>Map settings are stored in this browser only. <span id="app-build">Build …</span></p>
+      <p>Map settings are stored in this browser only. <span id="app-build">Build …</span> · <a href="./index.html?diag=1">Map diagnostics</a></p>
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
     <script src="./settings-store.js?v=16"></script>
-    <script src="./settings.js?v=19"></script>
+    <script src="./settings.js?v=20"></script>
   </body>
 </html>
