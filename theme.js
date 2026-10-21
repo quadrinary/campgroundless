@@ -29,6 +29,27 @@
   apply();
   if (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
     root.classList.add("is-standalone");
+    // iOS reports the layout viewport minus the status bar although the page is drawn from y=0.
+    const fitHeight = () => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px)";
+      document.body.append(probe);
+      const inset = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+      probe.remove();
+      const portraitHeight = Math.max(screen.width, screen.height);
+      const missing = portraitHeight - innerHeight;
+      if (innerHeight > innerWidth && inset > 0 && Math.abs(missing - inset) <= 2) {
+        root.style.setProperty("--app-h", `${portraitHeight}px`);
+      } else {
+        root.style.removeProperty("--app-h");
+      }
+    };
+    document.addEventListener("DOMContentLoaded", () => {
+      fitHeight();
+      window.dispatchEvent(new Event("resize"));
+    });
+    window.addEventListener("resize", fitHeight);
+    window.addEventListener("orientationchange", fitHeight);
   }
   document.addEventListener("DOMContentLoaded", () => {
     if (!/[?&]diag=1/.test(location.search)) return;
