@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Campgroundless" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <script src="./theme.js?v=1"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta name="theme-color" content="#f5f4ef" />
     <meta
@@ -24,6 +25,7 @@
     />
     <link rel="stylesheet" href="./styles.css?v=7" />
     <link rel="stylesheet" href="./settings.css?v=7" />
+    <link rel="stylesheet" href="./theme.css?v=1" />
   </head>
   <body>
     <header class="topbar">
@@ -294,9 +296,24 @@
             </div>
           </section>
 
-          <section class="settings-card" aria-labelledby="notice-heading">
+          <section class="settings-card" aria-labelledby="theme-heading">
             <div class="settings-card-heading">
               <span class="settings-step">07</span>
+              <div>
+                <h2 id="theme-heading">Appearance</h2>
+                <p>Choose a day or night look. Auto follows your device's light/dark setting. Changes preview immediately and are saved with your settings.</p>
+              </div>
+            </div>
+            <label class="field-label" for="theme-mode">Theme</label>
+            <select id="theme-mode" name="theme" class="text-field select-field">
+              <option value="auto">Auto · follow device</option>
+              <option value="light">Day</option>
+              <option value="dark">Night</option>
+            </select>
+          </section>
+
+          <section class="settings-card" aria-labelledby="notice-heading">            <div class="settings-card-heading">
+              <span class="settings-step">08</span>
               <div>
                 <h2 id="notice-heading">Map notice</h2>
                 <p>Control the reminder strip shown below the map.</p>
@@ -314,7 +331,7 @@
 
           <section class="settings-card" aria-labelledby="storage-heading">
             <div class="settings-card-heading">
-              <span class="settings-step">08</span>
+              <span class="settings-step">09</span>
               <div>
                 <h2 id="storage-heading">Stored data</h2>
                 <p>Space used by data kept in this browser. Map layers and basemap tiles are loaded live and are not stored by this app.</p>
@@ -370,7 +387,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=14"></script>
-    <script src="./settings.js?v=13"></script>
+    <script src="./settings-store.js?v=15"></script>
+    <script src="./settings.js?v=14"></script>
   </body>
 </html>

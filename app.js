@@ -301,6 +301,8 @@
       basemapOptions.attribution =
         '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community';
     }
+    map.getContainer().dataset.basemap =
+      settings.basemap === "osm" ? `osm-${settings.osmLayer}` : settings.basemap || "esri";
     return L.tileLayer(url, basemapOptions);
   }
 

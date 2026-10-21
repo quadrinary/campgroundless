@@ -1,0 +1,50 @@
+/*
+ * Night theme. Selected by theme.js via html[data-theme="dark"].
+ * Interface surfaces are inverted (with hue preserved) rather than restyled
+ * one by one, so every control stays consistent. Map data stays in its
+ * original colors; only road-style basemaps are darkened.
+ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] .rail,
+html[data-theme="dark"] .view-panel,
+html[data-theme="dark"] .map-search,
+html[data-theme="dark"] .map-tools,
+html[data-theme="dark"] .map-notice,
+html[data-theme="dark"] .leaflet-control,
+html[data-theme="dark"] .leaflet-popup-content-wrapper,
+html[data-theme="dark"] .leaflet-popup-tip {
+  filter: invert(0.9) hue-rotate(180deg);
+}
+
+/* Controls nested inside an already-inverted control must not flip twice. */
+html[data-theme="dark"] .leaflet-control .leaflet-control {
+  filter: none;
+}
+
+/* Basemap: darken road maps, dim everything else. */
+html[data-theme="dark"] .leaflet-tile-pane {
+  filter: brightness(0.72) contrast(0.95);
+}
+
+html[data-theme="dark"] #map[data-basemap="esri"] .leaflet-tile-pane,
+html[data-theme="dark"] #map[data-basemap="osm-standard"] .leaflet-tile-pane,
+html[data-theme="dark"] #map[data-basemap="osm-hot"] .leaflet-tile-pane {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.95);
+}
+
+html[data-theme="dark"] .leaflet-container {
+  background: #1d1e1a;
+}
+
+/* Settings page: invert the whole document. */
+html[data-theme="dark"] body:not(.app-body) {
+  background: var(--paper);
+}
+
+html[data-theme="dark"]:has(body:not(.app-body)) {
+  filter: invert(0.9) hue-rotate(180deg);
+  background: #f5f4ef;
+}
