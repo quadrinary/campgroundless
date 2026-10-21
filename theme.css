@@ -54,33 +54,59 @@ html[data-theme="dark"]:has(body:not(.app-body)) {
  * under the status bar, whose text is always white. Draw a dark strip behind
  * it so the time and battery stay readable in both themes.
  */
-html.is-standalone body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-top, 0px);
+/*
+ * Installed iPhone app (black-translucent status bar). The app is laid out
+ * below the status bar on a solid themed background instead of overlaying a
+ * fixed strip, and uses the full screen height.
+ */
+html.is-standalone {
   background: #26352b;
-  opacity: 1;
-  z-index: 5000;
-  pointer-events: none;
 }
 
-html.is-standalone[data-theme="dark"] body.app-body::before {
+html.is-standalone[data-theme="dark"] {
   background: #1d1e1a;
 }
 
-/* The Settings page is inverted as a whole in night mode, so pre-invert. */
-html.is-standalone[data-theme="dark"] body:not(.app-body)::before {
-  background: #f5f4ef;
+html.is-standalone .app {
+  top: 0;
+  bottom: auto;
+  height: 100vh;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: #26352b;
 }
 
-/* Page background behind the app, so no light bar shows at the screen edges. */
-html:has(body.app-body) {
-  background: #f5f4ef;
-}
-
-html[data-theme="dark"]:has(body.app-body) {
+html.is-standalone[data-theme="dark"] .app {
   background: #1d1e1a;
+}
+
+html.is-standalone .rail {
+  padding-top: 10px;
+}
+
+html.is-standalone .map-search,
+html.is-standalone .map-tools {
+  top: 12px;
+}
+
+@media (max-width: 800px) {
+  html.is-standalone .rail,
+  html.is-standalone .view-panel {
+    top: env(safe-area-inset-top, 0px);
+  }
+}
+
+html:has(body.app-body):not(.is-standalone) {
+  background: #f5f4ef;
+}
+
+html[data-theme="dark"]:has(body.app-body):not(.is-standalone) {
+  background: #1d1e1a;
+}
+/* Settings page in the installed app: start below the status bar. */
+html.is-standalone body:not(.app-body) {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+html.is-standalone[data-theme="dark"]:has(body:not(.app-body)) {
+  background: #f5f4ef;
 }

@@ -532,6 +532,11 @@ body.app-body {
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
+.map-tools {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+}
+
 .map-notice {
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
 }
