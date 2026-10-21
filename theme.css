@@ -123,4 +123,4 @@ html.is-standalone[data-theme="dark"]:has(body:not(.app-body)) {
   background: #f5f4ef;
 }
 
-html.is-standalone .map-notice { padding-bottom: 14px; }
+html.is-standalone .map-notice { padding: 3px 12px 4px; line-height: 1.2; min-height: 0; }
