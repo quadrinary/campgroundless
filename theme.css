@@ -92,6 +92,31 @@ html.is-standalone[data-theme="dark"] .app {
   background: #1d1e1a;
 }
 
+/*
+ * iOS 26 blurs page content under the status bar unless a solid, header-like
+ * fixed element sits at the top edge. The full-screen .app doesn't qualify,
+ * so give it a dedicated strip.
+ */
+.status-strip {
+  display: none;
+}
+
+html.is-standalone .status-strip {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #26352b;
+  z-index: 3000;
+  pointer-events: none;
+}
+
+html.is-standalone[data-theme="dark"] .status-strip {
+  background: #1d1e1a;
+}
+
 html.is-standalone .rail {
   padding-top: 10px;
 }
