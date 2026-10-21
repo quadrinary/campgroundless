@@ -27,6 +27,7 @@
     recreationSitesMinZoom: 11,
     showLandDisclaimer: true,
     showBoundaryData: true,
+    basemap: "vector",
     osmLayer: "standard",
     theme: "auto",
     popupClickBehavior: "close",

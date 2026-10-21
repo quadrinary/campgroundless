@@ -135,6 +135,7 @@
       topographic: "Topographic",
     };
     const basemapNames = {
+      vector: "Vector streets (OpenFreeMap)",
       esri: "Esri World Street Map",
       "esri-imagery": "Esri World Imagery",
       "esri-hillshade": "Esri World Hillshade",
@@ -144,7 +145,7 @@
     document.getElementById("summary-basemap").textContent =
       settings.basemap === "osm"
         ? `OpenStreetMap · ${osmLayerNames[settings.osmLayer] ?? osmLayerNames.standard}`
-        : basemapNames[settings.basemap] ?? basemapNames.esri;
+        : basemapNames[settings.basemap] ?? basemapNames.vector;
     document.getElementById("summary-place-search").textContent =
       settings.placeSearchUrl === Settings.defaults.placeSearchUrl
         ? "OpenStreetMap Nominatim"

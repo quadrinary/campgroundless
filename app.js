@@ -232,12 +232,29 @@
   const referencePane = map.createPane("referenceOverlays");
   referencePane.style.zIndex = "420";
   referencePane.style.pointerEvents = "none";
+  function supportsWebGL() {
+    try {
+      return Boolean(document.createElement("canvas").getContext("webgl2") ||
+        document.createElement("canvas").getContext("webgl"));
+    } catch {
+      return false;
+    }
+  }
+
   function createBasemap() {
     const basemapOptions = {
       maxZoom: 19,
       attribution: "",
     };
     let url;
+    if (settings.basemap === "vector" && L.maplibreGL && supportsWebGL()) {
+      map.getContainer().dataset.basemap = "vector";
+      return L.maplibreGL({
+        style: "https://tiles.openfreemap.org/styles/liberty",
+        attribution:
+          '<a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a> &copy; <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
+      });
+    }
     if (settings.basemap === "osm") {
       if (settings.osmLayer === "hot") {
         url = "https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png";
@@ -302,7 +319,11 @@
         '&copy; Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, and the GIS User Community';
     }
     map.getContainer().dataset.basemap =
-      settings.basemap === "osm" ? `osm-${settings.osmLayer}` : settings.basemap || "esri";
+      settings.basemap === "osm"
+        ? `osm-${settings.osmLayer}`
+        : settings.basemap && settings.basemap !== "vector"
+          ? settings.basemap
+          : "esri";
     return L.tileLayer(url, basemapOptions);
   }
 
@@ -391,6 +412,7 @@
     styleHeading.textContent = "Map Style";
 
     const options = [
+      ["vector", "Vector streets (crisp text)"],
       ["esri", "Esri World Street Map"],
       ["esri-imagery", "Esri World Imagery"],
       ["esri-hillshade", "Esri World Hillshade"],
@@ -405,7 +427,7 @@
 
     const activeStyle = options.some(([value]) => value === activeBasemapOption())
       ? activeBasemapOption()
-      : "esri";
+      : "vector";
 
     options.forEach(([value, label], index) => {
       const optionLabel = L.DomUtil.create("label", "map-layer-option", styleSection);
