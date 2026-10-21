@@ -20,10 +20,9 @@
     const resolved = mode === "dark" || (mode === "auto" && media.matches) ? "dark" : "light";
     root.dataset.theme = resolved;
     root.dataset.themeMode = mode;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
       meta.setAttribute("content", themeColors[resolved]);
-    }
+    });
     return resolved;
   }
 
