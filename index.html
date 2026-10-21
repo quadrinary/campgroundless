@@ -15,8 +15,7 @@
       name="description"
       content="Explore public-land boundaries in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
     />
-    <meta name="theme-color" content="#f5f4ef" />
-    <meta name="theme-color" content="#1d1e1a" media="(prefers-color-scheme: dark)" />
+    <script>(function(){var m="auto";try{m=JSON.parse(localStorage.getItem("campgroundless.settings.v1")||"{}").theme||"auto"}catch(e){}var d=m==="dark"||(m!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.write('<meta name="theme-color" content="'+(d?"#1d1e1a":"#f5f4ef")+'">')})()</script>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Campgroundless — Western &amp; Southwestern U.S. public lands map</title>
     <link rel="preconnect" href="https://unpkg.com" />
@@ -319,7 +318,7 @@
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=16"></script>
     <script src="./sidebar.js?v=3"></script>
-    <script src="./app.js?v=99"></script>
+    <script src="./app.js?v=100"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol === "https:") {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
