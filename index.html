@@ -8,7 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Campgroundless" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <script src="./theme.js?v=3"></script>
+    <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
+    <script src="./theme.js?v=4"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
@@ -31,7 +32,7 @@
     />
     <link rel="stylesheet" href="./styles.css?v=23" />
     <link rel="stylesheet" href="./shell.css?v=9" />
-    <link rel="stylesheet" href="./theme.css?v=5" />
+    <link rel="stylesheet" href="./theme.css?v=6" />
   </head>
   <body class="app-body">
     <div class="app" id="app">
@@ -318,7 +319,7 @@
     <script src="https://unpkg.com/esri-leaflet@3.0.15/dist/esri-leaflet.js"></script>
     <script src="./settings-store.js?v=16"></script>
     <script src="./sidebar.js?v=3"></script>
-    <script src="./app.js?v=98"></script>
+    <script src="./app.js?v=99"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol === "https:") {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
