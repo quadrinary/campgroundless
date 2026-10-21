@@ -179,9 +179,7 @@
   let editingNoteId = null;
   let notes = [];
   L.Popup.mergeOptions({
-    autoPan: true,
-    autoPanPaddingTopLeft: [24, 140],
-    autoPanPaddingBottomRight: [72, 24],
+    autoPan: false,
   });
 
   const map = L.map("map", {
@@ -1256,12 +1254,12 @@
     } else if (rect.bottom > mapRect.bottom - popupPadding.bottom) {
       dy = rect.bottom - (mapRect.bottom - popupPadding.bottom);
     }
-    if (rect.left < mapRect.left + popupPadding.left) {
-      dx = rect.left - (mapRect.left + popupPadding.left);
-    } else if (rect.right > mapRect.right - popupPadding.right) {
-      dx = rect.right - (mapRect.right - popupPadding.right);
+    // Keep the popup horizontally centered in the map so it never hugs a side.
+    const dxCenter = rect.left + rect.width / 2 - (mapRect.left + mapRect.width / 2);
+    if (Math.abs(dxCenter) > 2) {
+      dx = dxCenter;
     }
-    if (dx || dy) {
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
       map.panBy([dx, dy], { animate: true });
     }
   }
