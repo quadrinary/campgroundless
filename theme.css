@@ -54,25 +54,33 @@ html[data-theme="dark"]:has(body:not(.app-body)) {
  * under the status bar, whose text is always white. Draw a dark strip behind
  * it so the time and battery stay readable in both themes.
  */
-@media (display-mode: standalone) {
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-top, 0px);
-    background: #26352b;
-    z-index: 5000;
-    pointer-events: none;
-  }
+html.is-standalone body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #26352b;
+  opacity: 1;
+  z-index: 5000;
+  pointer-events: none;
+}
 
-  html[data-theme="dark"] body.app-body::before {
-    background: #1d1e1a;
-  }
+html.is-standalone[data-theme="dark"] body.app-body::before {
+  background: #1d1e1a;
+}
 
-  /* The Settings page is inverted as a whole in night mode, so pre-invert. */
-  html[data-theme="dark"] body:not(.app-body)::before {
-    background: #f5f4ef;
-  }
+/* The Settings page is inverted as a whole in night mode, so pre-invert. */
+html.is-standalone[data-theme="dark"] body:not(.app-body)::before {
+  background: #f5f4ef;
+}
+
+/* Page background behind the app, so no light bar shows at the screen edges. */
+html:has(body.app-body) {
+  background: #f5f4ef;
+}
+
+html[data-theme="dark"]:has(body.app-body) {
+  background: #1d1e1a;
 }
