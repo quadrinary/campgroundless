@@ -11,8 +11,7 @@
     <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
     <script src="./theme.js?v=4"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-    <meta name="theme-color" content="#f5f4ef" />
-    <meta name="theme-color" content="#1d1e1a" media="(prefers-color-scheme: dark)" />
+    <script>(function(){var m="auto";try{m=JSON.parse(localStorage.getItem("campgroundless.settings.v1")||"{}").theme||"auto"}catch(e){}var d=m==="dark"||(m!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.write('<meta name="theme-color" content="'+(d?"#1d1e1a":"#f5f4ef")+'">')})()</script>
     <meta
       name="description"
       content="Configure map data sources, land-manager layers, basemaps, and provider API keys."
