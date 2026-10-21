@@ -1242,6 +1242,11 @@
     if (!element || !popup.isOpen()) {
       return;
     }
+    // Measuring during Leaflet's own auto-pan animation yields a stale position and over-pans.
+    if (map._panAnim?._inProgress || map._animatingZoom) {
+      map.once("moveend zoomend", () => window.setTimeout(() => keepPopupInView(popup), 60));
+      return;
+    }
     const mapRect = map.getContainer().getBoundingClientRect();
     const rect = element.getBoundingClientRect();
     let dx = 0;
@@ -1267,13 +1272,20 @@
     if (!content) {
       return;
     }
-    const check = () => window.setTimeout(() => keepPopupInView(popup), 50);
+    let timer = null;
+    const check = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => keepPopupInView(popup), 300);
+    };
     check();
     content.addEventListener("load", check, true);
     if ("ResizeObserver" in window) {
       const observer = new ResizeObserver(check);
       observer.observe(content);
-      popup.once("remove", () => observer.disconnect());
+      popup.once("remove", () => {
+        observer.disconnect();
+        window.clearTimeout(timer);
+      });
     }
   });
 
