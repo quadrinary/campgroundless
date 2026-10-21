@@ -94,8 +94,8 @@ html.is-standalone[data-theme="dark"] .app {
 
 /*
  * iOS 26 blurs page content under the status bar unless a solid, header-like
- * fixed element sits at the top edge. The full-screen .app doesn't qualify,
- * so give it a dedicated strip.
+ * fixed element sits at the top edge. WebKit finds it by hit-testing just below
+ * the status bar, so the strip must extend past it and accept pointer events.
  */
 .status-strip {
   display: none;
@@ -107,10 +107,9 @@ html.is-standalone .status-strip {
   top: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-top, 0px);
+  height: calc(env(safe-area-inset-top, 0px) + 6px);
   background: #26352b;
   z-index: 3000;
-  pointer-events: none;
 }
 
 html.is-standalone[data-theme="dark"] .status-strip {
