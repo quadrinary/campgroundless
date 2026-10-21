@@ -30,6 +30,31 @@
   if (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
     root.classList.add("is-standalone");
   }
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!/[?&]diag=1/.test(location.search)) return;
+    const box = document.createElement("pre");
+    box.style.cssText = "position:fixed;left:0;right:0;bottom:90px;z-index:99999;margin:0;padding:8px;background:#fff;color:#000;font:11px/1.3 monospace;white-space:pre-wrap;filter:none";
+    const lines = () => {
+      const app = document.querySelector(".app")?.getBoundingClientRect();
+      const meta = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content).join(",");
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px)";
+      document.body.append(probe);
+      const inset = getComputedStyle(probe).paddingTop;
+      probe.remove();
+      box.textContent = [
+        `nav.standalone=${window.navigator.standalone} class=${root.className}`,
+        `theme=${root.dataset.theme}/${root.dataset.themeMode} osdark=${media.matches} cs=${getComputedStyle(root).colorScheme}`,
+        `htmlBg=${getComputedStyle(root).backgroundColor} bodyBg=${getComputedStyle(document.body).backgroundColor}`,
+        `meta=${meta} inset=${inset}`,
+        `inner=${innerWidth}x${innerHeight} vv=${window.visualViewport?.width}x${window.visualViewport?.height} screen=${screen.width}x${screen.height}`,
+        `app top=${app?.top} h=${app?.height} scrollY=${scrollY}`,
+      ].join("\n");
+    };
+    document.body.append(box);
+    lines();
+    setTimeout(lines, 1500);
+  });
   document.addEventListener("DOMContentLoaded", () => apply(root.dataset.themeMode));
   media.addEventListener("change", () => apply(root.dataset.themeMode));
   window.addEventListener("storage", (event) => {
