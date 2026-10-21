@@ -26,7 +26,7 @@
     />
     <link rel="stylesheet" href="./styles.css?v=7" />
     <link rel="stylesheet" href="./settings.css?v=7" />
-    <link rel="stylesheet" href="./theme.css?v=10" />
+    <link rel="stylesheet" href="./theme.css?v=11" />
   </head>
   <body>
     <header class="topbar">
@@ -182,6 +182,7 @@
             </div>
             <label class="field-label" for="basemap">Tile provider</label>
             <select id="basemap" name="basemap" class="text-field select-field">
+              <option value="vector">Vector streets (OpenFreeMap) · crisp text, no key required</option>
               <option value="esri">Esri World Street Map · no key required</option>
               <option value="esri-imagery">Esri World Imagery</option>
               <option value="esri-hillshade">Esri World Hillshade</option>
@@ -393,7 +394,7 @@
       <a href="./index.html#data-sources">Data &amp; limitations</a>
     </footer>
 
-    <script src="./settings-store.js?v=16"></script>
+    <script src="./settings-store.js?v=17"></script>
     <script src="./settings.js?v=20"></script>
   </body>
 </html>

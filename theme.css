@@ -30,6 +30,7 @@ html[data-theme="dark"] .leaflet-tile-pane {
 }
 
 html[data-theme="dark"] #map[data-basemap="esri"] .leaflet-tile-pane,
+html[data-theme="dark"] #map[data-basemap="vector"] .leaflet-tile-pane,
 html[data-theme="dark"] #map[data-basemap="osm-standard"] .leaflet-tile-pane,
 html[data-theme="dark"] #map[data-basemap="osm-hot"] .leaflet-tile-pane {
   filter: invert(0.92) hue-rotate(180deg) brightness(0.9) contrast(0.95);
