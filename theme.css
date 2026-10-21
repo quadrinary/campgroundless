@@ -122,3 +122,5 @@ html.is-standalone body:not(.app-body) {
 html.is-standalone[data-theme="dark"]:has(body:not(.app-body)) {
   background: #f5f4ef;
 }
+
+html.is-standalone .map-notice { padding-bottom: 14px; }
