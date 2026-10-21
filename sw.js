@@ -1,6 +1,6 @@
 // App shell for offline use. Map data is never cached here: saved offline
 // areas live in their own cache and IndexedDB, managed by offline.js.
-const SHELL_CACHE = "campgroundless-shell-v2";
+const SHELL_CACHE = "campgroundless-shell-v3";
 const PAGES = ["./", "./index.html", "./settings.html"];
 const EXTRAS = [
   "./manifest.webmanifest",
@@ -71,11 +71,11 @@ function store(request, response) {
 
 // Network first, but fall back to the cache quickly when a weak signal
 // leaves the request hanging.
-function networkFirst(request, fallback) {
-  const network = fetch(request).then((response) => store(request, response));
+function networkFirst(request, fallback, key = request) {
+  const network = fetch(request).then((response) => store(key, response));
   network.catch(() => {});
   const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS));
-  const cached = () => caches.match(request, { ignoreSearch: request.mode === "navigate" });
+  const cached = () => caches.match(key, { ignoreSearch: request.mode === "navigate" });
   return Promise.race([network, timeout.then(() => cached().then((hit) => hit || network))])
     .catch(() => null)
     .then(async (response) => response || (await cached()) || (await network.catch(() => null)) || (fallback ? caches.match(fallback) : null))
@@ -89,7 +89,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, "./index.html"));
+    // One cached copy per page, whatever its query string.
+    event.respondWith(networkFirst(request, "./index.html", url.origin + url.pathname));
     return;
   }
   // Versioned files and icons never change at the same URL.
