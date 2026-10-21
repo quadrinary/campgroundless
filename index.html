@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Campgroundless" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
       content="Explore public-land boundaries in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
@@ -22,7 +28,7 @@
       crossorigin=""
     />
     <link rel="stylesheet" href="./styles.css?v=23" />
-    <link rel="stylesheet" href="./shell.css?v=6" />
+    <link rel="stylesheet" href="./shell.css?v=7" />
   </head>
   <body class="app-body">
     <div class="app" id="app">
@@ -310,5 +316,10 @@
     <script src="./settings-store.js?v=14"></script>
     <script src="./sidebar.js?v=3"></script>
     <script src="./app.js?v=84"></script>
+    <script>
+      if ("serviceWorker" in navigator && location.protocol === "https:") {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    </script>
   </body>
 </html>
