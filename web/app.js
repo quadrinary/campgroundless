@@ -918,12 +918,21 @@
     });
   }
 
+  // Header actions on every map popup: the star saves the spot (with everything shown in
+  // the popup) in one tap; the pencil opens the note editor to customize a new entry.
   function popupNoteIconMarkup(label = "Write a note at this location") {
-    return `<button type="button" class="site-note-icon-button" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5Zm16.7-10.3a.93.93 0 0 0 0-1.3l-1.6-1.6a.93.93 0 0 0-1.3 0l-1.7 1.7 3.5 3.5 1.1-2.3Z"/>
-      </svg>
-    </button>`;
+    return `<div class="site-popup-actions">
+      <button type="button" class="site-note-icon-button site-save-star-button" aria-pressed="false" aria-label="Save to Saved locations" title="Save to Saved locations">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 2.8l2.82 5.72 6.31.92-4.57 4.45 1.08 6.29L12 17.21l-5.64 2.97 1.08-6.29-4.57-4.45 6.31-.92L12 2.8Z"/>
+        </svg>
+      </button>
+      <button type="button" class="site-note-icon-button site-note-edit-button" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5Zm16.7-10.3a.93.93 0 0 0 0-1.3l-1.6-1.6a.93.93 0 0 0-1.3 0l-1.7 1.7 3.5 3.5 1.1-2.3Z"/>
+        </svg>
+      </button>
+    </div>`;
   }
 
   function bindBlmRecreationPopup(feature, layer, siteIconsByType) {
@@ -1004,19 +1013,254 @@
   }
 
   function bindPopupNoteIcon(popup, location, iconSelect = null) {
-    const button = popup.getElement()?.querySelector(".site-note-icon-button");
-    if (!button) {
+    const element = popup.getElement();
+    const editButton = element?.querySelector(".site-note-edit-button");
+    const starButton = element?.querySelector(".site-save-star-button");
+    if (!editButton || !starButton) {
       return;
     }
-    button.addEventListener("click", () => {
-      openNoteEditor(location);
-      if (!noteForm.hidden) {
-        if (iconSelect) {
-          noteIcon.value = iconSelect.value;
+    if (iconSelect) {
+      iconSelect.addEventListener("change", () => {
+        iconSelect.dataset.chosen = "true";
+      });
+    }
+    const content = element.querySelector(".leaflet-popup-content");
+    const placeSaveButton = element.querySelector(".place-save-button");
+    const draft = () => {
+      const details = captureSavedDetails(content);
+      return {
+        title: savedTitleFrom(content, location),
+        icon: iconSelect?.dataset.chosen ? iconSelect.value : savedIconFrom(content, iconSelect),
+        details,
+      };
+    };
+    let savedId = notes.find(
+      (note) => note.details && location.distanceTo(L.latLng(note.lat, note.lng)) < 10,
+    )?.id ?? null;
+    let observer = null;
+
+    function showState() {
+      const saved = Boolean(savedId && notes.some((note) => note.id === savedId));
+      starButton.classList.toggle("is-saved", saved);
+      starButton.setAttribute("aria-pressed", String(saved));
+      const label = saved ? "Saved — tap to remove from Saved locations" : "Save to Saved locations";
+      starButton.setAttribute("aria-label", label);
+      starButton.title = label;
+      if (placeSaveButton) {
+        placeSaveButton.textContent = saved ? "Saved ✓ (tap to remove)" : "Save to Saved locations";
+      }
+    }
+
+    // Lookups (land manager, nearest road) can finish after the star is tapped; keep the
+    // saved copy current while the popup stays open.
+    function followUpdates() {
+      observer?.disconnect();
+      let timer = null;
+      observer = new MutationObserver(() => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          const index = notes.findIndex((note) => note.id === savedId);
+          if (index === -1 || !popup.isOpen()) {
+            observer?.disconnect();
+            return;
+          }
+          const update = draft();
+          const current = notes[index];
+          const next = { ...current, details: update.details };
+          if (current.title === current.autoTitle) {
+            next.title = update.title;
+            next.autoTitle = update.title;
+          }
+          const nextNotes = notes.map((note, i) => (i === index ? next : note));
+          try {
+            persistNotes(nextNotes);
+            notes = nextNotes;
+            renderNotes();
+          } catch (error) {
+            console.warn("Could not update the saved location details.", error);
+          }
+        }, 400);
+      });
+      observer.observe(content, { childList: true, subtree: true, characterData: true });
+      popup.once("remove", () => observer?.disconnect());
+    }
+
+    starButton.addEventListener("click", () => {
+      const existing = notes.find((note) => note.id === savedId);
+      if (existing) {
+        const nextNotes = notes.filter((note) => note.id !== savedId);
+        try {
+          persistNotes(nextNotes);
+          notes = nextNotes;
+          savedId = null;
+          observer?.disconnect();
+          renderNotes();
+          nativeApp.haptic("light");
+        } catch (error) {
+          console.error("Could not remove the saved location.", error);
         }
+        showState();
+        return;
+      }
+      if (!isWithinCoverage([location.lng, location.lat])) {
+        starButton.title = "Only places in the covered states can be saved.";
+        nativeApp.haptic("error");
+        return;
+      }
+      const { title, icon, details } = draft();
+      const now = new Date().toISOString();
+      const note = {
+        id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        lat: location.lat,
+        lng: location.lng,
+        title,
+        autoTitle: title,
+        icon,
+        body: "",
+        details,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const nextNotes = [...notes, note];
+      try {
+        persistNotes(nextNotes);
+      } catch (error) {
+        console.error("Could not save the location.", error);
+        starButton.title = "Could not save. Check this device's storage settings.";
+        nativeApp.haptic("error");
+        return;
+      }
+      notes = nextNotes;
+      savedId = note.id;
+      renderNotes();
+      showState();
+      followUpdates();
+      nativeApp.haptic("success");
+    });
+
+    placeSaveButton?.addEventListener("click", () => starButton.click());
+
+    editButton.addEventListener("click", () => {
+      const existing = notes.find((note) => note.id === savedId);
+      if (existing) {
+        openNoteEditor(L.latLng(existing.lat, existing.lng), existing);
+      } else {
+        openNoteEditor(location, null, draft());
+      }
+      if (!noteForm.hidden) {
         map.closePopup();
       }
     });
+    showState();
+  }
+
+  // ---- Saved popup details ----
+  // A saved spot keeps a cleaned copy of its popup (site info, contacts, land manager, logo,
+  // nearest road, caveats). Only plain formatting, https/mailto/tel links, and local or
+  // data-URI images survive, both when saving and again when showing a saved spot.
+  const savedDetailsMaxLength = 60000;
+  const savedDetailTags = new Set([
+    "DIV", "P", "H3", "H4", "STRONG", "EM", "B", "I", "SPAN", "BR", "UL", "OL", "LI",
+    "A", "IMG", "DL", "DT", "DD", "SMALL",
+  ]);
+
+  function allowedSavedAttribute(element, name, value) {
+    switch (name) {
+      case "class":
+        return /^[\w\s-]*$/.test(value);
+      case "alt":
+      case "title":
+      case "aria-label":
+      case "aria-hidden":
+      case "role":
+        return true;
+      case "data-manager-code":
+        return /^[A-Z]{2,6}$/.test(value);
+      case "href":
+        return element.tagName === "A" && /^(https:\/\/|mailto:|tel:)/i.test(value);
+      case "src":
+        return (
+          element.tagName === "IMG" &&
+          (/^data:image\/(png|gif|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value) ||
+            /^(\.\/)?(logos|icons)\/[\w/-]+\.(svg|png)$/.test(value))
+        );
+      case "style":
+        return /^background-color:\s*#[0-9a-f]{3,8};?$/i.test(value.trim());
+      default:
+        return false;
+    }
+  }
+
+  function sanitizeSavedDetails(html) {
+    if (typeof html !== "string" || !html.trim()) {
+      return "";
+    }
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    function clean(node) {
+      Array.from(node.childNodes).forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          return;
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE || !savedDetailTags.has(child.tagName)) {
+          child.remove();
+          return;
+        }
+        Array.from(child.attributes).forEach(({ name, value }) => {
+          if (!allowedSavedAttribute(child, name.toLowerCase(), value)) {
+            child.removeAttribute(name);
+          }
+        });
+        if (child.tagName === "A") {
+          child.target = "_blank";
+          child.rel = "noopener noreferrer";
+        }
+        clean(child);
+      });
+    }
+    clean(parsed.body);
+    return parsed.body.innerHTML.trim();
+  }
+
+  function captureSavedDetails(content) {
+    if (!content) {
+      return "";
+    }
+    const copy = content.cloneNode(true);
+    copy
+      .querySelectorAll(".site-popup-actions, .feature-note-action, .place-save-button, .map-layer-separator")
+      .forEach((element) => element.remove());
+    let html = sanitizeSavedDetails(copy.innerHTML);
+    if (html.length > savedDetailsMaxLength) {
+      copy.querySelectorAll("img").forEach((image) => image.remove());
+      html = sanitizeSavedDetails(copy.innerHTML);
+    }
+    if (html.length > savedDetailsMaxLength) {
+      html = `<p>${escapeHtml(copy.textContent.replace(/\s+/g, " ").trim().slice(0, 20000))}</p>`;
+    }
+    return html;
+  }
+
+  function savedTitleFrom(content, location) {
+    const pending = /^Looking up|could not be looked up|^No matching|unavailable|^Unknown/i;
+    const heading = content?.querySelector("h3")?.textContent.replace(/\s+/g, " ").trim() ?? "";
+    let title = heading;
+    if (!title || /^(Map point|Land at this location)$/i.test(title)) {
+      const land = content?.querySelector(".point-land-value")?.textContent.replace(/\s+/g, " ").trim() ?? "";
+      title = land && !pending.test(land)
+        ? land
+        : `Map point ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
+    }
+    return title.slice(0, 80);
+  }
+
+  function savedIconFrom(content, iconSelect) {
+    const hints = [
+      content?.querySelector(".site-type")?.textContent,
+      content?.querySelector("h3")?.textContent,
+      content?.querySelector(".map-popup-label")?.textContent,
+    ];
+    const icon = window.CampgroundlessPlaces?.iconFor(...hints) ?? "landmark";
+    return Object.hasOwn(noteTypes, icon) ? icon : iconSelect?.value || "landmark";
   }
 
   function sourceDescription(value) {
@@ -1102,6 +1346,8 @@
       Object.hasOwn(noteTypes, note.icon) &&
       Number.isFinite(note.lat) &&
       Number.isFinite(note.lng) &&
+      (note.details === undefined ||
+        (typeof note.details === "string" && note.details.length <= savedDetailsMaxLength)) &&
       isWithinCoverage([note.lng, note.lat])
     );
   }
@@ -1118,8 +1364,10 @@
     localStorage.setItem(notesStorageKey, JSON.stringify(nextNotes));
   }
 
+  // Share links carry only the note text; saved popup details stay on this device.
   function encodeSharedNote(note) {
-    const bytes = new TextEncoder().encode(JSON.stringify(note));
+    const { details, autoTitle, ...shared } = note;
+    const bytes = new TextEncoder().encode(JSON.stringify(shared));
     let binary = "";
     bytes.forEach((byte) => {
       binary += String.fromCharCode(byte);
@@ -1136,6 +1384,9 @@
       const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
       const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
       const note = JSON.parse(new TextDecoder().decode(bytes));
+      if (note && typeof note === "object") {
+        delete note.details;
+      }
       return validNote(note) && note.title.length <= 80 && note.body.length <= 1200
         ? note
         : null;
@@ -1194,16 +1445,20 @@
     return note;
   }
 
+  let pendingNoteDetails = "";
+
   function closeNoteEditor() {
     noteForm.hidden = true;
     editingNoteId = null;
+    pendingNoteDetails = "";
+    noteBody.required = true;
     selectedNoteLocation = null;
     noteForm.reset();
     noteIcon.value = "camp";
     setNoteMessage("");
   }
 
-  function openNoteEditor(location, note = null) {
+  function openNoteEditor(location, note = null, prefill = null) {
     if (!isWithinCoverage([location.lng, location.lat])) {
       selectedNoteLocation = null;
       setNoteMessage("Choose a point within California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, or Texas to save a note.", true);
@@ -1213,9 +1468,14 @@
     editingNoteId = note?.id ?? null;
     noteForm.hidden = false;
     noteLocation.textContent = `Selected location: ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
-    noteTitle.value = note?.title ?? "";
-    noteIcon.value = note?.icon ?? "camp";
+    noteTitle.value = note?.title ?? prefill?.title ?? "";
+    noteIcon.value = note?.icon ?? prefill?.icon ?? "camp";
     noteBody.value = note?.body ?? "";
+    pendingNoteDetails = note ? note.details ?? "" : prefill?.details ?? "";
+    noteBody.required = !pendingNoteDetails;
+    if (pendingNoteDetails) {
+      noteLocation.textContent += " · The details shown in the map popup are saved with this entry.";
+    }
     noteForm.querySelector(".note-save-button").textContent = note ? "Update note" : "Save note";
     setNoteMessage("");
     window.CampgroundlessSidebar?.show("saved");
@@ -1231,7 +1491,11 @@
       <div class="map-note-popup">
         <div class="map-note-popup-type">${type.icon} ${escapeHtml(type.label)}${dateText ? ` · ${escapeHtml(dateText)}` : ""}${shared ? " · Shared view" : ""}</div>
         <h3>${escapeHtml(title)}</h3>
-        <p>${escapeHtml(note.body)}</p>
+        ${note.body ? `<p>${escapeHtml(note.body)}</p>` : ""}
+        ${!shared && note.details ? `<div class="saved-details">
+          <div class="saved-details-caption">Details as saved${dateText ? ` on ${escapeHtml(new Date(note.createdAt).toLocaleDateString())}` : ""} — may be out of date</div>
+          ${sanitizeSavedDetails(note.details)}
+        </div>` : ""}
         ${shared ? "" : `<div class="map-note-popup-actions">
           <button type="button" data-note-action="share" data-note-id="${escapeHtml(note.id)}">Copy share link</button>
           <button type="button" data-note-action="edit" data-note-id="${escapeHtml(note.id)}">Edit</button>
@@ -1245,6 +1509,11 @@
   const noteMarkersById = new Map();
   const savedList = document.getElementById("saved-list");
   const savedEmpty = document.getElementById("saved-empty");
+
+  function savedDetailsLabel(details) {
+    const parsed = new DOMParser().parseFromString(details, "text/html");
+    return (parsed.querySelector(".map-popup-label")?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  }
 
   function renderSavedList() {
     savedList.replaceChildren();
@@ -1260,7 +1529,11 @@
       const name = document.createElement("strong");
       name.textContent = `${type.icon} ${note.title.trim() || type.label}`;
       const detail = document.createElement("small");
-      detail.textContent = note.body.slice(0, 80);
+      detail.textContent = note.body
+        ? note.body.slice(0, 80)
+        : note.details
+          ? savedDetailsLabel(note.details)
+          : "";
       button.append(name, detail);
       button.addEventListener("click", () => {
         window.CampgroundlessSidebar?.hide();
@@ -1293,9 +1566,13 @@
         title: `${type.label}: ${note.title || note.body.slice(0, 60)}`,
         alt: `${type.label} map note`,
       }).addTo(noteMarkers);
-      marker.bindPopup(buildNotePopup(note), { maxWidth: 280 });
+      marker.bindPopup(
+        buildNotePopup(note),
+        note.details ? { maxWidth: 330, maxHeight: 400 } : { maxWidth: 280 },
+      );
       noteMarkersById.set(note.id, marker);
       marker.on("popupopen", (event) => {
+        bindManagerIconFallback(event.popup.getElement());
         event.popup.getElement().querySelectorAll("[data-note-action]").forEach((button) => {
           button.addEventListener("click", () => {
             const selectedNote = notes.find((entry) => entry.id === button.dataset.noteId);
@@ -1437,7 +1714,7 @@
     event.preventDefault();
     const body = noteBody.value.trim();
     const title = noteTitle.value.trim();
-    if (!selectedNoteLocation || !body) {
+    if (!selectedNoteLocation || (!body && !pendingNoteDetails)) {
       setNoteMessage("Select a map location and enter a note or review.", true);
       return;
     }
@@ -1450,6 +1727,7 @@
       title,
       icon: noteIcon.value,
       body,
+      ...(pendingNoteDetails ? { details: pendingNoteDetails } : {}),
       createdAt: existingNote?.createdAt ?? now,
       updatedAt: now,
     };
@@ -2819,10 +3097,6 @@
       popup.getElement().querySelector(".nearest-road-value"),
     );
     bindPopupNoteIcon(popup, location);
-    const saveButton = popup.getElement().querySelector(".place-save-button");
-    if (saveButton && place) {
-      wireSaveButton(saveButton, place);
-    }
   }
 
   function managerContactLink(managerCode) {
