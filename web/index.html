@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=24" />
-    <link rel="stylesheet" href="./shell.css?v=12" />
+    <link rel="stylesheet" href="./shell.css?v=13" />
     <link rel="stylesheet" href="./theme.css?v=19" />
   </head>
   <body class="app-body">
@@ -330,6 +330,38 @@
                 </div>
               </section>
 
+              <section class="settings-group" aria-labelledby="settings-places-heading" data-backup>
+                <h3 id="settings-places-heading">Location files</h3>
+                <div class="offline-card settings-card">
+                  <p class="offline-help">Bring in waypoints from Gaia GPS, onX, CalTopo, Google Earth or My Maps, or a spreadsheet, or send your saved locations to those apps. Only points are used; tracks, routes, and areas are skipped.</p>
+                  <div class="offline-actions settings-wrap-actions">
+                    <button id="places-import" class="view-button" type="button">Import locations…</button>
+                  </div>
+                  <p class="offline-help">Reads GPX, KML, KMZ, GeoJSON, and CSV (with latitude and longitude columns). Locations outside the map's coverage area are skipped.</p>
+                  <input id="places-file" type="file" hidden />
+                  <label class="note-field-label" for="places-format">Export saved locations as</label>
+                  <div class="settings-inline-field">
+                    <select id="places-format" class="note-text-field">
+                      <option value="gpx" selected>GPX (Gaia GPS, onX, CalTopo, Garmin)</option>
+                      <option value="kml">KML (Google Earth, My Maps)</option>
+                      <option value="geojson">GeoJSON</option>
+                      <option value="csv">CSV (spreadsheet)</option>
+                    </select>
+                    <button id="places-export" class="note-save-button" type="button">Export</button>
+                  </div>
+                </div>
+                <div id="places-preview" class="offline-card settings-card" role="region" aria-labelledby="places-preview-heading" hidden>
+                  <strong id="places-preview-heading">Add these locations?</strong>
+                  <p id="places-preview-summary" class="offline-help"></p>
+                  <ul id="places-preview-list" class="settings-place-list"></ul>
+                  <p class="offline-help">They are added to your saved locations, next to the ones already on this device. Icons are matched from the file's symbols where possible; others use 📍. A saved location is your own note and does not confirm that camping is allowed there.</p>
+                  <div class="offline-actions">
+                    <button id="places-import-confirm" class="note-save-button" type="button">Add locations</button>
+                    <button id="places-import-cancel" class="note-cancel-button" type="button">Cancel</button>
+                  </div>
+                </div>
+              </section>
+
               <details class="settings-group settings-advanced" id="settings-advanced">
                 <summary><h3>Advanced</h3><small>Data sources and API keys. Changes here reload the map.</small></summary>
                 <fieldset class="offline-card settings-card offline-fieldset">
@@ -551,9 +583,10 @@
     <script src="./settings-store.js?v=17"></script>
     <script src="./sidebar.js?v=4"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./app.js?v=122"></script>
+    <script src="./app.js?v=123"></script>
     <script src="./backup.js?v=1"></script>
-    <script src="./settings.js?v=24"></script>
+    <script src="./places.js?v=1"></script>
+    <script src="./settings.js?v=25"></script>
     <script>
       if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

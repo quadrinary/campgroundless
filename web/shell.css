@@ -969,3 +969,36 @@ fieldset.settings-card {
 #backup-preview {
   border-color: #365a43;
 }
+.settings-inline-field {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-inline-field select {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-inline-field .note-save-button {
+  flex: 0 0 auto;
+}
+
+.settings-place-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.settings-place-list li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-place-list li.more {
+  list-style: none;
+  margin-left: -18px;
+  color: var(--muted);
+}

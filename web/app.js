@@ -3152,6 +3152,8 @@
   // Live-apply hooks for the Settings panel, which shares this in-memory settings object.
   window.CampgroundlessMap = Object.freeze({
     getSettings: () => structuredClone(settings),
+    isWithinCoverage: (lat, lng) => isWithinCoverage([lng, lat]),
+    whenCoverageReady: () => coverageBoundaryPromise.then(() => true, () => false),
     activeBasemapOption,
     setBasemap(option) {
       const radio = document.querySelector(`input[name="map-style-choice"][value="${CSS.escape(option)}"]`);
