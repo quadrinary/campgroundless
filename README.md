@@ -33,11 +33,12 @@ The app bundles Leaflet, Esri Leaflet, MapLibre GL and the Leaflet MapLibre brid
 
 ## Map settings and API keys
 
-Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has four groups:
+Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has five groups:
 
 - **Map** — basemap, land-manager categories, recreation-site minimum zoom, and what tapping the map does while a popup is open.
 - **Display** — theme, text sizes, and the reminder/source lines under the map.
 - **Storage** — data kept on this device, with buttons to clear recent searches or the app file cache.
+- **Backup** — export or import settings, saved locations & notes, and recent searches as one file (see [Backups](#backups)).
 - **Advanced** (collapsed) — land data source (USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer), place-search endpoint, custom XYZ basemap and attribution, optional API keys, and reset.
 
 Map and Display changes apply to the map immediately; there is no Save button. Advanced changes are validated, saved, and then reload the map with Settings reopened. The old `settings.html` address redirects to the panel. The recreation-site setting chooses the minimum zoom level at which both USFS and BLM recreation-site layers appear (zoom 11 or closer by default). BLM sites are hidden to match the Forest Service service's 1:400,000 scale limit; the setting can make both layers appear only at closer zooms, but cannot override that source limit.
@@ -52,9 +53,34 @@ Settings also provide three interface text-size sliders with 1 px increments and
 
 Preferences and API keys are stored in that browser's `localStorage` and are not uploaded to this site. Map requests send a key only to the selected data or tile provider. A browser-stored key is accessible to people with access to the browser and is visible in outgoing requests; never save a private server secret here. Use provider-restricted, low-privilege keys. Esri/OpenStreetMap defaults work without keys.
 
-Map notes and their selected icons are saved in browser storage only; they are not uploaded or synchronized. Clearing this browser's site data removes them. A share link contains the selected note's title, text, icon, and coordinates in its fragment. Anyone with the link can read that snapshot, and URL contents may be visible in browser history or wherever the link is forwarded. Shared notes are view-only, do not alter the recipient's saved notes, and do not confirm camping permission. Do not enter sensitive information.
+Map notes and their selected icons are saved in browser storage only; they are not uploaded or synchronized (use a [backup](#backups) to move them). Clearing this browser's site data removes them. A share link contains the selected note's title, text, icon, and coordinates in its fragment. Anyone with the link can read that snapshot, and URL contents may be visible in browser history or wherever the link is forwarded. Shared notes are view-only, do not alter the recipient's saved notes, and do not confirm camping permission. Do not enter sensitive information.
 
 Land-manager filters and reference overlays save when changed from the map; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
+
+## Backups
+
+**Settings → Backup → Export backup** saves a single JSON file (`campgroundless-backup-YYYY-MM-DD.json`). The website downloads it; the iPhone app opens the share sheet so it can be saved to Files, AirDropped, or emailed. **Import backup…** reads such a file on any device and shows what it contains before anything changes.
+
+- **Contents:** any of settings, saved locations & notes, and recent searches (chosen with checkboxes). Offline map areas are not included; download them again on the new device.
+- **API keys** are left out unless *Include API keys* is turned on. Importing a file without keys keeps the keys already on the device.
+- **Merge or replace:** merging keeps this device's saved locations and searches and adds the file's; when the same note is in both, the most recently edited copy wins. Replacing deletes notes and searches that are only on this device (after a confirmation).
+- **Checks:** files must have `"format": "campgroundless-backup"` and a supported `version` (currently 1), be under 5 MB, and hold at most 5,000 notes. Unknown settings are ignored, custom endpoints must use HTTPS, malformed notes are skipped, and the import preview warns when the file would point the map at a different land data, place-search, or basemap service.
+- **Privacy:** the file contains the coordinates and text of your saved notes (and keys, if included). It is not uploaded anywhere by Campgroundless; keep it private.
+
+Format (version 1):
+
+```json
+{
+  "format": "campgroundless-backup",
+  "version": 1,
+  "exportedAt": "2026-10-22T21:30:00.000Z",
+  "app": { "build": "122", "platform": "web" },
+  "includesApiKeys": false,
+  "settings": { "basemap": "esri-topo" },
+  "notes": [{ "id": "…", "lat": 38.5, "lng": -120.2, "title": "…", "icon": "camp", "body": "…", "createdAt": "…", "updatedAt": "…" }],
+  "recentSearches": [{ "term": "Mono Lake", "at": "…" }]
+}
+```
 
 ## Offline maps
 

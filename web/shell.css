@@ -961,3 +961,11 @@ fieldset.settings-card {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
+.settings-card[hidden],
+.settings-card [hidden] {
+  display: none;
+}
+
+#backup-preview {
+  border-color: #365a43;
+}
