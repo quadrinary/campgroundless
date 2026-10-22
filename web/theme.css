@@ -160,3 +160,44 @@ html.is-standalone .map-notice { padding: 3px 12px 4px; line-height: 1.2; min-he
 /* The iPhone app bundles its files, so there is no web file cache to clear. */
 html.is-native #storage-clear-files { display: none; }
 
+/*
+ * iPhone app: the map runs behind the status bar. A faint, non-interactive
+ * gradient keeps the time and battery readable over busy basemaps.
+ */
+html.is-native .app {
+  --ctl-off: 0px;
+  padding-top: 0;
+  background: var(--paper);
+}
+
+html.is-native .status-strip {
+  height: calc(env(safe-area-inset-top, 0px) + 10px);
+  background: linear-gradient(rgba(245, 244, 239, 0.7), rgba(245, 244, 239, 0));
+  pointer-events: none;
+  z-index: 1150;
+}
+
+html.is-native[data-theme="dark"] .status-strip {
+  background: linear-gradient(rgba(29, 30, 26, 0.7), rgba(29, 30, 26, 0));
+}
+
+html.is-native .map-search,
+html.is-native .map-tools {
+  top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+html.is-native .rail {
+  padding-top: calc(15.5px + env(safe-area-inset-top, 0px));
+}
+
+html.is-native .view-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@media (max-width: 800px) {
+  html.is-native .rail,
+  html.is-native .view-panel {
+    top: 0;
+  }
+}
+
