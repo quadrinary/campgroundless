@@ -10,7 +10,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
     <script src="./theme.js?v=8"></script>
-    <script src="./native.js?v=1"></script>
+    <script src="./native.js?v=2"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=24" />
-    <link rel="stylesheet" href="./shell.css?v=11" />
+    <link rel="stylesheet" href="./shell.css?v=12" />
     <link rel="stylesheet" href="./theme.css?v=19" />
   </head>
   <body class="app-body">
@@ -287,6 +287,49 @@
                 </div>
               </section>
 
+              <section class="settings-group" aria-labelledby="settings-backup-heading" data-backup>
+                <h3 id="settings-backup-heading">Backup</h3>
+                <div class="offline-card settings-card">
+                  <p class="offline-help">Save your data to a file to keep a copy or move it to another device or browser. Offline map areas are not included; download them again on the new device.</p>
+                  <fieldset class="offline-fieldset">
+                    <legend class="note-field-label settings-legend">Include</legend>
+                    <label class="offline-choice"><input type="checkbox" name="backupPart" value="settings" checked /><span>Settings</span></label>
+                    <label class="offline-choice"><input type="checkbox" name="backupPart" value="notes" checked /><span>Saved locations &amp; notes</span></label>
+                    <label class="offline-choice"><input type="checkbox" name="backupPart" value="recent" checked /><span>Recent searches</span></label>
+                  </fieldset>
+                  <label class="offline-mode-row">
+                    <span><strong>Include API keys</strong><small>Off by default. Anyone who has the file can read included keys.</small></span>
+                    <input id="backup-api-keys" class="offline-switch" type="checkbox" role="switch" />
+                  </label>
+                  <div class="offline-actions settings-wrap-actions">
+                    <button id="backup-export" class="note-save-button" type="button">Export backup</button>
+                    <button id="backup-import" class="view-button" type="button">Import backup…</button>
+                  </div>
+                  <input id="backup-file" type="file" accept="application/json,.json" hidden />
+                  <p class="offline-help">The file contains the locations of your saved notes. Keep it somewhere private.</p>
+                </div>
+                <div id="backup-preview" class="offline-card settings-card" role="region" aria-labelledby="backup-preview-heading" hidden>
+                  <strong id="backup-preview-heading">Import this backup?</strong>
+                  <p id="backup-preview-summary" class="offline-help"></p>
+                  <fieldset id="backup-import-parts" class="offline-fieldset">
+                    <legend class="note-field-label settings-legend">Import</legend>
+                    <label class="offline-choice" data-part="settings"><input type="checkbox" name="importPart" value="settings" checked /><span><strong>Settings</strong><small>Replace this device's settings. API keys not in the file stay as they are.</small></span></label>
+                    <label class="offline-choice" data-part="notes"><input type="checkbox" name="importPart" value="notes" checked /><span><strong>Saved locations &amp; notes</strong><small id="backup-notes-count"></small></span></label>
+                    <label class="offline-choice" data-part="recent"><input type="checkbox" name="importPart" value="recent" checked /><span><strong>Recent searches</strong><small id="backup-recent-count"></small></span></label>
+                  </fieldset>
+                  <fieldset id="backup-import-mode" class="offline-fieldset">
+                    <legend class="note-field-label settings-legend">Saved locations &amp; searches already on this device</legend>
+                    <label class="offline-choice"><input type="radio" name="importMode" value="merge" checked /><span><strong>Keep them and add the file's</strong><small>If the same note is in both, the most recently edited copy is kept.</small></span></label>
+                    <label class="offline-choice"><input type="radio" name="importMode" value="replace" /><span><strong>Replace them with the file's</strong><small>Notes that are only on this device will be deleted.</small></span></label>
+                  </fieldset>
+                  <p id="backup-endpoint-warning" class="offline-warning" hidden></p>
+                  <div class="offline-actions">
+                    <button id="backup-import-confirm" class="note-save-button" type="button">Import</button>
+                    <button id="backup-import-cancel" class="note-cancel-button" type="button">Cancel</button>
+                  </div>
+                </div>
+              </section>
+
               <details class="settings-group settings-advanced" id="settings-advanced">
                 <summary><h3>Advanced</h3><small>Data sources and API keys. Changes here reload the map.</small></summary>
                 <fieldset class="offline-card settings-card offline-fieldset">
@@ -508,8 +551,9 @@
     <script src="./settings-store.js?v=17"></script>
     <script src="./sidebar.js?v=4"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./app.js?v=121"></script>
-    <script src="./settings.js?v=23"></script>
+    <script src="./app.js?v=122"></script>
+    <script src="./backup.js?v=1"></script>
+    <script src="./settings.js?v=24"></script>
     <script>
       if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

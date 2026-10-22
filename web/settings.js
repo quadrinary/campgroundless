@@ -163,6 +163,7 @@
   form.addEventListener("change", (event) => {
     const target = event.target;
     const field = target.name;
+    if (target.closest("[data-backup]")) return;
     if (!mapApi() && !advancedFields.includes(field) && field !== "dataSource") return;
     if (field === "dataSource") {
       updateConditionalFields();
@@ -332,6 +333,151 @@
     setMessage("App file cache cleared. It refills the next time you load the map. Offline map areas were kept.");
   });
 
+  const Backup = window.CampgroundlessBackup;
+  const backupPreview = document.getElementById("backup-preview");
+  const backupFile = document.getElementById("backup-file");
+  const flashKey = "campgroundless.settings-message";
+  let pendingBackup = null;
+
+  // The build is the map script's cache-busting number, which changes with every deploy.
+  function appBuild() {
+    return /app\.js\?v=(\d+)/.exec(document.querySelector('script[src*="app.js"]')?.getAttribute("src") ?? "")?.[1] ?? null;
+  }
+
+  function plural(count, word, many = `${word}s`) {
+    return `${count} ${count === 1 ? word : many}`;
+  }
+
+  document.getElementById("backup-export").addEventListener("click", async () => {
+    const parts = new Set(
+      [...form.querySelectorAll('input[name="backupPart"]:checked')].map((input) => input.value),
+    );
+    if (!parts.size) {
+      setMessage("Choose at least one thing to include in the backup.", true);
+      return;
+    }
+    const backup = Backup.create(
+      {
+        settings: parts.has("settings"),
+        notes: parts.has("notes"),
+        recent: parts.has("recent"),
+        apiKeys: document.getElementById("backup-api-keys").checked,
+      },
+      { build: appBuild(), platform: window.CampgroundlessNative?.isNative ? "ios" : "web" },
+    );
+    const name = Backup.fileName();
+    try {
+      const result = await window.CampgroundlessNative.saveFile({
+        name,
+        text: JSON.stringify(backup, null, 2),
+        title: "Campgroundless backup",
+      });
+      if (result === "dismissed") setMessage("");
+      else if (result === "shared") setMessage(`Backup ready: ${name}`);
+      else setMessage(`Backup downloaded: ${name}`);
+    } catch (error) {
+      console.error("Could not export backup.", error);
+      setMessage(`Could not save the backup: ${error.message || error}`, true);
+    }
+  });
+
+  document.getElementById("backup-import").addEventListener("click", () => {
+    backupFile.value = "";
+    backupFile.click();
+  });
+
+  backupFile.addEventListener("change", async () => {
+    const file = backupFile.files?.[0];
+    if (!file) return;
+    try {
+      pendingBackup = Backup.parse(await file.text());
+    } catch (error) {
+      pendingBackup = null;
+      backupPreview.hidden = true;
+      setMessage(error.message, true);
+      return;
+    }
+    setMessage("");
+    showPreview(pendingBackup, file.name);
+  });
+
+  function showPreview(backup, name) {
+    const contents = [];
+    if (backup.settings) contents.push(backup.includesApiKeys ? "settings (with API keys)" : "settings");
+    if (backup.notes) contents.push(plural(backup.notes.length, "saved location"));
+    if (backup.recentSearches) contents.push(plural(backup.recentSearches.length, "recent search", "recent searches"));
+    const date = backup.exportedAt ? new Date(backup.exportedAt) : null;
+    const when = date && !Number.isNaN(date.getTime()) ? `, exported ${date.toLocaleString()}` : "";
+    const skipped = backup.skippedNotes ? ` ${plural(backup.skippedNotes, "saved location")} could not be read and will be skipped.` : "";
+    document.getElementById("backup-preview-summary").textContent = `${name}${when}: ${contents.join(", ")}.${skipped}`;
+    const present = { settings: Boolean(backup.settings), notes: Boolean(backup.notes), recent: Boolean(backup.recentSearches) };
+    form.querySelectorAll("#backup-import-parts [data-part]").forEach((label) => {
+      label.hidden = !present[label.dataset.part];
+      label.querySelector("input").checked = present[label.dataset.part];
+    });
+    document.getElementById("backup-notes-count").textContent = backup.notes ? plural(backup.notes.length, "location") : "";
+    document.getElementById("backup-recent-count").textContent = backup.recentSearches
+      ? plural(backup.recentSearches.length, "search", "searches")
+      : "";
+    document.getElementById("backup-import-mode").hidden = !present.notes && !present.recent;
+    form.querySelector('input[name="importMode"][value="merge"]').checked = true;
+    const endpoints = Backup.changedEndpoints(backup);
+    const warning = document.getElementById("backup-endpoint-warning");
+    warning.hidden = !endpoints.length;
+    warning.textContent = endpoints.length
+      ? `These settings send map requests to a different service: ${endpoints.map((e) => `${e.label} (${e.value})`).join("; ")}. Import settings only from a file you trust.`
+      : "";
+    backupPreview.hidden = false;
+    backupPreview.scrollIntoView({ block: "nearest" });
+  }
+
+  document.getElementById("backup-import-cancel").addEventListener("click", () => {
+    pendingBackup = null;
+    backupPreview.hidden = true;
+  });
+
+  document.getElementById("backup-import-confirm").addEventListener("click", () => {
+    if (!pendingBackup) return;
+    const parts = new Set(
+      [...form.querySelectorAll('#backup-import-parts label:not([hidden]) input:checked')].map((input) => input.value),
+    );
+    if (!parts.size) {
+      setMessage("Choose at least one thing to import.", true);
+      return;
+    }
+    const mode = form.querySelector('input[name="importMode"]:checked').value;
+    if (
+      mode === "replace" &&
+      (parts.has("notes") || parts.has("recent")) &&
+      !window.confirm("Replace the saved locations and recent searches on this device with the ones in the file? This cannot be undone.")
+    ) {
+      return;
+    }
+    let result;
+    try {
+      result = Backup.apply(pendingBackup, {
+        settings: parts.has("settings"),
+        notes: parts.has("notes"),
+        recent: parts.has("recent"),
+        mode,
+      });
+    } catch (error) {
+      setMessage(`Could not import the backup: ${error.message}`, true);
+      return;
+    }
+    const done = [];
+    if (result.settings) done.push("settings");
+    if (result.notes !== null) done.push(`${plural(result.notes, "saved location")} now on this device`);
+    if (result.recent !== null) done.push(plural(result.recent, "recent search", "recent searches"));
+    try {
+      sessionStorage.setItem("campgroundless.open-settings", "1");
+      sessionStorage.setItem(flashKey, `Imported ${done.join(", ")}.`);
+    } catch {
+      // Reopening Settings after the reload is optional.
+    }
+    location.reload();
+  });
+
   window.addEventListener("campgroundless:viewshow", (event) => {
     if (event.detail?.name !== "settings") return;
     setMessage("");
@@ -339,8 +485,7 @@
     refreshStorage();
   });
 
-  // The build is the map script's cache-busting number, which changes with every deploy.
-  const build = /app\.js\?v=(\d+)/.exec(document.querySelector('script[src*="app.js"]')?.getAttribute("src") ?? "")?.[1];
+  const build = appBuild();
   document.getElementById("app-build").textContent = build ? `Build ${build}` : "Build unknown";
 
   try {
@@ -358,4 +503,11 @@
   }
   if (location.hash === "#settings") history.replaceState(null, "", location.pathname + location.search);
   if (reopen) window.CampgroundlessSidebar?.show("settings");
+  try {
+    const flash = sessionStorage.getItem(flashKey);
+    sessionStorage.removeItem(flashKey);
+    if (flash) setMessage(flash);
+  } catch {
+    // Session storage is optional.
+  }
 })();

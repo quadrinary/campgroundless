@@ -83,6 +83,32 @@
     return "unavailable";
   }
 
+  // Saves a text file. The app hands it to the share sheet (Save to Files, AirDrop…);
+  // the website downloads it. Returns "saved", "shared" or "dismissed".
+  async function saveFile({ name, text, mimeType = "application/json", title = name }) {
+    const fileSystem = plugin("Filesystem");
+    const sharePlugin = plugin("Share");
+    if (fileSystem && sharePlugin) {
+      const { uri } = await fileSystem.writeFile({ path: name, data: text, directory: "CACHE", encoding: "utf8" });
+      try {
+        await sharePlugin.share({ title, files: [uri], dialogTitle: title });
+        return "shared";
+      } catch (error) {
+        if (error?.name === "AbortError" || /cancel/i.test(String(error?.message || error))) return "dismissed";
+        throw error;
+      }
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return "saved";
+  }
+
   function syncStatusBar() {
     const statusBar = plugin("StatusBar");
     if (!statusBar) {
@@ -204,5 +230,6 @@
     openExternal,
     haptic,
     share,
+    saveFile,
   });
 })();
