@@ -97,3 +97,36 @@ test("Advanced settings reject incomplete tile templates and bad endpoints", () 
   assert.doesNotThrow(() => panel.validateAdvanced({ ...validAdvanced, basemapUrl: "https://t.example.com/{z}/{x}/{y}.png?key={apiKey}" }));
   assert.throws(() => panel.validateAdvanced({ ...validAdvanced, placeSearchUrl: "not a url" }));
 });
+
+test("map label size scales vector text-size values", () => {
+  const storage = new Map();
+  const window = {
+    localStorage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
+    document: { documentElement: { style: { setProperty() {} } } },
+  };
+  window.window = window;
+  const context = vm.createContext({ ...window, window, URL, structuredClone });
+  vm.runInContext(source("settings-store.js"), context);
+  const { scaleMapTextSize, read, defaults } = context.window.CampgroundlessSettings;
+  assert.equal(defaults.typography.map, 100);
+  assert.equal(scaleMapTextSize(12, 1.5), 18);
+  assert.equal(scaleMapTextSize(undefined, 0.5), 8);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scaleMapTextSize(["interpolate", ["linear"], ["zoom"], 8, 10, 14, ["get", "s"]], 2))),
+    ["interpolate", ["linear"], ["zoom"], 8, 20, 14, ["*", ["get", "s"], 2]],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scaleMapTextSize(["step", ["zoom"], 10, 12, 14], 2))),
+    ["step", ["zoom"], 20, 12, 28],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scaleMapTextSize({ base: 1.2, stops: [[10, 10], [16, 14]] }, 1.5))),
+    { base: 1.2, stops: [[10, 15], [16, 21]] },
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scaleMapTextSize(["get", "size"], 1.2))),
+    ["*", ["get", "size"], 1.2],
+  );
+  storage.set("campgroundless.settings.v1", JSON.stringify({ typography: { map: 500 } }));
+  assert.equal(read().typography.map, 100);
+});

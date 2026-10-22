@@ -39,12 +39,14 @@
       body: 12,
       search: 11,
       caption: 10,
+      map: 100,
     },
   };
   const typographyOptions = {
     body: { min: 7, max: 17 },
     search: { min: 6, max: 16 },
     caption: { min: 5, max: 15 },
+    map: { min: 50, max: 200 },
   };
   const osmLayers = ["standard", "hot", "topographic"];
   const themes = ["auto", "light", "dark"];
@@ -149,6 +151,29 @@
     document.documentElement.style.setProperty("--font-caption-size", `${typography.caption}px`);
   }
 
+  // Scales a MapLibre text-size value (number, legacy stops, or expression) by factor.
+  // Zoom-based interpolate/step expressions must stay top-level, so their outputs are scaled instead.
+  function scaleMapTextSize(value, factor) {
+    const scale = (output) => (typeof output === "number"
+      ? Math.round(output * factor * 100) / 100
+      : ["*", output, factor]);
+    if (value === undefined || value === null) return scale(16);
+    if (typeof value === "number") return scale(value);
+    if (Array.isArray(value)) {
+      if (value[0] === "interpolate" || value[0].startsWith?.("interpolate-")) {
+        return value.map((part, index) => (index > 3 && index % 2 === 0 ? scale(part) : part));
+      }
+      if (value[0] === "step") {
+        return value.map((part, index) => (index >= 2 && index % 2 === 0 ? scale(part) : part));
+      }
+      return scale(value);
+    }
+    if (typeof value === "object" && Array.isArray(value.stops)) {
+      return { ...value, stops: value.stops.map(([input, output]) => [input, scale(output)]) };
+    }
+    return value;
+  }
+
   function validateHttpUrl(value, label) {
     let url;
     try {
@@ -167,6 +192,7 @@
     read,
     write,
     applyTypography,
+    scaleMapTextSize,
     validateHttpUrl,
   });
 })();

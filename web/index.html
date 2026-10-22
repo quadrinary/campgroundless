@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=26" />
-    <link rel="stylesheet" href="./shell.css?v=13" />
+    <link rel="stylesheet" href="./shell.css?v=14" />
     <link rel="stylesheet" href="./theme.css?v=19" />
   </head>
   <body class="app-body">
@@ -260,6 +260,9 @@
                   <input id="settings-font-search" name="fontSearch" type="range" min="6" max="16" step="1" />
                   <label class="settings-range" for="settings-font-caption"><span>Captions &amp; notes</span><output id="settings-font-caption-value" for="settings-font-caption">10 px</output></label>
                   <input id="settings-font-caption" name="fontCaption" type="range" min="5" max="15" step="1" />
+                  <label class="settings-range" for="settings-font-map"><span>Map labels</span><output id="settings-font-map-value" for="settings-font-map">100%</output></label>
+                  <input id="settings-font-map" name="fontMap" type="range" min="50" max="200" step="10" aria-describedby="settings-font-map-hint" />
+                  <small id="settings-font-map-hint" class="settings-hint">Place and road names on the OpenFreeMap vector map. Other basemaps are images with their text built in, so their labels can’t be resized.</small>
                 </fieldset>
                 <div class="offline-card settings-card">
                   <label class="offline-mode-row">
@@ -580,13 +583,13 @@
     <script src="./vendor/esri-leaflet.js?v=3.0.15"></script>
     <script src="./vendor/maplibre-gl.js?v=4.7.1"></script>
     <script src="./vendor/leaflet-maplibre-gl.js?v=0.0.22"></script>
-    <script src="./settings-store.js?v=17"></script>
+    <script src="./settings-store.js?v=18"></script>
     <script src="./sidebar.js?v=5"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./app.js?v=129"></script>
+    <script src="./app.js?v=130"></script>
     <script src="./backup.js?v=2"></script>
     <script src="./places.js?v=2"></script>
-    <script src="./settings.js?v=25"></script>
+    <script src="./settings.js?v=26"></script>
     <script>
       if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
