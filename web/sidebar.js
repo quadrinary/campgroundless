@@ -79,6 +79,38 @@
     })
   );
   closeButton.addEventListener("click", hide);
+
+  // While the sidebar or a panel is open, a tap on the map (not a drag) closes it and
+  // returns to the map instead of opening a popup.
+  const mapArea = document.getElementById("map");
+  let mapTapStart = null;
+  window.addEventListener(
+    "pointerdown",
+    (event) => {
+      mapTapStart =
+        mapArea &&
+        mapArea.contains(event.target) &&
+        (current || app.classList.contains("rail-expanded")) &&
+        !event.target.closest(".leaflet-control, .leaflet-popup")
+          ? { x: event.clientX, y: event.clientY }
+          : null;
+    },
+    true
+  );
+  window.addEventListener(
+    "click",
+    (event) => {
+      const start = mapTapStart;
+      mapTapStart = null;
+      if (!start || !mapArea.contains(event.target)) return;
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
+      event.stopPropagation();
+      event.preventDefault();
+      setExpanded(false);
+      if (current) hide();
+    },
+    true
+  );
   document.querySelectorAll("[data-open-view]").forEach((el) =>
     el.addEventListener("click", () => show(el.dataset.openView))
   );

@@ -1402,6 +1402,9 @@
       event.stopPropagation();
       event.preventDefault();
       map.closePopup();
+      // A second tap right after this one is a double tap: zoom in where tapped.
+      lastClickAt = Date.now();
+      lastClickPoint = map.mouseEventToContainerPoint(event);
     },
     true,
   );
