@@ -1263,7 +1263,9 @@
       detail.textContent = note.body.slice(0, 80);
       button.append(name, detail);
       button.addEventListener("click", () => {
-        map.setView([note.lat, note.lng], Math.max(map.getZoom(), 11));
+        window.CampgroundlessSidebar?.hide();
+        map.invalidateSize();
+        map.setView([note.lat, note.lng], Math.max(map.getZoom(), 14));
         noteMarkersById.get(note.id)?.openPopup();
       });
       item.append(button);
