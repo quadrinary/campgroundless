@@ -33,12 +33,13 @@ The app bundles Leaflet, Esri Leaflet, MapLibre GL and the Leaflet MapLibre brid
 
 ## Map settings and API keys
 
-Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has five groups:
+Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has six groups:
 
 - **Map** — basemap, land-manager categories, recreation-site minimum zoom, and what tapping the map does while a popup is open.
 - **Display** — theme, text sizes, and the reminder/source lines under the map.
 - **Storage** — data kept on this device, with buttons to clear recent searches or the app file cache.
 - **Backup** — export or import settings, saved locations & notes, and recent searches as one file (see [Backups](#backups)).
+- **Location files** — import waypoints from GPX, KML/KMZ, GeoJSON, or CSV (Gaia GPS, onX, and others) and export saved locations in those formats (see [Location files](#location-files-gaia-gps-onx-and-others)).
 - **Advanced** (collapsed) — land data source (USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer), place-search endpoint, custom XYZ basemap and attribution, optional API keys, and reset.
 
 Map and Display changes apply to the map immediately; there is no Save button. Advanced changes are validated, saved, and then reload the map with Settings reopened. The old `settings.html` address redirects to the panel. The recreation-site setting chooses the minimum zoom level at which both USFS and BLM recreation-site layers appear (zoom 11 or closer by default). BLM sites are hidden to match the Forest Service service's 1:400,000 scale limit; the setting can make both layers appear only at closer zooms, but cannot override that source limit.
@@ -81,6 +82,20 @@ Format (version 1):
   "recentSearches": [{ "term": "Mono Lake", "at": "…" }]
 }
 ```
+
+## Location files (Gaia GPS, onX, and others)
+
+**Settings → Location files** moves waypoints between Campgroundless and other apps.
+
+- **Import locations…** reads GPX (Gaia GPS, onX, CalTopo, Garmin), KML or KMZ (Google Earth, Google My Maps, onX), GeoJSON, and CSV files. The format is detected from the file's contents. A preview shows how many points were found and what will be skipped before anything is added.
+- Only points are imported. Tracks, routes, lines, and areas are counted and skipped.
+- Each point becomes a saved location: its name is the title and its description or notes the text (HTML in descriptions is reduced to plain text; titles are cut to 80 and text to 1,200 characters). The icon is matched from the file's symbol name (for example *Campground*, *Drinking Water*, *Trail Head*, *Gas Station*); anything else gets the 📍 landmark pin, never a campsite by default.
+- Points outside the 10-state coverage area, points with unreadable coordinates, and points already saved (same name within 25 m) are skipped. Imports are always added next to existing locations; nothing is replaced.
+- CSV files need a header row with `latitude`/`longitude` (or `lat`/`lon`/`lng`) columns, or one `coordinates` column holding `lat, lng`. `name`/`title` and `description`/`notes` columns are used when present.
+- **Export** writes all saved locations as GPX, KML, GeoJSON, or CSV (`campgroundless-locations-YYYY-MM-DD.<ext>`). Exports include each location's icon, so files read back into Campgroundless keep their icons. CSV cells that start with `=`, `+`, or `@` get a leading apostrophe so spreadsheets don't run them as formulas.
+- Imported points are your own notes. They don't confirm that camping is allowed; check with the land manager.
+
+Limits: 10 MB per file and 5,000 points. Importing has been checked against the published GPX, KML, and GeoJSON formats; exports from specific app versions may use symbol names this map doesn't recognize, which then get the default pin.
 
 ## Offline maps
 

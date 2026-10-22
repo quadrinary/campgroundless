@@ -478,6 +478,122 @@
     location.reload();
   });
 
+  // ---- Location files (GPX, KML/KMZ, GeoJSON, CSV) ----
+  const Places = window.CampgroundlessPlaces;
+  const placesFile = document.getElementById("places-file");
+  const placesPreview = document.getElementById("places-preview");
+  let pendingPlaces = null;
+
+  // Uses the map's state boundaries when they have loaded, otherwise the coverage bounding box.
+  async function coverageCheck() {
+    const mapApi = window.CampgroundlessMap;
+    if (!mapApi?.isWithinCoverage) return () => true;
+    await Promise.race([mapApi.whenCoverageReady(), new Promise((resolve) => setTimeout(resolve, 5000))]);
+    return (lat, lng) => mapApi.isWithinCoverage(lat, lng);
+  }
+
+  document.getElementById("places-export").addEventListener("click", async () => {
+    const notes = Places.readNotes();
+    if (!notes.length) {
+      setMessage("There are no saved locations to export yet.", true);
+      return;
+    }
+    const format = document.getElementById("places-format").value;
+    try {
+      const file = Places.write(format, notes);
+      const result = await window.CampgroundlessNative.saveFile({
+        ...file,
+        title: "Campgroundless saved locations",
+      });
+      const what = `${plural(notes.length, "location")} (${Places.formats[format].label})`;
+      if (result === "dismissed") setMessage("Export cancelled.");
+      else if (result === "shared") setMessage(`Exported ${what}: ${file.name}`);
+      else setMessage(`Downloaded ${what}: ${file.name}`);
+    } catch (error) {
+      console.error("Could not export locations.", error);
+      setMessage(`Could not export locations: ${error.message || error}`, true);
+    }
+  });
+
+  document.getElementById("places-import").addEventListener("click", () => {
+    placesFile.value = "";
+    placesFile.click();
+  });
+
+  placesFile.addEventListener("change", async () => {
+    const file = placesFile.files?.[0];
+    if (!file) return;
+    setMessage(`Reading ${file.name}…`);
+    try {
+      const read = await Places.read(file.name, new Uint8Array(await file.arrayBuffer()));
+      const plan = Places.plan(read.places, { inCoverage: await coverageCheck() });
+      pendingPlaces = plan.notes;
+      showPlacesPreview(file.name, read, plan);
+      setMessage("");
+    } catch (error) {
+      pendingPlaces = null;
+      placesPreview.hidden = true;
+      setMessage(error.message || String(error), true);
+    }
+  });
+
+  function showPlacesPreview(name, read, plan) {
+    const notes = [];
+    if (plan.skipped.duplicate) notes.push(`${plan.skipped.duplicate} already saved`);
+    if (plan.skipped.outside) notes.push(`${plan.skipped.outside} outside the map's coverage area`);
+    if (read.invalid) notes.push(`${read.invalid} with unreadable coordinates`);
+    const skipped = notes.length ? ` Skipping ${notes.join(", ")}.` : "";
+    const ignored = read.ignored ? ` ${plural(read.ignored, "track, route, or area", "tracks, routes, or areas")} not imported.` : "";
+    const shortened = plan.shortened ? ` ${plural(plan.shortened, "name or description")} will be shortened to fit.` : "";
+    const found = read.places.length + read.invalid;
+    document.getElementById("places-preview-summary").textContent =
+      `${name} (${read.format}): ${plural(found, "location")} found, ${plan.notes.length} to add.${skipped}${ignored}${shortened}`;
+    const list = document.getElementById("places-preview-list");
+    list.replaceChildren(
+      ...plan.notes.slice(0, 5).map((note) => {
+        const item = document.createElement("li");
+        item.textContent = note.title || note.body.slice(0, 60);
+        return item;
+      }),
+    );
+    if (plan.notes.length > 5) {
+      const more = document.createElement("li");
+      more.className = "more";
+      more.textContent = `and ${plan.notes.length - 5} more`;
+      list.append(more);
+    }
+    const confirm = document.getElementById("places-import-confirm");
+    confirm.hidden = !plan.notes.length;
+    confirm.textContent = `Add ${plural(plan.notes.length, "location")}`;
+    document.getElementById("places-preview-heading").textContent = plan.notes.length
+      ? "Add these locations?"
+      : "Nothing new to add";
+    placesPreview.hidden = false;
+    placesPreview.scrollIntoView({ block: "nearest" });
+  }
+
+  document.getElementById("places-import-cancel").addEventListener("click", () => {
+    pendingPlaces = null;
+    placesPreview.hidden = true;
+  });
+
+  document.getElementById("places-import-confirm").addEventListener("click", () => {
+    if (!pendingPlaces?.length) return;
+    try {
+      Places.add(pendingPlaces);
+    } catch (error) {
+      setMessage(`Could not add the locations: ${error.message}`, true);
+      return;
+    }
+    try {
+      sessionStorage.setItem("campgroundless.open-settings", "1");
+      sessionStorage.setItem(flashKey, `Added ${plural(pendingPlaces.length, "saved location")}.`);
+    } catch {
+      // Reopening Settings after the reload is optional.
+    }
+    location.reload();
+  });
+
   window.addEventListener("campgroundless:viewshow", (event) => {
     if (event.detail?.name !== "settings") return;
     setMessage("");

@@ -20,6 +20,8 @@
     basemapUrl: "custom basemap",
   };
 
+  const placesHint = " To add waypoints from a GPX, KML, GeoJSON, or CSV file, use Import locations.";
+
   const Settings = () => window.CampgroundlessSettings;
 
   function readJson(key, fallback) {
@@ -110,9 +112,9 @@
     try {
       data = JSON.parse(text);
     } catch {
-      throw new Error("The file is not valid JSON. Choose a Campgroundless backup file.");
+      throw new Error(`The file is not a Campgroundless backup.${placesHint}`);
     }
-    if (!data || data.format !== FORMAT) throw new Error("This is not a Campgroundless backup file.");
+    if (!data || data.format !== FORMAT) throw new Error(`This is not a Campgroundless backup file.${placesHint}`);
     if (!Number.isInteger(data.version) || data.version > VERSION) {
       throw new Error("This backup was made by a newer version of Campgroundless. Update the app and try again.");
     }
