@@ -385,6 +385,7 @@
     }
     map.removeLayer(basemapLayer);
     basemapLayer = createBasemap().addTo(map);
+    window.dispatchEvent(new CustomEvent("campgroundless:settingschange"));
   }
 
   let layerStatus;
@@ -3131,6 +3132,50 @@
       mapStatus.textContent = "Updating land boundaries…";
       landLayer.setWhere(buildWhere(settings.layers));
     });
+    checkbox.addEventListener("change", notifySettingsChange);
+  });
+
+  function notifySettingsChange() {
+    window.dispatchEvent(new CustomEvent("campgroundless:settingschange"));
+  }
+
+  function saveSettings() {
+    try {
+      window.CampgroundlessSettings.write(settings);
+      return true;
+    } catch (error) {
+      console.error("Could not save map settings.", error);
+      return false;
+    }
+  }
+
+  // Live-apply hooks for the Settings panel, which shares this in-memory settings object.
+  window.CampgroundlessMap = Object.freeze({
+    getSettings: () => structuredClone(settings),
+    activeBasemapOption,
+    setBasemap(option) {
+      const radio = document.querySelector(`input[name="map-style-choice"][value="${CSS.escape(option)}"]`);
+      if (radio) radio.checked = true;
+      applyBasemapOption(option);
+    },
+    setManagerLayer(name, on) {
+      const checkbox = document.querySelector(`input[name="manager"][value="${CSS.escape(name)}"]`);
+      if (!checkbox || checkbox.checked === Boolean(on)) return;
+      checkbox.checked = Boolean(on);
+      checkbox.dispatchEvent(new Event("change"));
+    },
+    update(patch) {
+      Object.assign(settings, patch);
+      if ("typography" in patch) window.CampgroundlessSettings.applyTypography(settings);
+      if ("theme" in patch) window.CampgroundlessTheme?.apply(settings.theme);
+      if ("showLandDisclaimer" in patch || "showBoundaryData" in patch) {
+        document.getElementById("land-disclaimer").hidden = settings.showLandDisclaimer === false;
+        document.getElementById("boundary-data-notice").hidden = settings.showBoundaryData === false;
+        map.invalidateSize();
+      }
+      if ("recreationSitesMinZoom" in patch) updateRecreationSiteVisibility();
+      return saveSettings();
+    },
   });
 
   function refreshSearchableFeatures() {

@@ -52,6 +52,7 @@
       item.setAttribute("aria-expanded", String(active));
     });
     refreshMap();
+    window.dispatchEvent(new CustomEvent("campgroundless:viewshow", { detail: { name } }));
   }
 
   toggle.addEventListener("click", () => setExpanded(!app.classList.contains("rail-expanded")));

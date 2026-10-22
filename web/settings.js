@@ -2,189 +2,193 @@
   "use strict";
 
   const Settings = window.CampgroundlessSettings;
+  const advancedFields = [
+    "dataUrl",
+    "dataApiKey",
+    "dataAttribution",
+    "placeSearchUrl",
+    "basemapUrl",
+    "basemapAttribution",
+    "esriApiKey",
+    "customBasemapApiKey",
+  ];
+  const fontFields = { fontBody: "body", fontSearch: "search", fontCaption: "caption" };
+
+  // Checks the Advanced values, which reload the map when saved. Throws a readable error.
+  function validateAdvanced(values) {
+    Settings.validateHttpUrl(values.placeSearchUrl, "Place search endpoint");
+    if (values.dataSource === "custom") {
+      if (!values.dataUrl) throw new Error("Enter a Feature Layer URL to use a custom data source.");
+      Settings.validateHttpUrl(values.dataUrl, "Feature Layer URL");
+      if (!/\/FeatureServer\/\d+\/?$/i.test(new URL(values.dataUrl).pathname)) {
+        throw new Error("Feature Layer URL must end with /FeatureServer/{layer-number}.");
+      }
+    }
+    if (values.basemapUrl) {
+      const template = values.basemapUrl;
+      if (!template.includes("{z}") || !template.includes("{x}") || !template.includes("{y}")) {
+        throw new Error("Custom tile URL must include {z}, {x}, and {y}.");
+      }
+      Settings.validateHttpUrl(
+        template.replaceAll("{z}", "1").replaceAll("{x}", "1").replaceAll("{y}", "1").replaceAll("{apiKey}", "key"),
+        "Custom tile URL",
+      );
+    }
+  }
+
+  // Applies one Map or Display control to the live map. Returns false if it could not be saved.
+  function applyControl(name, value, mapApi) {
+    if (name === "basemap") {
+      mapApi.setBasemap(value);
+      return true;
+    }
+    if (name === "settingsLayer") {
+      mapApi.setManagerLayer(value.name, value.checked);
+      return true;
+    }
+    if (name === "recreationSitesMinZoom") return mapApi.update({ recreationSitesMinZoom: Number(value) });
+    if (name === "showLandDisclaimer" || name === "showBoundaryData" || name === "popupClickBehavior" || name === "theme") {
+      return mapApi.update({ [name]: value });
+    }
+    if (name === "typography") return mapApi.update({ typography: { ...value } });
+    return true;
+  }
+
+  window.CampgroundlessSettingsPanel = Object.freeze({ validateAdvanced, applyControl });
+
   const form = document.getElementById("settings-form");
+  if (!form) return;
   const message = document.getElementById("settings-message");
-  const layerNames = {
-    forest: "Forest Service",
-    blm: "BLM",
-    state: "State & local",
-    other: "Other federal",
-  };
+  const mapApi = () => window.CampgroundlessMap;
 
   function setMessage(text, isError = false) {
     message.textContent = text;
     message.classList.toggle("is-error", isError);
   }
 
-  function currentFormSettings() {
-    const layers = Object.fromEntries(
-      Object.keys(layerNames).map((name) => [
-        name,
-        form.querySelector(`input[name="layer"][value="${name}"]`).checked,
-      ]),
-    );
-    return {
-      dataSource: form.querySelector('input[name="dataSource"]:checked').value,
-      dataUrl: form.elements.dataUrl.value.trim(),
-      dataApiKey: form.elements.dataApiKey.value.trim(),
-      dataAttribution: form.elements.dataAttribution.value.trim(),
-      placeSearchUrl: form.elements.placeSearchUrl.value.trim(),
-      layers,
-      recreationSitesMinZoom: Number(form.elements.recreationSitesMinZoom.value),
-      showLandDisclaimer: form.elements.showLandDisclaimer.checked,
-      showBoundaryData: form.elements.showBoundaryData.checked,
-      basemap: form.elements.basemap.value,
-      osmLayer: form.elements.osmLayer.value,
-      theme: form.elements.theme.value,
-      popupClickBehavior: form.elements.popupClickBehavior.value,
-      basemapUrl: form.elements.basemapUrl.value.trim(),
-      basemapAttribution: form.elements.basemapAttribution.value.trim(),
-      esriApiKey: form.elements.esriApiKey.value.trim(),
-      customBasemapApiKey: form.elements.customBasemapApiKey.value.trim(),
-      typography: {
-        body: Number(form.elements.fontBodySize.value),
-        search: Number(form.elements.fontSearchSize.value),
-        caption: Number(form.elements.fontCaptionSize.value),
-      },
-    };
+  function current() {
+    return mapApi()?.getSettings() ?? Settings.read();
   }
 
-  function validate(settings) {
-    Settings.validateHttpUrl(settings.placeSearchUrl, "Place search endpoint");
-    if (settings.dataSource === "custom") {
-      Settings.validateHttpUrl(settings.dataUrl, "Feature Layer URL");
-      if (!/\/FeatureServer\/\d+\/?$/i.test(new URL(settings.dataUrl).pathname)) {
-        throw new Error("Feature Layer URL must end with /FeatureServer/{layer-number}.");
-      }
-    }
-    if (settings.basemap === "custom") {
-      const template = settings.basemapUrl;
-      if (!template.includes("{z}") || !template.includes("{x}") || !template.includes("{y}")) {
-        throw new Error("Custom basemap URL must include {z}, {x}, and {y}.");
-      }
-      Settings.validateHttpUrl(
-        template.replaceAll("{z}", "1").replaceAll("{x}", "1").replaceAll("{y}", "1").replaceAll("{apiKey}", "key"),
-        "Custom basemap URL",
-      );
-    }
+  function typographyFromForm() {
+    return Object.fromEntries(
+      Object.entries(fontFields).map(([field, key]) => [key, Number(form.elements[field].value)]),
+    );
+  }
+
+  function updateFontOutputs() {
+    Object.keys(fontFields).forEach((field) => {
+      const id = `settings-${field.replace("font", "font-").toLowerCase()}-value`;
+      document.getElementById(id).textContent = `${form.elements[field].value} px`;
+    });
+  }
+
+  function loadMapControls(settings) {
+    const customOption = form.elements.basemap.querySelector('option[value="custom"]');
+    customOption.hidden = !settings.basemapUrl;
+    customOption.disabled = !settings.basemapUrl;
+    const option = mapApi()?.activeBasemapOption() ??
+      (settings.basemap === "osm" ? `osm:${settings.osmLayer}` : settings.basemap);
+    form.elements.basemap.value = option;
+    if (form.elements.basemap.value !== option) form.elements.basemap.value = "vector";
+    form.querySelectorAll('input[name="settingsLayer"]').forEach((input) => {
+      input.checked = Boolean(settings.layers[input.value]);
+    });
+    form.elements.recreationSitesMinZoom.value = String(settings.recreationSitesMinZoom);
+    form.elements.popupClickBehavior.value = settings.popupClickBehavior;
   }
 
   function loadForm(settings) {
-    form.querySelector(`input[name="dataSource"][value="${settings.dataSource}"]`).checked = true;
-    form.elements.dataUrl.value = settings.dataUrl;
-    form.elements.dataApiKey.value = settings.dataApiKey;
-    form.elements.dataAttribution.value = settings.dataAttribution;
-    form.elements.placeSearchUrl.value = settings.placeSearchUrl;
-    form.elements.recreationSitesMinZoom.value = settings.recreationSitesMinZoom;
+    loadMapControls(settings);
+    form.elements.theme.value = settings.theme;
+    form.elements.fontBody.value = settings.typography.body;
+    form.elements.fontSearch.value = settings.typography.search;
+    form.elements.fontCaption.value = settings.typography.caption;
+    updateFontOutputs();
     form.elements.showLandDisclaimer.checked = settings.showLandDisclaimer !== false;
     form.elements.showBoundaryData.checked = settings.showBoundaryData !== false;
-    Object.keys(layerNames).forEach((layer) => {
-      form.querySelector(`input[name="layer"][value="${layer}"]`).checked = Boolean(settings.layers[layer]);
+    form.querySelector(`input[name="dataSource"][value="${settings.dataSource}"]`).checked = true;
+    advancedFields.forEach((field) => {
+      form.elements[field].value = settings[field] ?? "";
     });
-    form.elements.basemap.value = settings.basemap;
-    form.elements.osmLayer.value = settings.osmLayer;
-    form.elements.theme.value = settings.theme;
-    form.elements.popupClickBehavior.value = settings.popupClickBehavior;
-    window.CampgroundlessTheme.apply(settings.theme);
-    form.elements.basemapUrl.value = settings.basemapUrl;
-    form.elements.basemapAttribution.value = settings.basemapAttribution;
-    form.elements.esriApiKey.value = settings.esriApiKey;
-    form.elements.customBasemapApiKey.value = settings.customBasemapApiKey;
-    form.elements.fontBodySize.value = settings.typography.body;
-    form.elements.fontSearchSize.value = settings.typography.search;
-    form.elements.fontCaptionSize.value = settings.typography.caption;
-    updateTypographyValues(settings.typography);
-    Settings.applyTypography(settings);
     updateConditionalFields();
-    updateSummary(settings);
-  }
-
-  function updateTypographyValues(typography) {
-    document.getElementById("font-body-value").textContent = `${typography.body} px`;
-    document.getElementById("font-search-value").textContent = `${typography.search} px`;
-    document.getElementById("font-caption-value").textContent = `${typography.caption} px`;
   }
 
   function updateConditionalFields() {
     document.getElementById("custom-data-fields").hidden =
-      form.querySelector('input[name="dataSource"]:checked').value !== "custom";
-    document.getElementById("custom-data-attribution-field").hidden =
-      form.querySelector('input[name="dataSource"]:checked').value !== "custom";
-    document.getElementById("custom-basemap-fields").hidden =
-      form.elements.basemap.value !== "custom";
-    document.getElementById("osm-layer-fields").hidden =
-      form.elements.basemap.value !== "osm";
-    document.getElementById("custom-basemap-attribution-field").hidden =
-      form.elements.basemap.value !== "custom";
+      form.querySelector('input[name="dataSource"]:checked')?.value !== "custom";
   }
 
-  function updateSummary(settings) {
-    const selectedLayers = Object.keys(layerNames).filter((layer) => settings.layers[layer]);
-    const selectedKeys = [
-      settings.dataApiKey,
-      settings.esriApiKey,
-      settings.customBasemapApiKey,
-    ].filter(Boolean).length;
-    document.getElementById("summary-source").textContent =
-      settings.dataSource === "custom" ? "Custom ArcGIS layer" : "USGS PAD-US 3.0";
-    document.getElementById("summary-layers").textContent =
-      `${selectedLayers.length} selected${selectedLayers.length ? ` · ${selectedLayers.map((layer) => layerNames[layer]).join(", ")}` : ""}`;
-    const osmLayerNames = {
-      standard: "Standard",
-      hot: "Humanitarian (HOT)",
-      topographic: "Topographic",
-    };
-    const basemapNames = {
-      vector: "Vector streets (OpenFreeMap)",
-      esri: "Esri World Street Map",
-      "esri-imagery": "Esri World Imagery",
-      "esri-hillshade": "Esri World Hillshade",
-      "usgs-topo": "USGS Topographic Map",
-      custom: "Custom XYZ tiles",
-    };
-    document.getElementById("summary-basemap").textContent =
-      settings.basemap === "osm"
-        ? `OpenStreetMap · ${osmLayerNames[settings.osmLayer] ?? osmLayerNames.standard}`
-        : basemapNames[settings.basemap] ?? basemapNames.vector;
-    document.getElementById("summary-place-search").textContent =
-      settings.placeSearchUrl === Settings.defaults.placeSearchUrl
-        ? "OpenStreetMap Nominatim"
-        : "Custom Nominatim-compatible service";
-    document.getElementById("summary-recreation-sites").textContent =
-      `Zoom ${settings.recreationSitesMinZoom}+`;
-    document.getElementById("summary-typography").textContent =
-      `${settings.typography.body} / ${settings.typography.search} / ${settings.typography.caption} px`;
-    document.getElementById("summary-keys").textContent =
-      selectedKeys === 0 ? "None saved" : `${selectedKeys} saved in this browser`;
+  function advancedValues() {
+    const values = Object.fromEntries(advancedFields.map((field) => [field, form.elements[field].value.trim()]));
+    values.dataSource = form.querySelector('input[name="dataSource"]:checked').value;
+    return values;
   }
 
-  form.addEventListener("change", () => {
-    const settings = currentFormSettings();
-    Settings.applyTypography(settings);
-    window.CampgroundlessTheme.apply(settings.theme);
-    updateConditionalFields();
-    updateSummary(settings);
-    setMessage("");
-  });
-
-  form.addEventListener("input", () => {
-    const settings = currentFormSettings();
-    Settings.applyTypography(settings);
-    updateTypographyValues(settings.typography);
-    updateSummary(settings);
-    setMessage("");
-  });
-
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
+  function commitAdvanced() {
+    const values = advancedValues();
     try {
-      const settings = currentFormSettings();
-      validate(settings);
-      Settings.write(settings);
-      updateSummary(settings);
-      setMessage("Settings saved in this browser. Return to the map to apply them.");
+      validateAdvanced(values);
     } catch (error) {
       setMessage(error.message, true);
+      return;
+    }
+    const settings = { ...current(), ...values };
+    if (!settings.basemapUrl && settings.basemap === "custom") settings.basemap = "vector";
+    try {
+      Settings.write(settings);
+    } catch (error) {
+      setMessage(`Could not save settings: ${error.message}`, true);
+      return;
+    }
+    setMessage("Saved. Reloading the map…");
+    sessionStorage.setItem("campgroundless.open-settings", "1");
+    location.reload();
+  }
+
+  function report(saved) {
+    setMessage(saved === false ? "Applied for this visit, but could not be saved on this device." : "");
+  }
+
+  form.addEventListener("submit", (event) => event.preventDefault());
+
+  form.addEventListener("input", (event) => {
+    const field = event.target.name;
+    if (field in fontFields) {
+      updateFontOutputs();
+      report(applyControl("typography", typographyFromForm(), mapApi()));
+    }
+  });
+
+  form.addEventListener("change", (event) => {
+    const target = event.target;
+    const field = target.name;
+    if (!mapApi() && !advancedFields.includes(field) && field !== "dataSource") return;
+    if (field === "dataSource") {
+      updateConditionalFields();
+      if (target.value === "custom" && !form.elements.dataUrl.value.trim()) {
+        setMessage("Enter a Feature Layer URL to switch to a custom data source.");
+        form.elements.dataUrl.focus();
+        return;
+      }
+      commitAdvanced();
+    } else if (advancedFields.includes(field)) {
+      commitAdvanced();
+    } else if (field === "settingsLayer") {
+      report(applyControl(field, { name: target.value, checked: target.checked }, mapApi()));
+    } else if (field === "showLandDisclaimer" || field === "showBoundaryData") {
+      report(applyControl(field, target.checked, mapApi()));
+    } else if (field in fontFields) {
+      report(applyControl("typography", typographyFromForm(), mapApi()));
+    } else if (field) {
+      report(applyControl(field, target.value, mapApi()));
+    }
+  });
+
+  form.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && advancedFields.includes(event.target.name)) {
+      event.preventDefault();
+      event.target.blur();
     }
   });
 
@@ -194,20 +198,23 @@
       const reveal = input.type === "password";
       input.type = reveal ? "text" : "password";
       button.textContent = reveal ? "Hide" : "Show";
-      button.setAttribute("aria-label", `${reveal ? "Hide" : "Show"} ${input.labels?.[0]?.textContent ?? "API key"}`);
+      button.setAttribute("aria-label", button.getAttribute("aria-label").replace(/^(Show|Hide)/, reveal ? "Hide" : "Show"));
     });
   });
 
   document.getElementById("reset-settings").addEventListener("click", () => {
-    const defaults = structuredClone(Settings.defaults);
+    if (!window.confirm("Reset all settings to defaults? Saved API keys will be removed and the map will reload.")) return;
     try {
-      Settings.write(defaults);
-      loadForm(defaults);
-      setMessage("Settings reset to defaults. Saved API keys were removed.");
+      Settings.write(structuredClone(Settings.defaults));
     } catch (error) {
       setMessage(`Could not reset settings: ${error.message}`, true);
+      return;
     }
+    sessionStorage.setItem("campgroundless.open-settings", "1");
+    location.reload();
   });
+
+  window.addEventListener("campgroundless:settingschange", () => loadMapControls(current()));
 
   const storageCategories = [
     { key: "campgroundless.settings.v1", label: "Map settings", note: "Your preferences, including any saved API keys" },
@@ -259,19 +266,22 @@
       return { label: category.label, note: category.note, bytes: localStorageBytes(category.key), items };
     });
     const isNativeApp = Boolean(window.CampgroundlessNative?.isNative);
-    const cache = isNativeApp ? { bytes: 0, files: 0, supported: false } : await appCacheStats();
-    if (!isNativeApp) rows.push({
-      label: "App file cache",
-      note: cache.supported ? "Page, script and icon copies kept for faster, offline-capable launches" : "Not supported in this browser",
-      bytes: cache.bytes,
-      items: cache.supported ? cache.files : null,
-    });
+    document.getElementById("storage-clear-files").hidden = isNativeApp;
+    if (!isNativeApp) {
+      const cache = await appCacheStats();
+      rows.push({
+        label: "App file cache",
+        note: cache.supported ? "Page, script and icon copies for faster, offline-capable launches" : "Not supported in this browser",
+        bytes: cache.bytes,
+        items: cache.supported ? cache.files : null,
+      });
+    }
     const offline = window.CampgroundlessOffline;
     if (offline?.supported) {
       const packs = await offline.listPacks().catch(() => []);
       rows.push({
         label: "Offline map areas",
-        note: "Maps saved for use without a connection · manage them in Offline maps on the map page",
+        note: "Manage them in Offline maps",
         bytes: packs.reduce((sum, pack) => sum + (Number(pack.bytes) || Number(pack.dataBytes) || 0), 0),
         items: packs.length,
       });
@@ -293,12 +303,12 @@
       }),
     );
     const sum = rows.reduce((acc, row) => acc + row.bytes, 0);
-    let summary = `Total tracked here: ${formatBytes(sum)}.`;
+    let summary = `Total: ${formatBytes(sum)}.`;
     if (navigator.storage?.estimate && !isNativeApp) {
       try {
         const { usage, quota } = await navigator.storage.estimate();
         if (usage !== undefined) {
-          summary += ` Browser reports ${formatBytes(usage)} used by this site${quota ? ` of ${formatBytes(quota)} available` : ""}.`;
+          summary += ` The browser reports ${formatBytes(usage)} used by this site${quota ? ` of ${formatBytes(quota)} available` : ""}.`;
         }
       } catch {
         // The estimate is optional.
@@ -321,32 +331,31 @@
     await refreshStorage();
     setMessage("App file cache cleared. It refills the next time you load the map. Offline map areas were kept.");
   });
-  document.getElementById("reset-settings").addEventListener("click", () => setTimeout(refreshStorage, 0));
-  refreshStorage();
 
-  // The build is the map script's cache-busting number in index.html, which changes with every deploy.
-  fetch("./index.html", { cache: "no-store" })
-    .then((response) => response.text())
-    .then((html) => {
-      const build = /app\.js\?v=(\d+)/.exec(html)?.[1];
-      document.getElementById("app-build").textContent = build ? `Build ${build}` : "Build unknown";
-    })
-    .catch(() => {
-      document.getElementById("app-build").textContent = "Build unavailable";
-    });
+  window.addEventListener("campgroundless:viewshow", (event) => {
+    if (event.detail?.name !== "settings") return;
+    setMessage("");
+    loadForm(current());
+    refreshStorage();
+  });
 
-  const probe = document.createElement("div");
-  probe.style.cssText = "position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";
-  document.body.append(probe);
-  const probeStyle = getComputedStyle(probe);
-  document.getElementById("app-build").parentElement.append(
-    ` · display ${window.navigator.standalone ? "standalone" : "browser"}, inset ${probeStyle.paddingTop}/${probeStyle.paddingBottom}, view ${innerWidth}x${innerHeight}, screen ${screen.width}x${screen.height}`
-  );
-  probe.remove();
+  // The build is the map script's cache-busting number, which changes with every deploy.
+  const build = /app\.js\?v=(\d+)/.exec(document.querySelector('script[src*="app.js"]')?.getAttribute("src") ?? "")?.[1];
+  document.getElementById("app-build").textContent = build ? `Build ${build}` : "Build unknown";
 
   try {
-    loadForm(Settings.read());
+    loadForm(current());
   } catch (error) {
     setMessage(`Could not load saved settings: ${error.message}`, true);
   }
+
+  let reopen = location.hash === "#settings";
+  try {
+    reopen = reopen || sessionStorage.getItem("campgroundless.open-settings") === "1";
+    sessionStorage.removeItem("campgroundless.open-settings");
+  } catch {
+    // Session storage is optional.
+  }
+  if (location.hash === "#settings") history.replaceState(null, "", location.pathname + location.search);
+  if (reopen) window.CampgroundlessSidebar?.show("settings");
 })();

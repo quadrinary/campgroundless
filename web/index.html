@@ -26,8 +26,8 @@
     <link rel="preconnect" href="https://tiles.openfreemap.org" />
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=23" />
-    <link rel="stylesheet" href="./shell.css?v=10" />
+    <link rel="stylesheet" href="./styles.css?v=24" />
+    <link rel="stylesheet" href="./shell.css?v=11" />
     <link rel="stylesheet" href="./theme.css?v=19" />
   </head>
   <body class="app-body">
@@ -80,13 +80,13 @@
           </button>
         </nav>
 
-        <a class="rail-item rail-settings" href="./settings.html" title="Settings" aria-label="Settings">
+        <button class="rail-item rail-settings" type="button" data-view="settings" aria-controls="view-panel" aria-expanded="false" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.400 13.500a7.600 7.600 0 0 0 0-3l2-1.500-2-3.500-2.300 1a7.400 7.400 0 0 0-2.600-1.500L14 2.500h-4l-.5 2.500a7.400 7.400 0 0 0-2.600 1.500l-2.300-1-2 3.500 2 1.500a7.600 7.600 0 0 0 0 3l-2 1.500 2 3.500 2.300-1a7.400 7.400 0 0 0 2.600 1.500l.5 2.500h4l.5-2.500a7.400 7.400 0 0 0 2.600-1.500l2.300 1 2-3.500-2-1.500Z"></path>
           </svg>
           <span class="rail-label">Settings</span>
-        </a>
+        </button>
       </aside>
 
       <section class="view-panel" id="view-panel" aria-labelledby="view-title" hidden>
@@ -195,6 +195,147 @@
             <p id="offline-empty" class="view-empty">No saved areas yet.</p>
             <p id="offline-storage" class="view-privacy"></p>
             <p class="view-privacy">Saved areas are a snapshot from the day you download them. They cannot show new closures, fire restrictions, or road conditions, and they never establish camping permission. Check current rules with the land manager before you lose signal. Place search, nearest named roads, and the live Forest Service site details need a connection. Location uses your device's GPS, which works without a data signal.</p>
+          </div>
+
+          <div class="view" id="view-settings" data-title="Settings" hidden>
+            <form id="settings-form" class="settings-panel" novalidate>
+              <section class="settings-group" aria-labelledby="settings-map-heading">
+                <h3 id="settings-map-heading">Map</h3>
+                <div class="offline-card settings-card">
+                  <label class="note-field-label" for="settings-basemap">Basemap</label>
+                  <select id="settings-basemap" class="note-text-field" name="basemap">
+                    <option value="vector">Vector streets (crisp text)</option>
+                    <option value="esri">Esri World Street Map</option>
+                    <option value="esri-imagery">Esri World Imagery</option>
+                    <option value="esri-hillshade">Esri World Hillshade</option>
+                    <option value="usgs-topo">USGS Topographic Map</option>
+                    <option value="osm:standard">OpenStreetMap · Standard</option>
+                    <option value="osm:hot">OpenStreetMap · Humanitarian</option>
+                    <option value="osm:topographic">OpenTopoMap · Topographic</option>
+                    <option value="custom" hidden>Custom XYZ tiles</option>
+                  </select>
+                  <p class="offline-help">Tiles load directly from the provider. OpenStreetMap tiles follow the <a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noreferrer">tile usage policy</a>.</p>
+                </div>
+                <fieldset class="offline-card settings-card offline-fieldset">
+                  <legend class="note-field-label settings-legend">Land managers</legend>
+                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="forest" /><span class="filter-swatch swatch-forest" aria-hidden="true"></span><span>U.S. Forest Service</span></label>
+                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="blm" /><span class="filter-swatch swatch-blm" aria-hidden="true"></span><span>Bureau of Land Management</span></label>
+                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="state" /><span class="filter-swatch swatch-state" aria-hidden="true"></span><span>State public lands</span></label>
+                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="other" /><span class="filter-swatch swatch-other" aria-hidden="true"></span><span>Other public lands</span></label>
+                  <p class="offline-help">Shows who manages the land, not whether camping is allowed.</p>
+                </fieldset>
+                <div class="offline-card settings-card">
+                  <label class="note-field-label" for="settings-recreation-zoom">Show recreation sites from</label>
+                  <select id="settings-recreation-zoom" class="note-text-field" name="recreationSitesMinZoom">
+                    <option value="11">Zoom 11 or closer · USFS service limit</option>
+                    <option value="12">Zoom 12 or closer</option>
+                    <option value="13">Zoom 13 or closer</option>
+                    <option value="14">Zoom 14 or closer</option>
+                    <option value="15">Zoom 15 or closer</option>
+                  </select>
+                  <p class="offline-help">Applies to both USFS and BLM sites. The Forest Service hides its sites when zoomed out past level 11.</p>
+                  <label class="note-field-label" for="settings-popup-click">Tapping the map while a popup is open</label>
+                  <select id="settings-popup-click" class="note-text-field" name="popupClickBehavior">
+                    <option value="close">Close the popup only</option>
+                    <option value="replace">Close it and show the new spot</option>
+                  </select>
+                </div>
+              </section>
+
+              <section class="settings-group" aria-labelledby="settings-display-heading">
+                <h3 id="settings-display-heading">Display</h3>
+                <div class="offline-card settings-card">
+                  <label class="note-field-label" for="settings-theme">Theme</label>
+                  <select id="settings-theme" class="note-text-field" name="theme">
+                    <option value="auto">Auto · follow device</option>
+                    <option value="light">Day</option>
+                    <option value="dark">Night</option>
+                  </select>
+                </div>
+                <fieldset class="offline-card settings-card offline-fieldset">
+                  <legend class="note-field-label settings-legend">Text size</legend>
+                  <label class="settings-range" for="settings-font-body"><span>Body text &amp; labels</span><output id="settings-font-body-value" for="settings-font-body">12 px</output></label>
+                  <input id="settings-font-body" name="fontBody" type="range" min="7" max="17" step="1" />
+                  <label class="settings-range" for="settings-font-search"><span>Search, status &amp; sources</span><output id="settings-font-search-value" for="settings-font-search">11 px</output></label>
+                  <input id="settings-font-search" name="fontSearch" type="range" min="6" max="16" step="1" />
+                  <label class="settings-range" for="settings-font-caption"><span>Captions &amp; notes</span><output id="settings-font-caption-value" for="settings-font-caption">10 px</output></label>
+                  <input id="settings-font-caption" name="fontCaption" type="range" min="5" max="15" step="1" />
+                </fieldset>
+                <div class="offline-card settings-card">
+                  <label class="offline-mode-row">
+                    <span><strong>Camping-permission reminder</strong><small>“Land ownership is not permission to camp” under the map. About this map always includes it.</small></span>
+                    <input id="settings-show-disclaimer" class="offline-switch" type="checkbox" role="switch" name="showLandDisclaimer" />
+                  </label>
+                  <label class="offline-mode-row">
+                    <span><strong>Boundary data source line</strong><small>Data source name and About link under the map.</small></span>
+                    <input id="settings-show-boundary" class="offline-switch" type="checkbox" role="switch" name="showBoundaryData" />
+                  </label>
+                </div>
+              </section>
+
+              <section class="settings-group" aria-labelledby="settings-storage-heading">
+                <h3 id="settings-storage-heading">Storage</h3>
+                <div class="offline-card settings-card">
+                  <p class="offline-help">Data kept on this device. Map layers load live unless you save an area in Offline maps.</p>
+                  <ul id="storage-list" class="storage-list" aria-live="polite"></ul>
+                  <p id="storage-total" class="offline-help" role="status">Calculating…</p>
+                  <div class="offline-actions settings-wrap-actions">
+                    <button id="storage-refresh" class="view-button" type="button">Refresh</button>
+                    <button id="storage-clear-recent" class="view-button" type="button">Clear recent searches</button>
+                    <button id="storage-clear-files" class="view-button" type="button">Clear app file cache</button>
+                  </div>
+                </div>
+              </section>
+
+              <details class="settings-group settings-advanced" id="settings-advanced">
+                <summary><h3>Advanced</h3><small>Data sources and API keys. Changes here reload the map.</small></summary>
+                <fieldset class="offline-card settings-card offline-fieldset">
+                  <legend class="note-field-label settings-legend">Land data source</legend>
+                  <label class="offline-choice"><input type="radio" name="dataSource" value="padus" /><span><strong>USGS PAD-US 3.0</strong><small>Public ArcGIS layer · no key · data last edited March 20, 2024</small></span></label>
+                  <label class="offline-choice"><input type="radio" name="dataSource" value="custom" /><span><strong>Custom ArcGIS Feature Layer</strong><small>Must use PAD-US-compatible fields and manager codes.</small></span></label>
+                  <div id="custom-data-fields" class="settings-subfields">
+                    <label class="note-field-label" for="data-url">Feature Layer URL</label>
+                    <input id="data-url" class="note-text-field" name="dataUrl" type="url" autocomplete="url" spellcheck="false" placeholder="https://…/FeatureServer/0" />
+                    <label class="note-field-label" for="data-attribution">Data attribution <span>optional</span></label>
+                    <input id="data-attribution" class="note-text-field" name="dataAttribution" type="text" placeholder="Provider / dataset credit" />
+                  </div>
+                  <label class="note-field-label" for="data-api-key">ArcGIS data API key / token <span>optional</span></label>
+                  <div class="secret-field">
+                    <input id="data-api-key" class="note-text-field" name="dataApiKey" type="password" autocomplete="off" />
+                    <button class="view-button" type="button" data-reveal="data-api-key" aria-label="Show ArcGIS data API key">Show</button>
+                  </div>
+                </fieldset>
+                <div class="offline-card settings-card">
+                  <label class="note-field-label" for="place-search-url">Place search endpoint (Nominatim-compatible)</label>
+                  <input id="place-search-url" class="note-text-field" name="placeSearchUrl" type="url" autocomplete="url" spellcheck="false" />
+                  <p class="offline-help">Must return a JSON array with lat, lon, and display_name. Queries are sent only when you press Go.</p>
+                </div>
+                <div class="offline-card settings-card">
+                  <label class="note-field-label" for="basemap-url">Custom XYZ tile URL <span>optional</span></label>
+                  <input id="basemap-url" class="note-text-field" name="basemapUrl" type="text" autocomplete="url" spellcheck="false" placeholder="https://tiles.example.com/{z}/{x}/{y}.png?key={apiKey}" />
+                  <p class="offline-help">Include {z}, {x}, and {y}. Once saved, choose “Custom XYZ tiles” as the basemap.</p>
+                  <label class="note-field-label" for="basemap-attribution">Custom basemap attribution <span>optional</span></label>
+                  <input id="basemap-attribution" class="note-text-field" name="basemapAttribution" type="text" placeholder="Map tiles © Provider" />
+                  <label class="note-field-label" for="custom-basemap-api-key">Custom basemap API key <span>optional</span></label>
+                  <div class="secret-field">
+                    <input id="custom-basemap-api-key" class="note-text-field" name="customBasemapApiKey" type="password" autocomplete="off" />
+                    <button class="view-button" type="button" data-reveal="custom-basemap-api-key" aria-label="Show custom basemap API key">Show</button>
+                  </div>
+                  <label class="note-field-label" for="esri-api-key">Esri API key <span>optional</span></label>
+                  <div class="secret-field">
+                    <input id="esri-api-key" class="note-text-field" name="esriApiKey" type="password" autocomplete="off" />
+                    <button class="view-button" type="button" data-reveal="esri-api-key" aria-label="Show Esri API key">Show</button>
+                  </div>
+                </div>
+                <p class="offline-warning">API keys are stored only on this device and sent to the provider you choose. Anyone with access to this device can read them. Use restricted, low-privilege keys; never enter a private server secret.</p>
+                <div class="offline-actions">
+                  <button id="reset-settings" class="note-cancel-button" type="button">Reset all settings</button>
+                </div>
+              </details>
+
+              <p id="settings-message" class="offline-message" role="status" aria-live="polite"></p>
+              <p class="view-privacy">Settings are saved on this device only. <span id="app-build">Build …</span> · <a href="./index.html?diag=1">Diagnostics</a></p>
+            </form>
           </div>
 
           <div class="view" id="view-before" data-title="Before you head out" hidden>
@@ -365,9 +506,10 @@
     <script src="./vendor/maplibre-gl.js?v=4.7.1"></script>
     <script src="./vendor/leaflet-maplibre-gl.js?v=0.0.22"></script>
     <script src="./settings-store.js?v=17"></script>
-    <script src="./sidebar.js?v=3"></script>
+    <script src="./sidebar.js?v=4"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./app.js?v=120"></script>
+    <script src="./app.js?v=121"></script>
+    <script src="./settings.js?v=23"></script>
     <script>
       if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});

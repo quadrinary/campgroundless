@@ -33,7 +33,14 @@ The app bundles Leaflet, Esri Leaflet, MapLibre GL and the Leaflet MapLibre brid
 
 ## Map settings and API keys
 
-Open **Settings** from the map navigation to select USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer, toggle manager categories, choose a basemap and optional provider key, set custom source attribution, and change the Nominatim-compatible place-search endpoint. Settings also let you choose the minimum zoom level at which both USFS and BLM recreation-site layers appear (zoom 11 or closer by default). BLM sites are hidden to match the Forest Service service's 1:400,000 scale limit; the setting can make both layers appear only at closer zooms, but cannot override that source limit.
+Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has four groups:
+
+- **Map** — basemap, land-manager categories, recreation-site minimum zoom, and what tapping the map does while a popup is open.
+- **Display** — theme, text sizes, and the reminder/source lines under the map.
+- **Storage** — data kept on this device, with buttons to clear recent searches or the app file cache.
+- **Advanced** (collapsed) — land data source (USGS PAD-US 3.0 or a custom PAD-US-compatible ArcGIS Feature Layer), place-search endpoint, custom XYZ basemap and attribution, optional API keys, and reset.
+
+Map and Display changes apply to the map immediately; there is no Save button. Advanced changes are validated, saved, and then reload the map with Settings reopened. The old `settings.html` address redirects to the panel. The recreation-site setting chooses the minimum zoom level at which both USFS and BLM recreation-site layers appear (zoom 11 or closer by default). BLM sites are hidden to match the Forest Service service's 1:400,000 scale limit; the setting can make both layers appear only at closer zooms, but cannot override that source limit.
 
 The map’s **Layers** button toggles optional USFS and BLM recreation sites, USFS roads, motorized-road-closure, trails, MVUM routes, and BLM GTLF road dataset overlays. Each enabled reference overlay shows its own legend. BLM sites are queried for all ten states and clipped to their Census TIGERweb state boundaries; site records are fetched in object-ID batches to avoid a service transfer limit. Click a mapped USFS or BLM recreation-site symbol to open available source-record details; missing information is not evidence of availability, and a site does not establish camping permission.
 
@@ -41,13 +48,13 @@ Clicking a map point shows the nearest named primary, secondary, or local road i
 
 All recreation, road, land, and imagery layers are reference only; coverage, update timing, and restrictions can be incomplete or outdated. Some Forest Service dynamic map services render by the rectangular map view, which can include portions of adjacent states near the coverage edges. This map's PAD-US and BLM state filters and BLM state-boundary clipping are limited to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. Verify current rules with the responsible land manager. Custom land services must expose the PAD-US fields used by the map (`FID`, `State_Nm`, `FeatClass`, `Mang_Name`, `Unit_Nm`, `Loc_Nm`, `Pub_Access`, and `Src_Date`). Custom place-search endpoints must use HTTPS and return a Nominatim-compatible JSON array with `lat`, `lon`, and `display_name` fields.
 
-Settings also provide three interface text-size sliders with 1 px increments and a ±5 px range around each default: body text and field labels (7–17 px, default 12 px), search/map status/source text (6–16 px, default 11 px), and small captions/toolbar notes (5–15 px, default 10 px). These preferences preview immediately and are saved with other browser-local settings.
+Settings also provide three interface text-size sliders with 1 px increments and a ±5 px range around each default: body text and field labels (7–17 px, default 12 px), search/map status/source text (6–16 px, default 11 px), and small captions/toolbar notes (5–15 px, default 10 px). These preferences apply immediately and are saved with other browser-local settings.
 
 Preferences and API keys are stored in that browser's `localStorage` and are not uploaded to this site. Map requests send a key only to the selected data or tile provider. A browser-stored key is accessible to people with access to the browser and is visible in outgoing requests; never save a private server secret here. Use provider-restricted, low-privilege keys. Esri/OpenStreetMap defaults work without keys.
 
 Map notes and their selected icons are saved in browser storage only; they are not uploaded or synchronized. Clearing this browser's site data removes them. A share link contains the selected note's title, text, icon, and coordinates in its fragment. Anyone with the link can read that snapshot, and URL contents may be visible in browser history or wherever the link is forwarded. Shared notes are view-only, do not alter the recipient's saved notes, and do not confirm camping permission. Do not enter sensitive information.
 
-The data and basemap selections apply on the map page. Land-manager filters and reference overlays save when changed from the map; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
+Land-manager filters and reference overlays save when changed from the map; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
 
 ## Offline maps
 
