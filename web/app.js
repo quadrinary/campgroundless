@@ -352,6 +352,57 @@
     return L.tileLayer(url, basemapOptions);
   }
 
+  // Vector basemap label size (Settings → Text size → Map labels).
+  const mapLabelSizes = new WeakMap();
+  const watchedLabelMaps = new WeakSet();
+  function scaleVectorLabels(glMap) {
+    let style;
+    try {
+      style = glMap.getStyle();
+    } catch {
+      return;
+    }
+    if (!style?.layers) return;
+    let state = mapLabelSizes.get(glMap);
+    if (!state) {
+      state = { originals: new Map(), applied: new Map() };
+      mapLabelSizes.set(glMap, state);
+    }
+    const factor = (settings.typography?.map ?? 100) / 100;
+    style.layers.forEach((layer) => {
+      if (layer.type !== "symbol" || layer.layout?.["text-field"] === undefined) return;
+      if (!state.originals.has(layer.id)) state.originals.set(layer.id, layer.layout["text-size"]);
+      if (state.applied.get(layer.id) === factor) return;
+      state.applied.set(layer.id, factor);
+      try {
+        glMap.setLayoutProperty(
+          layer.id,
+          "text-size",
+          window.CampgroundlessSettings.scaleMapTextSize(state.originals.get(layer.id), factor),
+        );
+      } catch (error) {
+        console.warn("Could not resize map labels.", error);
+      }
+    });
+  }
+
+  function watchVectorLabels(layer) {
+    const glMap = layer?.getMaplibreMap?.();
+    if (!glMap || watchedLabelMaps.has(glMap)) return;
+    watchedLabelMaps.add(glMap);
+    glMap.on("styledata", () => scaleVectorLabels(glMap));
+    if (glMap.isStyleLoaded()) scaleVectorLabels(glMap);
+  }
+
+  function rescaleVectorLabels() {
+    map.eachLayer((layer) => {
+      const glMap = layer.getMaplibreMap?.();
+      if (glMap) scaleVectorLabels(glMap);
+    });
+  }
+
+  map.on("layeradd", (event) => watchVectorLabels(event.layer));
+
   let basemapLayer = createBasemap().addTo(map);
 
   function activeBasemapOption() {
@@ -853,6 +904,34 @@
 
     panel.append(styleSection);
     button.setAttribute("aria-controls", panel.id);
+    // While the layers panel is open, a tap on the map (not a drag) just closes it.
+    let layerPanelTapStart = null;
+    window.addEventListener(
+      "pointerdown",
+      (event) => {
+        layerPanelTapStart =
+          !panel.hidden &&
+          map.getContainer().contains(event.target) &&
+          !container.contains(event.target)
+            ? { x: event.clientX, y: event.clientY }
+            : null;
+      },
+      true,
+    );
+    window.addEventListener(
+      "click",
+      (event) => {
+        const start = layerPanelTapStart;
+        layerPanelTapStart = null;
+        if (!start || panel.hidden || !map.getContainer().contains(event.target)) return;
+        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
+        event.stopPropagation();
+        event.preventDefault();
+        panel.hidden = true;
+        button.setAttribute("aria-expanded", "false");
+      },
+      true,
+    );
     button.addEventListener("click", () => {
       panel.hidden = !panel.hidden;
       button.setAttribute("aria-expanded", String(!panel.hidden));
@@ -3473,7 +3552,10 @@
     },
     update(patch) {
       Object.assign(settings, patch);
-      if ("typography" in patch) window.CampgroundlessSettings.applyTypography(settings);
+      if ("typography" in patch) {
+        window.CampgroundlessSettings.applyTypography(settings);
+        rescaleVectorLabels();
+      }
       if ("theme" in patch) window.CampgroundlessTheme?.apply(settings.theme);
       if ("showLandDisclaimer" in patch || "showBoundaryData" in patch) {
         document.getElementById("land-disclaimer").hidden = settings.showLandDisclaimer === false;

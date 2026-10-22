@@ -847,6 +847,14 @@ fieldset.settings-card {
   accent-color: #365a43;
 }
 
+.settings-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--font-caption-size, 10px);
+  line-height: 1.4;
+}
+
 .settings-wrap-actions {
   flex-wrap: wrap;
 }

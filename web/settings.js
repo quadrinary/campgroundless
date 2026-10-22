@@ -12,7 +12,7 @@
     "esriApiKey",
     "customBasemapApiKey",
   ];
-  const fontFields = { fontBody: "body", fontSearch: "search", fontCaption: "caption" };
+  const fontFields = { fontBody: "body", fontSearch: "search", fontCaption: "caption", fontMap: "map" };
 
   // Checks the Advanced values, which reload the map when saved. Throws a readable error.
   function validateAdvanced(values) {
@@ -79,7 +79,9 @@
   function updateFontOutputs() {
     Object.keys(fontFields).forEach((field) => {
       const id = `settings-${field.replace("font", "font-").toLowerCase()}-value`;
-      document.getElementById(id).textContent = `${form.elements[field].value} px`;
+      document.getElementById(id).textContent = field === "fontMap"
+        ? `${form.elements[field].value}%`
+        : `${form.elements[field].value} px`;
     });
   }
 
@@ -104,6 +106,7 @@
     form.elements.fontBody.value = settings.typography.body;
     form.elements.fontSearch.value = settings.typography.search;
     form.elements.fontCaption.value = settings.typography.caption;
+    form.elements.fontMap.value = settings.typography.map;
     updateFontOutputs();
     form.elements.showLandDisclaimer.checked = settings.showLandDisclaimer !== false;
     form.elements.showBoundaryData.checked = settings.showBoundaryData !== false;
