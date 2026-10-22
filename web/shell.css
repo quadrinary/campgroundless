@@ -225,6 +225,7 @@ body.app-body {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
+  color: var(--ink);
   font: inherit;
   cursor: pointer;
 }
@@ -779,4 +780,184 @@ body.app-body {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+/* Settings panel: built from the Offline maps panel pieces. */
+.settings-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-group {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-group h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.settings-card {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+fieldset.settings-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+
+.settings-legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 0;
+}
+
+.settings-card .offline-mode-row + .offline-mode-row {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #edf0e9;
+}
+
+.settings-card .offline-choice .filter-swatch {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.settings-range {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.settings-range output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-card input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #365a43;
+}
+
+.settings-wrap-actions {
+  flex-wrap: wrap;
+}
+
+.settings-wrap-actions .view-button {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.settings-wrap-actions .view-button[hidden],
+.settings-subfields[hidden] {
+  display: none;
+}
+
+.settings-subfields {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 4px 24px;
+}
+
+.secret-field {
+  display: flex;
+  gap: 6px;
+}
+
+.secret-field .note-text-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.secret-field .view-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.settings-advanced > summary {
+  display: grid;
+  gap: 2px;
+  padding-left: 18px;
+  position: relative;
+  list-style: none;
+  cursor: pointer;
+}
+
+.settings-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-advanced > summary::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 2px;
+  border: 5px solid transparent;
+  border-left-color: currentColor;
+  transition: transform 0.15s;
+  transform-origin: 2px 5px;
+}
+
+.settings-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.settings-advanced > summary small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-advanced {
+  display: block;
+}
+
+.settings-advanced > :not(summary) {
+  margin-top: 10px;
+}
+
+.storage-list {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.storage-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.storage-list li + li {
+  border-top: 1px solid #edf0e9;
+}
+
+.storage-list li > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.storage-list small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.storage-size {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
