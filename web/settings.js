@@ -42,10 +42,7 @@
       mapApi.setBasemap(value);
       return true;
     }
-    if (name === "settingsLayer") {
-      mapApi.setManagerLayer(value.name, value.checked);
-      return true;
-    }
+
     if (name === "recreationSitesMinZoom") return mapApi.update({ recreationSitesMinZoom: Number(value) });
     if (name === "showLandDisclaimer" || name === "showBoundaryData" || name === "popupClickBehavior" || name === "theme") {
       return mapApi.update({ [name]: value });
@@ -93,9 +90,7 @@
       (settings.basemap === "osm" ? `osm:${settings.osmLayer}` : settings.basemap);
     form.elements.basemap.value = option;
     if (form.elements.basemap.value !== option) form.elements.basemap.value = "vector";
-    form.querySelectorAll('input[name="settingsLayer"]').forEach((input) => {
-      input.checked = Boolean(settings.layers[input.value]);
-    });
+
     form.elements.recreationSitesMinZoom.value = String(settings.recreationSitesMinZoom);
     form.elements.popupClickBehavior.value = settings.popupClickBehavior;
   }
@@ -178,8 +173,7 @@
       commitAdvanced();
     } else if (advancedFields.includes(field)) {
       commitAdvanced();
-    } else if (field === "settingsLayer") {
-      report(applyControl(field, { name: target.value, checked: target.checked }, mapApi()));
+
     } else if (field === "showLandDisclaimer" || field === "showBoundaryData") {
       report(applyControl(field, target.checked, mapApi()));
     } else if (field in fontFields) {

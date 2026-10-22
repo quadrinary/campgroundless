@@ -36,7 +36,7 @@ The app bundles Leaflet, Esri Leaflet, MapLibre GL and the Leaflet MapLibre brid
 
 Open **Settings** from the map's side navigation (the same panel style as Offline maps; on both the website and the iPhone app). It has six groups:
 
-- **Map** — basemap, land-manager categories, recreation-site minimum zoom, and what tapping the map does while a popup is open.
+- **Map** — basemap, recreation-site minimum zoom, and what tapping the map does while a popup is open.
 - **Display** — theme, text sizes, and the reminder/source lines under the map.
 - **Storage** — data kept on this device, with buttons to clear recent searches or the app file cache.
 - **Backup** — export or import settings, saved locations & notes, and recent searches as one file (see [Backups](#backups)).
@@ -57,7 +57,7 @@ Preferences and API keys are stored in that browser's `localStorage` and are not
 
 Map notes and their selected icons are saved in browser storage only; they are not uploaded or synchronized (use a [backup](#backups) to move them). Clearing this browser's site data removes them. A share link contains the selected note's title, text, icon, and coordinates in its fragment. Anyone with the link can read that snapshot, and URL contents may be visible in browser history or wherever the link is forwarded. Shared notes are view-only, do not alter the recipient's saved notes, and do not confirm camping permission. Do not enter sensitive information.
 
-Land-manager filters and reference overlays save when changed from the map; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
+Land-manager filters and reference overlays are in the map's layers panel (Land Managers, Reference Overlays, Basemaps) and save when changed; overlay preferences are per browser/device, off by default, and can be reset with the other settings.
 
 ## Backups
 
