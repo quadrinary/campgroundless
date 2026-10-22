@@ -846,8 +846,8 @@ h1 em {
   height: 20px;
   background-color: currentColor;
   content: "";
-  -webkit-mask: url("https://unpkg.com/leaflet@1.9.4/dist/images/layers-2x.png") center / contain no-repeat;
-  mask: url("https://unpkg.com/leaflet@1.9.4/dist/images/layers-2x.png") center / contain no-repeat;
+  -webkit-mask: url("vendor/images/layers-2x.png") center / contain no-repeat;
+  mask: url("vendor/images/layers-2x.png") center / contain no-repeat;
 }
 
 .map-layer-toggle:hover,

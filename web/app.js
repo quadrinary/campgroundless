@@ -76,14 +76,14 @@
     USBR: "U.S. Bureau of Reclamation",
     USFS: "U.S. Forest Service",
   };
+  // Agency logos are bundled (copied from each agency's website) so they also show offline.
   const managerLogos = {
-    BLM: "https://www.blm.gov/themes/custom/blm_d9_22/logo.svg",
-    FWS: "https://www.fws.gov/_next/static/media/fws-logo.082bedb3.svg",
-    NPS: "https://www.nps.gov/theme/assets/dist/images/branding/logo.png",
-    USACE:
-      "https://upload.wikimedia.org/wikipedia/commons/3/35/United_States_Army_Corps_of_Engineers_logo.svg",
-    USBR: "https://www.usbr.gov/img/seal-white.png",
-    USFS: "https://www.fs.usda.gov/themes/custom/fs_uswds/logo.svg",
+    BLM: "logos/blm.svg",
+    FWS: "logos/fws.svg",
+    NPS: "logos/nps.png",
+    USACE: "logos/usace.svg",
+    USBR: "logos/usbr.png",
+    USFS: "logos/usfs.svg",
   };
   const federalManagerCodes = new Set([
     "BLM",
@@ -681,12 +681,13 @@
         if (!legendRequests.has(legendUrl)) {
           legendRequests.set(
             legendUrl,
-            fetch(legendUrl).then((response) => {
-              if (!response.ok) {
-                throw new Error(`Legend request failed (${response.status}).`);
-              }
-              return response.json();
-            }),
+            rememberedJson(legendUrl, (data) => ({
+              layers: (data.layers ?? []).map(({ layerId, layerName, legend }) => ({
+                layerId,
+                layerName,
+                legend: (legend ?? []).map(({ contentType, imageData, label }) => ({ contentType, imageData, label })),
+              })),
+            })),
           );
         }
         try {
@@ -1690,19 +1691,15 @@
 
   async function usfsSymbolRendererInfos() {
     if (!usfsSymbolRendererPromise) {
-      usfsSymbolRendererPromise = fetch(
+      usfsSymbolRendererPromise = rememberedJson(
         "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_RecreationOpportunities_01/MapServer/0?f=pjson",
+        (layer) =>
+          (layer.drawingInfo?.renderer?.uniqueValueInfos ?? []).map(({ value, label, symbol }) => ({
+            value,
+            label,
+            symbol: symbol && { contentType: symbol.contentType, imageData: symbol.imageData },
+          })),
       )
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(`Forest Service symbol request failed (${response.status}).`);
-          }
-          const layer = await response.json();
-          if (layer.error) {
-            throw new Error(layer.error.message || "Forest Service symbol data is unavailable.");
-          }
-          return layer.drawingInfo?.renderer?.uniqueValueInfos ?? [];
-        })
         .catch((error) => {
           console.error("Could not load Forest Service recreation-site symbols.", error);
           usfsSymbolRendererPromise = undefined;
@@ -1740,6 +1737,35 @@
       (info) => info.label === label,
     )?.symbol;
     return rendererSymbolImage(symbol);
+  }
+
+  // Fetches a small service response (symbols, legends) and keeps the useful part on this
+  // device, so icons and legends still appear when there is no connection.
+  async function rememberedJson(url, pick) {
+    const key = `campgroundless.service-cache.v1:${url}`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status}).`);
+      }
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || "The service returned an error.");
+      }
+      const value = pick(data);
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // Storage full: the response still works for this session.
+      }
+      return value;
+    } catch (error) {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+      throw error;
+    }
   }
 
   async function queryArcGisFeatures(layerUrl, {
@@ -3794,12 +3820,14 @@
     });
   }
 
-  // Same-origin icons are fetched once while online so the service worker keeps them.
+  // Icons and logos are fetched once while online so the service worker keeps them,
+  // and the Forest Service site symbols are saved on this device.
   function warmOfflineAssets() {
     const urls = Object.values(blmRecreationTypes)
       .filter((type) => type.npsIcon)
       .map((type) => `icons/nps/${type.npsIcon}.svg`);
-    urls.forEach((url) => fetch(url).catch(() => {}));
+    [...urls, ...Object.values(managerLogos)].forEach((url) => fetch(url).catch(() => {}));
+    usfsSymbolRendererInfos();
   }
 
   async function downloadOfflinePack({ id, name, bounds, maxZoom, basemap, layers, refresh = false }) {

@@ -1,6 +1,6 @@
 // App shell for offline use. Map data is never cached here: saved offline
 // areas live in their own cache and IndexedDB, managed by offline.js.
-const SHELL_CACHE = "campgroundless-shell-v7";
+const SHELL_CACHE = "campgroundless-shell-v8";
 const PAGES = ["./", "./index.html", "./settings.html"];
 const EXTRAS = [
   "./manifest.webmanifest",
@@ -13,6 +13,12 @@ const EXTRAS = [
   "./vendor/images/marker-icon.png",
   "./vendor/images/marker-icon-2x.png",
   "./vendor/images/marker-shadow.png",
+  "./logos/blm.svg",
+  "./logos/fws.svg",
+  "./logos/nps.png",
+  "./logos/usace.svg",
+  "./logos/usbr.png",
+  "./logos/usfs.svg",
 ];
 const NETWORK_TIMEOUT_MS = 4000;
 
@@ -94,7 +100,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   // Versioned files and icons never change at the same URL.
-  if (url.searchParams.has("v") || url.pathname.includes("/vendor/") || url.pathname.includes("/icons/")) {
+  if (url.searchParams.has("v") || url.pathname.includes("/vendor/") || url.pathname.includes("/icons/") || url.pathname.includes("/logos/")) {
     event.respondWith(
       caches.match(request).then(
         (hit) => hit || fetch(request).then((response) => store(request, response)),
