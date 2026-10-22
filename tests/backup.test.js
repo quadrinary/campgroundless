@@ -96,6 +96,8 @@ test("parse keeps known settings and valid entries only", () => {
   assert.equal(backup.includesApiKeys, false);
   assert.equal(backup.notes.length, 1);
   assert.equal("extra" in backup.notes[0], false);
+  const withDetails = Backup.parse(backupText({ notes: [note("d", "2026-01-01T00:00:00Z", { details: "<p>Saved</p>" })] }));
+  assert.equal(withDetails.notes[0].details, "<p>Saved</p>");
   assert.equal(backup.skippedNotes, 1);
   assert.equal(backup.recentSearches.length, 1);
 });

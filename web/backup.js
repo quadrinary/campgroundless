@@ -81,9 +81,12 @@
     return entry && typeof entry.term === "string" && entry.term.length <= 300 && typeof entry.at === "string";
   }
 
+  // Saved popup details are kept (the map cleans them again before showing them).
   function cleanNote(note) {
-    const { id, lat, lng, title, icon, body, createdAt, updatedAt } = note;
-    return { id, lat, lng, title, icon, body, createdAt, updatedAt };
+    const { id, lat, lng, title, icon, body, details, createdAt, updatedAt } = note;
+    const clean = { id, lat, lng, title, icon, body, createdAt, updatedAt };
+    if (typeof details === "string" && details.length <= 60000) clean.details = details;
+    return clean;
   }
 
   // Keeps only known settings and rejects endpoints that are not HTTPS.

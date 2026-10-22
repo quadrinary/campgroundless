@@ -223,6 +223,22 @@ for (const format of ["gpx", "kml", "geojson", "csv"]) {
   });
 }
 
+test("exports include a plain-text copy of saved popup details", async () => {
+  const { Places, read } = load();
+  const starred = [{
+    ...notes[0],
+    body: "",
+    details: '<div class="map-popup"><div class="map-popup-label">U.S. Forest Service recreation site</div><h3>Pine Flat</h3><p><strong>Season:</strong> May – Oct</p></div>',
+  }];
+  for (const format of ["gpx", "kml", "geojson", "csv"]) {
+    const file = Places.write(format, starred);
+    const result = await read(file.name, file.text);
+    assert.match(result.places[0].body, /U\.S\. Forest Service recreation site/, format);
+    assert.match(result.places[0].body, /Season: May – Oct/, format);
+    assert.doesNotMatch(result.places[0].body, /<|class=/, format);
+  }
+});
+
 test("CSV export guards cells that spreadsheets would run as formulas", () => {
   const { Places } = load();
   assert.match(Places.write("csv", notes).text, /,'=SUM\(1\),/);

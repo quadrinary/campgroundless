@@ -526,12 +526,18 @@
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
   }
 
+  // Exports carry the note text plus a plain-text copy of any saved popup details.
+  function description(note) {
+    const details = typeof note.details === "string" ? plainText(note.details) : "";
+    return [note.body, details].filter(Boolean).join("\n\n");
+  }
+
   function toGpx(notes, now = new Date()) {
     const points = notes.map(
       (note) => `  <wpt lat="${note.lat}" lon="${note.lng}">
     <time>${xml(note.createdAt)}</time>
     <name>${xml(note.title)}</name>
-    <desc>${xml(note.body)}</desc>
+    <desc>${xml(description(note))}</desc>
     <sym>${xml(iconSymbols[note.icon] ?? iconSymbols[DEFAULT_ICON])}</sym>
     <type>${xml(note.icon)}</type>
   </wpt>`,
@@ -551,7 +557,7 @@ ${points.join("\n")}
     const placemarks = notes.map(
       (note) => `    <Placemark>
       <name>${xml(note.title)}</name>
-      <description>${xml(note.body)}</description>
+      <description>${xml(description(note))}</description>
       <TimeStamp><when>${xml(note.createdAt)}</when></TimeStamp>
       <ExtendedData><Data name="icon"><value>${xml(note.icon)}</value></Data></ExtendedData>
       <Point><coordinates>${note.lng},${note.lat}</coordinates></Point>
@@ -576,7 +582,7 @@ ${placemarks.join("\n")}
           geometry: { type: "Point", coordinates: [note.lng, note.lat] },
           properties: {
             name: note.title,
-            description: note.body,
+            description: description(note),
             icon: note.icon,
             "marker-symbol": iconSymbols[note.icon] ?? iconSymbols[DEFAULT_ICON],
             createdAt: note.createdAt,
@@ -598,7 +604,7 @@ ${placemarks.join("\n")}
 
   function toCsv(notes) {
     const rows = [["name", "latitude", "longitude", "description", "icon", "created", "updated"]];
-    notes.forEach((note) => rows.push([note.title, note.lat, note.lng, note.body, note.icon, note.createdAt, note.updatedAt]));
+    notes.forEach((note) => rows.push([note.title, note.lat, note.lng, description(note), note.icon, note.createdAt, note.updatedAt]));
     return `${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
   }
 

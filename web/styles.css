@@ -1161,6 +1161,53 @@ h1 em {
   fill: currentColor;
 }
 
+.site-popup-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.site-save-star-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.site-save-star-button.is-saved {
+  border-color: #b8862f;
+  background: #fbf0d6;
+  color: #9a6a12;
+}
+
+.site-save-star-button.is-saved svg {
+  fill: #e0a526;
+  stroke: #9a6a12;
+}
+
+.saved-details {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid #d5ddd3;
+  border-radius: 8px;
+  background: #f7f9f5;
+}
+
+.saved-details-caption {
+  margin-bottom: 6px;
+  color: #5d6b60;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.saved-details .map-popup p {
+  font-size: 12px;
+}
+
+.saved-details .map-popup h3 {
+  font-size: 16px;
+}
+
 .map-popup h3 {
   margin: 0 0 7px;
   font-family: "DM Serif Display", Georgia, serif;
