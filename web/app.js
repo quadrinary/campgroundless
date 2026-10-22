@@ -490,7 +490,7 @@
     const styleSeparator = L.DomUtil.create("hr", "map-layer-separator", styleSection);
     styleSeparator.setAttribute("aria-hidden", "true");
     const styleHeading = L.DomUtil.create("strong", "map-layer-heading", styleSection);
-    styleHeading.textContent = "Map Style";
+    styleHeading.textContent = "Basemaps";
 
     const options = [
       ["vector", "Vector streets (crisp text)"],
@@ -936,7 +936,8 @@
       panel.hidden = !panel.hidden;
       button.setAttribute("aria-expanded", String(!panel.hidden));
       if (!panel.hidden) {
-        panel.querySelector('input[type="radio"]:checked')?.focus();
+        panel.scrollTop = 0;
+        panel.querySelector("input")?.focus({ preventScroll: true });
       }
     });
     container.addEventListener("keydown", (event) => {
@@ -3544,12 +3545,7 @@
       if (radio) radio.checked = true;
       applyBasemapOption(option);
     },
-    setManagerLayer(name, on) {
-      const checkbox = document.querySelector(`input[name="manager"][value="${CSS.escape(name)}"]`);
-      if (!checkbox || checkbox.checked === Boolean(on)) return;
-      checkbox.checked = Boolean(on);
-      checkbox.dispatchEvent(new Event("change"));
-    },
+
     update(patch) {
       Object.assign(settings, patch);
       if ("typography" in patch) {

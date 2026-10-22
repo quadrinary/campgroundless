@@ -34,7 +34,6 @@ function recordingApi() {
   return {
     calls,
     setBasemap: (value) => calls.push(["setBasemap", value]),
-    setManagerLayer: (name, on) => calls.push(["setManagerLayer", name, on]),
     update: (patch) => {
       calls.push(["update", patch]);
       return true;
@@ -53,14 +52,12 @@ test("Map and Display controls apply to the live map", () => {
   const panel = loadPanel();
   const api = recordingApi();
   panel.applyControl("basemap", "osm:hot", api);
-  panel.applyControl("settingsLayer", { name: "blm", checked: false }, api);
   panel.applyControl("recreationSitesMinZoom", "13", api);
   panel.applyControl("theme", "dark", api);
   panel.applyControl("showLandDisclaimer", false, api);
   panel.applyControl("typography", { body: 14, search: 11, caption: 10 }, api);
   assert.deepEqual(JSON.parse(JSON.stringify(api.calls)), [
     ["setBasemap", "osm:hot"],
-    ["setManagerLayer", "blm", false],
     ["update", { recreationSitesMinZoom: 13 }],
     ["update", { theme: "dark" }],
     ["update", { showLandDisclaimer: false }],

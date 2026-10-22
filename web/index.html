@@ -216,14 +216,6 @@
                   </select>
                   <p class="offline-help">Tiles load directly from the provider. OpenStreetMap tiles follow the <a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noreferrer">tile usage policy</a>.</p>
                 </div>
-                <fieldset class="offline-card settings-card offline-fieldset">
-                  <legend class="note-field-label settings-legend">Land managers</legend>
-                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="forest" /><span class="filter-swatch swatch-forest" aria-hidden="true"></span><span>U.S. Forest Service</span></label>
-                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="blm" /><span class="filter-swatch swatch-blm" aria-hidden="true"></span><span>Bureau of Land Management</span></label>
-                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="state" /><span class="filter-swatch swatch-state" aria-hidden="true"></span><span>State public lands</span></label>
-                  <label class="offline-choice"><input type="checkbox" name="settingsLayer" value="other" /><span class="filter-swatch swatch-other" aria-hidden="true"></span><span>Other public lands</span></label>
-                  <p class="offline-help">Shows who manages the land, not whether camping is allowed.</p>
-                </fieldset>
                 <div class="offline-card settings-card">
                   <label class="note-field-label" for="settings-recreation-zoom">Show recreation sites from</label>
                   <select id="settings-recreation-zoom" class="note-text-field" name="recreationSitesMinZoom">
@@ -586,10 +578,10 @@
     <script src="./settings-store.js?v=18"></script>
     <script src="./sidebar.js?v=5"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./app.js?v=130"></script>
+    <script src="./app.js?v=131"></script>
     <script src="./backup.js?v=2"></script>
     <script src="./places.js?v=2"></script>
-    <script src="./settings.js?v=26"></script>
+    <script src="./settings.js?v=27"></script>
     <script>
       if ("serviceWorker" in navigator && !window.CampgroundlessNative?.isNative && (location.protocol === "https:" || location.hostname === "localhost")) {
         navigator.serviceWorker.register("./sw.js").catch(() => {});
