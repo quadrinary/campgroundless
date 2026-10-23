@@ -95,3 +95,36 @@ test("backups drop unknown source values", () => {
   assert.equal("dataSource" in backup.settings, false);
   assert.equal(backup.settings.placeSearchProvider, "photon");
 });
+
+test("land categories split the old state and other groups", () => {
+  const read = (saved) => load(["settings-store.js"], saved).window.CampgroundlessSettings.read();
+  const defaults = read().layers;
+  assert.ok(Object.values(defaults).every((on) => on === true));
+  // Settings saved before the split carry their state/other choice to every new category.
+  const migrated = read({ layers: { forest: true, blm: false, state: false, other: true } }).layers;
+  assert.equal(migrated.blm, false);
+  ["stateTrust", "stateParks", "stateWildlife", "state", "regional", "county", "city"].forEach((key) =>
+    assert.equal(migrated[key], false, key));
+  ["nps", "monuments", "fws", "usbr", "usace", "military", "doe", "otherFederal"].forEach((key) =>
+    assert.equal(migrated[key], true, key));
+  assert.equal("other" in migrated, false);
+  // New-format settings keep "state" as its own category.
+  const current = read({ layers: { state: false, stateTrust: true, nps: false } }).layers;
+  assert.equal(current.state, false);
+  assert.equal(current.stateTrust, true);
+  assert.equal(current.nps, false);
+  assert.equal(current.county, true);
+});
+
+test("every land category has a saved setting and known manager codes", () => {
+  const { window } = load(["settings-store.js"]);
+  const layerKeys = Object.keys(window.CampgroundlessSettings.defaults.layers).sort();
+  const app = source("app.js");
+  const categoryKeys = [...app.matchAll(/\{ key: "(\w+)", section: "(federal|state)"/g)].map((match) => match[1]).sort();
+  assert.deepEqual(categoryKeys, layerKeys);
+  const managerNames = app.slice(app.indexOf("const managerNames = {"), app.indexOf("// Agency logos"));
+  const codes = [...app.matchAll(/managers: \[([^\]]+)\]/g)]
+    .flatMap((match) => match[1].match(/"(\w+)"/g).map((code) => code.slice(1, -1)));
+  assert.ok(codes.includes("SLB"), "state trust lands are mapped");
+  codes.forEach((code) => assert.match(managerNames, new RegExp(`\\b${code}: "`), `${code} has a display name`));
+});

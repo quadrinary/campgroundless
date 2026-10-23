@@ -12,8 +12,21 @@
     layers: {
       forest: true,
       blm: true,
+      nps: true,
+      monuments: true,
+      fws: true,
+      usbr: true,
+      usace: true,
+      military: true,
+      doe: true,
+      otherFederal: true,
+      stateTrust: true,
+      stateParks: true,
+      stateWildlife: true,
       state: true,
-      other: true,
+      regional: true,
+      county: true,
+      city: true,
     },
     overlays: {
       fsRecreation: false,
@@ -85,6 +98,35 @@
     return value === "replace" ? "replace" : "close";
   }
 
+  // Before the category split, "state" covered every state and local manager and
+  // "other" covered every federal manager except USFS and BLM.
+  const legacyLayerGroups = {
+    state: ["stateTrust", "stateParks", "stateWildlife", "state", "regional", "county", "city"],
+    other: ["nps", "monuments", "fws", "usbr", "usace", "military", "doe", "otherFederal"],
+  };
+
+  function normalizeLayers(layers) {
+    if (!layers || typeof layers !== "object") {
+      return { ...defaults.layers };
+    }
+    const normalized = Object.fromEntries(
+      Object.keys(defaults.layers).map((name) => [name, layers[name] ?? defaults.layers[name]]),
+    );
+    if ("other" in layers) {
+      Object.entries(legacyLayerGroups).forEach(([legacy, names]) => {
+        if (layers[legacy] !== undefined) {
+          names.forEach((name) => {
+            normalized[name] = layers[legacy] !== false;
+          });
+        }
+      });
+    }
+    Object.keys(normalized).forEach((name) => {
+      normalized[name] = normalized[name] !== false;
+    });
+    return normalized;
+  }
+
   function normalizeOverlays(overlays = {}) {
     if (!overlays || typeof overlays !== "object") {
       overlays = {};
@@ -123,7 +165,7 @@
         ...saved,
         dataSource: normalizeDataSource(saved.dataSource),
         placeSearchProvider: normalizePlaceSearchProvider(saved.placeSearchProvider, saved.placeSearchUrl),
-        layers: { ...defaults.layers, ...(saved.layers ?? {}) },
+        layers: normalizeLayers(saved.layers),
         overlays: normalizeOverlays(saved.overlays),
         recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
           saved.recreationSitesMinZoom,
@@ -148,6 +190,7 @@
         ...settings,
         dataSource: normalizeDataSource(settings.dataSource),
         placeSearchProvider: normalizePlaceSearchProvider(settings.placeSearchProvider, settings.placeSearchUrl),
+        layers: normalizeLayers(settings.layers),
         overlays: normalizeOverlays(settings.overlays),
         recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
           settings.recreationSitesMinZoom,
@@ -208,6 +251,7 @@
     storageKey,
     defaults,
     dataSources,
+    normalizeLayers,
     placeSearchProviders,
     read,
     write,
