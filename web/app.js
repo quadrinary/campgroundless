@@ -3871,18 +3871,28 @@
   // On open, center on the current position unless a shared note link chose the view.
   // Skipped if the user starts moving the map or searching before the position arrives.
   let startupLocating = !sharedNote && Boolean(navigator.geolocation);
+  const startupLocateMs = 45000;
+  let startupLocateTimer = null;
   const cancelStartupLocate = () => {
+    if (!startupLocating) {
+      return;
+    }
     startupLocating = false;
+    window.clearTimeout(startupLocateTimer);
+    map.stopLocate();
   };
   if (startupLocating) {
     map.getContainer().addEventListener("pointerdown", cancelStartupLocate, { once: true });
     map.getContainer().addEventListener("wheel", cancelStartupLocate, { once: true });
     searchInput.addEventListener("focus", cancelStartupLocate, { once: true });
-    map.locate({ setView: false, timeout: 15000, maximumAge: 5 * 60 * 1000 });
+    // A watch keeps trying through transient errors; the iPhone location service
+    // often reports one on a cold GPS start, which would end a single request.
+    map.locate({ watch: true, setView: false, timeout: startupLocateMs, maximumAge: 5 * 60 * 1000 });
+    startupLocateTimer = window.setTimeout(cancelStartupLocate, startupLocateMs);
   }
 
   document.getElementById("locate-button").addEventListener("click", () => {
-    startupLocating = false;
+    cancelStartupLocate();
     // GPS still works without a data connection; Wi-Fi/cell positioning may not.
     map.locate({ setView: true, maxZoom: offlineState.active ? 14 : 10, enableHighAccuracy: offlineState.active });
   });
@@ -3890,7 +3900,7 @@
   let locationMarker = null;
   map.on("locationfound", (event) => {
     if (startupLocating) {
-      startupLocating = false;
+      cancelStartupLocate();
       // Positions far outside the mapped states keep the default overview.
       if (map.options.maxBounds.contains(event.latlng)) {
         map.setView(event.latlng, offlineState.active ? 14 : 10);
@@ -3910,10 +3920,12 @@
       .bindPopup(nativeApp.isNative ? "Your location (only visible on this device)" : "Your location (only visible in this browser)");
   });
 
-  map.on("locationerror", () => {
-    // A denied or slow position on open is not an error the user asked about.
+  map.on("locationerror", (event) => {
+    // Errors on open are not something the user asked about; keep waiting unless denied.
     if (startupLocating) {
-      startupLocating = false;
+      if (event.code === 1) {
+        cancelStartupLocate();
+      }
       return;
     }
     searchMessage.textContent = nativeApp.isNative
