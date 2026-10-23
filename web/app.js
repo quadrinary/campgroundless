@@ -3881,6 +3881,13 @@
     window.clearTimeout(startupLocateTimer);
     map.stopLocate();
   };
+  if (nativeApp.isNative) {
+    console.info(
+      `Campgroundless web build ${document.querySelector('script[src*="app.js"]')?.getAttribute("src")} · startup location: ${
+        startupLocating ? "requested" : `skipped (geolocation: ${typeof navigator.geolocation}, shared note: ${Boolean(sharedNote)})`
+      } · native Geolocation plugin: ${Boolean(window.Capacitor?.Plugins?.Geolocation)}`,
+    );
+  }
   if (startupLocating) {
     map.getContainer().addEventListener("pointerdown", cancelStartupLocate, { once: true });
     map.getContainer().addEventListener("wheel", cancelStartupLocate, { once: true });
@@ -3888,9 +3895,6 @@
     // A watch keeps trying through transient errors; the iPhone location service
     // often reports one on a cold GPS start, which would end a single request.
     map.locate({ watch: true, setView: false, timeout: startupLocateMs, maximumAge: 5 * 60 * 1000 });
-    if (nativeApp.isNative) {
-      console.info("Startup location: requested");
-    }
     startupLocateTimer = window.setTimeout(cancelStartupLocate, startupLocateMs);
   }
 
