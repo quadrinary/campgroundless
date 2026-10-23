@@ -128,3 +128,15 @@ test("every land category has a saved setting and known manager codes", () => {
   assert.ok(codes.includes("SLB"), "state trust lands are mapped");
   codes.forEach((code) => assert.match(managerNames, new RegExp(`\\b${code}: "`), `${code} has a display name`));
 });
+
+test("every agency logo is bundled and cached for offline use", () => {
+  const app = source("app.js");
+  const block = app.slice(app.indexOf("const managerLogos = {"), app.indexOf("};", app.indexOf("const managerLogos = {")));
+  const logos = [...block.matchAll(/(\w+): "(logos\/[\w.]+)"/g)].map((match) => [match[1], match[2]]);
+  assert.ok(logos.some(([code]) => code === "DOE"), "Department of Energy has a logo");
+  const sw = source("sw.js");
+  logos.forEach(([code, file]) => {
+    assert.ok(fs.existsSync(path.join(webDir, file)), `${code} logo file exists`);
+    assert.ok(sw.includes(`"./${file}"`), `${code} logo is precached`);
+  });
+});
