@@ -120,10 +120,12 @@
   }
 
   // Routes Leaflet's navigator.geolocation calls through the native location
-  // service so iOS shows one app-level permission prompt.
+  // service so iOS shows one app-level permission prompt. Installed even when the
+  // web view has no navigator.geolocation of its own (it is withheld from the
+  // app's capacitor:// pages on some iOS versions).
   function installGeolocation() {
     const geolocation = plugin("Geolocation");
-    if (!geolocation || !navigator.geolocation) {
+    if (!geolocation) {
       return;
     }
     const toError = (error) => {
@@ -177,7 +179,9 @@
     try {
       Object.defineProperty(navigator, "geolocation", { configurable: true, value: shim });
     } catch {
-      Object.assign(navigator.geolocation, shim);
+      if (navigator.geolocation) {
+        Object.assign(navigator.geolocation, shim);
+      }
     }
   }
 
