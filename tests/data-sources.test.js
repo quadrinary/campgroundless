@@ -49,10 +49,10 @@ test("place search requests target the chosen provider", () => {
   const nominatim = search.buildRequest("nominatim", "https://ignored.example.com/", "Moab");
   assert.equal(nominatim.origin, "https://nominatim.openstreetmap.org");
   assert.equal(nominatim.searchParams.get("format"), "jsonv2");
-  assert.equal(nominatim.searchParams.get("viewbox"), "-124.8,49.1,-93.5,25.8");
+  assert.equal(nominatim.searchParams.get("viewbox"), "-180,71.6,-93.5,18.8");
   const photon = search.buildRequest("photon", "", "Moab");
   assert.equal(photon.origin + photon.pathname, "https://photon.komoot.io/api/");
-  assert.equal(photon.searchParams.get("bbox"), "-124.8,25.8,-93.5,49.1");
+  assert.equal(photon.searchParams.get("bbox"), "-180,18.8,-93.5,71.6");
   const custom = search.buildRequest("custom", "https://geo.example.com/search", "Moab");
   assert.equal(custom.host, "geo.example.com");
 });
@@ -175,6 +175,34 @@ function loadStateLandIcons() {
   vm.runInContext(code, context);
   return context;
 }
+
+test("coverage regions include Alaska and Hawaii but not the gaps between them", () => {
+  const app = source("app.js");
+  const from = app.indexOf("  const coverageStates = [");
+  const code = app.slice(from, app.indexOf("  const landSources", from));
+  const box = (south, west, north, east) => ({
+    contains: ([lat, lng]) => lat >= south && lat <= north && lng >= west && lng <= east,
+  });
+  const L = { latLngBounds: ([south, west], [north, east]) => box(south, west, north, east) };
+  const context = vm.createContext({ L });
+  // The union bounds are only used for panning limits; stub them out.
+  vm.runInContext(
+    `${code.slice(0, code.indexOf("  const coverageBounds"))}; this.regions = coverageRegions; this.states = coverageStates; this.list = coverageStateList;`,
+    context,
+  );
+  const inCoverage = (lat, lng) => context.regions.some((region) => region.bounds.contains([lat, lng]));
+  assert.ok(inCoverage(61.22, -149.9), "Anchorage");
+  assert.ok(inCoverage(58.3, -134.4), "Juneau");
+  assert.ok(inCoverage(19.6, -155.5), "Hawaii Island");
+  assert.ok(inCoverage(22.05, -159.5), "Kauai");
+  assert.ok(inCoverage(38.57, -109.55), "Moab");
+  assert.ok(!inCoverage(50, -140), "open Pacific between Alaska and the lower 48");
+  assert.ok(!inCoverage(53, -125), "British Columbia");
+  assert.equal(context.states.slice(-2).map((state) => state.abbreviation).join(), "AK,HI");
+  assert.match(context.list("or"), /New Mexico, Texas, Alaska, or Hawaii$/);
+  const html = source("index.html");
+  context.regions.forEach((region) => assert.match(html, new RegExp(`id="region-${region.key}"`), `${region.key} button`));
+});
 
 test("state and local land get a project-drawn state icon", () => {
   const { icon, coverageStates, landCategories, window } = loadStateLandIcons();

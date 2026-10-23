@@ -14,11 +14,11 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
-      content="Explore public-land boundaries in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
+      content="Explore public-land boundaries in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, Texas, Alaska, and Hawaii for trip planning. Always verify camping permission, closures, and fire restrictions with the land manager."
     />
     <script>(function(){var m="auto";try{m=JSON.parse(localStorage.getItem("campgroundless.settings.v1")||"{}").theme||"auto"}catch(e){}var d=m==="dark"||(m!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.write('<meta name="theme-color" content="'+(d?"#1d1e1a":"#f5f4ef")+'">')})()</script>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Campgroundless — Western &amp; Southwestern U.S. public lands map</title>
+    <title>Campgroundless — Western U.S., Alaska &amp; Hawaii public lands map</title>
     <link rel="preconnect" href="https://services.arcgis.com" />
     <link rel="preconnect" href="https://server.arcgisonline.com" />
     <link rel="preconnect" href="https://apps.fs.usda.gov" />
@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=30" />
-    <link rel="stylesheet" href="./shell.css?v=15" />
+    <link rel="stylesheet" href="./shell.css?v=16" />
     <link rel="stylesheet" href="./theme.css?v=20" />
   </head>
   <body class="app-body">
@@ -451,7 +451,7 @@
           </div>
 
           <div class="view" id="view-about" data-title="About this map" hidden>
-            <p class="eyebrow">10 WESTERN STATES · EARLY ACCESS</p>
+            <p class="eyebrow">12 WESTERN STATES · EARLY ACCESS</p>
             <p class="view-lead">
               A field guide to public-land boundaries that can help you start planning a dispersed-camping trip.
               <strong>Land ownership is not permission to camp.</strong>
@@ -466,7 +466,7 @@
             <span class="data-badge">BOUNDARIES ≠ PERMISSION</span>
             <div class="data-copy">
               <p>
-                The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas. It excludes private records and overlapping designation-only records. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
+                The default source filters the <strong>Fee</strong> land records in the USGS Protected Areas Database of the United States (PAD-US) 3.0 for selected federal, state, and local public managers in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, Texas, Alaska, and Hawaii. It excludes private records and overlapping designation-only records. In Alaska, Native corporation and tribal lands are private and are not shown as public land, and much BLM land is selected for conveyance to the State or Native corporations; in Hawaii, camping on state and county land generally requires a permit. The live ArcGIS layer is hosted outside USGS and reproduces this older PAD-US release.
               </p>
               <p>
                 PAD-US is a national inventory assembled from agency and partner data, not a real-time closure or camping-permission feed. Coverage and update dates vary by source and state. Its boundaries are generalized and may overlap or be incomplete.
@@ -475,7 +475,7 @@
                 <strong>Do not use this map to decide whether a specific campsite is legal or open.</strong> Contact the managing office and check current restrictions, access, fire rules, and conditions. A missing boundary does not prove land is private or unavailable.
               </p>
               <p>
-                Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
+                Optional Forest Service and BLM recreation-site overlays, Forest Service roads, trails, MVUM routes, BLM road datasets, and alternate imagery/topographic basemaps are reference layers only. Forest Service dynamic map services render within a rectangular view and may include nearby adjacent-state areas at the region edges; PAD-US and BLM layers are filtered to California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, Texas, Alaska, and Hawaii, and BLM recreation points are clipped to those state boundaries. Click any mapped Forest Service or BLM recreation-site symbol to see available site details; reported status and site type do not confirm current availability or permission to camp. Click a mapped USFS or BLM road to inspect its available route attributes, land record, coordinates, and distance to a named Census road. When the selected route matches connected Census road geometry, the popup gives a road-network distance; otherwise it says unavailable and keeps straight-line distance as a separate reference. Neither establishes camping permission or current road access/closures. Coverage and update timing vary. Verify with the responsible land manager.
               </p>
             </div>
             <div class="about-offline">
@@ -574,9 +574,14 @@
               <path d="M3.500 10a6.500 6.500 0 1 0 2-4.700M3.500 3v3.500H7"></path>
             </svg>
           </button>
+          <div class="map-region-jump" role="group" aria-label="Jump to region">
+            <button class="map-tool map-region-button" id="region-west" type="button" title="Lower 48 western states" aria-label="Show the lower 48 western states">L48</button>
+            <button class="map-tool map-region-button" id="region-alaska" type="button" title="Alaska" aria-label="Show Alaska">AK</button>
+            <button class="map-tool map-region-button" id="region-hawaii" type="button" title="Hawaii" aria-label="Show Hawaii">HI</button>
+          </div>
         </div>
 
-        <div id="map" role="application" aria-label="Interactive map of California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas public land boundaries">
+        <div id="map" role="application" aria-label="Interactive map of California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, Texas, Alaska, and Hawaii public land boundaries">
           <div class="map-loading" id="map-loading">
             <span class="loading-spinner" aria-hidden="true"></span>
             <span>Loading the map…</span>
@@ -598,9 +603,9 @@
     <script src="./settings-store.js?v=20"></script>
     <script src="./sidebar.js?v=5"></script>
     <script src="./offline.js?v=4"></script>
-    <script src="./place-search.js?v=1"></script>
-    <script src="./state-outlines.js?v=1"></script>
-    <script src="./app.js?v=144"></script>
+    <script src="./place-search.js?v=2"></script>
+    <script src="./state-outlines.js?v=2"></script>
+    <script src="./app.js?v=145"></script>
     <script src="./backup.js?v=3"></script>
     <script src="./places.js?v=2"></script>
     <script src="./settings.js?v=28"></script>

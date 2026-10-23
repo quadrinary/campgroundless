@@ -8,7 +8,14 @@ const path = require("node:path");
 const states = [
   ["06", "CA"], ["41", "OR"], ["53", "WA"], ["16", "ID"], ["32", "NV"],
   ["49", "UT"], ["04", "AZ"], ["08", "CO"], ["35", "NM"], ["48", "TX"],
+  ["02", "AK"], ["15", "HI"],
 ];
+// Half the Web Mercator world width, used to move Aleutian islands west of 180° next to Alaska.
+const mercatorHalfWorld = 20037508.34;
+// Hawaii's icon shows only the main islands, not the Northwestern Hawaiian Islands chain.
+const westLimit = { HI: (-161 * mercatorHalfWorld) / 180 };
+// Island chains have no interior large enough for the symbol, so it sits in open sea beside them.
+const symbolPlacement = { HI: { center: [24, 76], symbolSize: 46 } };
 const service = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0/query";
 const size = 100;
 // Rings smaller than this share of the state's largest ring (small islands) are left out.
@@ -77,9 +84,12 @@ async function main() {
   const outlines = {};
   data.features.forEach((feature) => {
     const code = codeByFips.get(String(feature.attributes.STATE).padStart(2, "0"));
-    const rings = feature.geometry.rings;
-    const largest = Math.max(...rings.map(ringArea));
-    const kept = rings.filter((ring) => ringArea(ring) >= largest * minRingShare);
+    const rings = feature.geometry.rings.map((ring) =>
+      ring.map(([x, y]) => [x > 0 ? x - 2 * mercatorHalfWorld : x, y]),
+    );
+    const inRange = rings.filter((ring) => !(code in westLimit) || ring.every(([x]) => x >= westLimit[code]));
+    const largest = Math.max(...inRange.map(ringArea));
+    const kept = inRange.filter((ring) => ringArea(ring) >= largest * minRingShare);
     const xs = kept.flat().map((point) => point[0]);
     const ys = kept.flat().map((point) => point[1]);
     const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
@@ -96,6 +106,7 @@ async function main() {
     outlines[code] = {
       path: scaled.map((points) => `M${points.map((point) => point.join(" ")).join("L")}Z`).join(""),
       center: symbolCenter(scaled),
+      ...symbolPlacement[code],
     };
   });
   const missing = states.map(([, code]) => code).filter((code) => !outlines[code]);
