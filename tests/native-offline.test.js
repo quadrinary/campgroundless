@@ -126,6 +126,20 @@ test("app routes geolocation through the native plugin", async () => {
   assert.equal(calls[0].enableHighAccuracy, true);
 });
 
+test("app provides geolocation even when the web view does not", async () => {
+  const geo = {
+    async getCurrentPosition() {
+      return { coords: { latitude: 38, longitude: -109, accuracy: 5 }, timestamp: 1 };
+    },
+  };
+  const context = makeContext({ native: true, plugins: { Geolocation: geo } });
+  assert.equal(typeof context.navigator.geolocation?.getCurrentPosition, "function");
+  const position = await new Promise((resolve, reject) =>
+    context.navigator.geolocation.getCurrentPosition(resolve, reject),
+  );
+  assert.equal(position.coords.latitude, 38);
+});
+
 test("app stores tiles as native files and reads them back", async () => {
   const filesystem = makeFilesystem();
   const context = makeContext({

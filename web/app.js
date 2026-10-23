@@ -3888,6 +3888,9 @@
     // A watch keeps trying through transient errors; the iPhone location service
     // often reports one on a cold GPS start, which would end a single request.
     map.locate({ watch: true, setView: false, timeout: startupLocateMs, maximumAge: 5 * 60 * 1000 });
+    if (nativeApp.isNative) {
+      console.info("Startup location: requested");
+    }
     startupLocateTimer = window.setTimeout(cancelStartupLocate, startupLocateMs);
   }
 
@@ -3901,6 +3904,9 @@
   map.on("locationfound", (event) => {
     if (startupLocating) {
       cancelStartupLocate();
+      if (nativeApp.isNative) {
+        console.info("Startup location: found");
+      }
       // Positions far outside the mapped states keep the default overview.
       if (map.options.maxBounds.contains(event.latlng)) {
         map.setView(event.latlng, offlineState.active ? 14 : 10);
@@ -3923,6 +3929,9 @@
   map.on("locationerror", (event) => {
     // Errors on open are not something the user asked about; keep waiting unless denied.
     if (startupLocating) {
+      if (nativeApp.isNative) {
+        console.info(`Startup location: error ${event.code} ${event.message}`);
+      }
       if (event.code === 1) {
         cancelStartupLocate();
       }
