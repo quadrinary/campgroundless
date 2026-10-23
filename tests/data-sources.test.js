@@ -181,3 +181,16 @@ test("state and local land get a project-drawn state icon", () => {
   assert.equal(icon("BLM", "CA"), "");
   assert.match(source("index.html"), /state-outlines\.js\?v=\d+"><\/script>\s*<script src="\.\/app\.js/);
 });
+
+test("monument labels drop the designation suffix from the name", () => {
+  const app = source("app.js");
+  const start = app.indexOf("  function monumentLabelText");
+  const end = app.indexOf("  function outerRings");
+  assert.ok(start > 0 && end > start);
+  const context = vm.createContext({});
+  vm.runInContext(`${app.slice(start, end)}; this.monumentLabelText = monumentLabelText;`, context);
+  assert.equal(context.monumentLabelText("Mojave Trails National Monument"), "Mojave Trails");
+  assert.equal(context.monumentLabelText("Sand to Snow National Monument"), "Sand to Snow");
+  assert.equal(context.monumentLabelText("Cesar E. Chavez"), "Cesar E. Chavez");
+  assert.equal(context.monumentLabelText(""), "National Monument");
+});

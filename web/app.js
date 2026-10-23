@@ -579,7 +579,7 @@
     });
     const managerHelp = L.DomUtil.create("p", "map-layer-help", panel);
     managerHelp.textContent =
-      "Colors show the mapped land manager, not permission to camp. Military and Energy lands are generally closed to the public.";
+      "Colors show the mapped land manager, not permission to camp. Dashed magenta outlines mark National Monuments, named inside the outline from zoom 7; the land inside keeps its manager's color. Military and Energy lands are generally closed to the public.";
     const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
     managerSeparator.setAttribute("aria-hidden", "true");
     const styleSection = document.createElement("div");
@@ -2232,6 +2232,148 @@
   });
   designationLayer.addTo(map);
 
+  // Monument outlines have no fill, so each visible monument is named inside its outline.
+  const designationLabelPane = map.createPane("designationLabels");
+  designationLabelPane.style.zIndex = "415";
+  designationLabelPane.style.pointerEvents = "none";
+  const monumentLabels = L.layerGroup().addTo(map);
+  const monumentLabelMinZoom = 7;
+  const monumentLabelMinPixels = 70;
+  let monumentLabelTimer = null;
+
+  function monumentLabelText(name) {
+    const short = String(name ?? "")
+      .replace(/\s+National Monument\b/i, "")
+      .trim();
+    return short || "National Monument";
+  }
+
+  function outerRings(latLngs) {
+    if (!Array.isArray(latLngs) || !latLngs.length) {
+      return [];
+    }
+    if (latLngs[0] instanceof L.LatLng) {
+      return [latLngs];
+    }
+    if (latLngs[0][0] instanceof L.LatLng) {
+      return latLngs;
+    }
+    return latLngs.flatMap(outerRings);
+  }
+
+  // A point well inside the polygon and the current view, so the label sits within the outline.
+  function monumentLabelPoint(layer, viewBounds) {
+    const rings = outerRings(layer.getLatLngs()).map((ring) =>
+      ring.map((latLng) => map.latLngToLayerPoint(latLng)));
+    const topLeft = map.latLngToLayerPoint(viewBounds.getNorthWest());
+    const bottomRight = map.latLngToLayerPoint(viewBounds.getSouthEast());
+    // Keep the label centre far enough from the screen edge that the whole label stays visible.
+    const view = L.bounds(topLeft.add([80, 24]), bottomRight.subtract([80, 24]));
+    const shape = L.bounds(rings.flat());
+    const minX = Math.max(view.min.x, shape.min.x);
+    const maxX = Math.min(view.max.x, shape.max.x);
+    const minY = Math.max(view.min.y, shape.min.y);
+    const maxY = Math.min(view.max.y, shape.max.y);
+    if (maxX - minX < monumentLabelMinPixels || maxY - minY < 24) {
+      return null;
+    }
+    const inside = (x, y) => {
+      let result = false;
+      rings.forEach((ring) => {
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          if (ring[i].y > y !== ring[j].y > y
+            && x < ((ring[j].x - ring[i].x) * (y - ring[i].y)) / (ring[j].y - ring[i].y) + ring[i].x) {
+            result = !result;
+          }
+        }
+      });
+      return result;
+    };
+    const edgeDistance = (x, y) => {
+      let best = Infinity;
+      rings.forEach((ring) => {
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const a = ring[j];
+          const b = ring[i];
+          const lengthSquared = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1;
+          const t = Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / lengthSquared));
+          best = Math.min(best, Math.hypot(x - (a.x + t * (b.x - a.x)), y - (a.y + t * (b.y - a.y))));
+        }
+      });
+      return best;
+    };
+    const steps = 12;
+    let best = null;
+    for (let column = 0; column <= steps; column += 1) {
+      for (let row = 0; row <= steps; row += 1) {
+        const x = minX + ((maxX - minX) * column) / steps;
+        const y = minY + ((maxY - minY) * row) / steps;
+        if (!inside(x, y)) {
+          continue;
+        }
+        const distance = Math.min(edgeDistance(x, y), x - view.min.x, view.max.x - x, y - view.min.y, view.max.y - y);
+        if (!best || distance > best.distance) {
+          best = { x, y, distance };
+        }
+      }
+    }
+    return best && best.distance >= 12 ? map.layerPointToLatLng([best.x, best.y]) : null;
+  }
+
+  function refreshMonumentLabels() {
+    monumentLabels.clearLayers();
+    const source = offlineState.active ? offlineState.designationLayer : designationLayer;
+    if (!source || !settings.layers.monuments || map.getZoom() < monumentLabelMinZoom) {
+      return;
+    }
+    const viewBounds = map.getBounds();
+    const largestByName = new Map();
+    const visit = (layer) => {
+      const properties = layer.feature?.properties;
+      if (properties?.Des_Tp !== "NM" || !map.hasLayer(layer) || typeof layer.getLatLngs !== "function") {
+        return;
+      }
+      const bounds = layer.getBounds();
+      if (!bounds.isValid() || !viewBounds.intersects(bounds)) {
+        return;
+      }
+      const name = properties.Unit_Nm || properties.Loc_Nm || "National Monument";
+      const size = (bounds.getNorth() - bounds.getSouth()) * (bounds.getEast() - bounds.getWest());
+      const current = largestByName.get(name);
+      if (!current || size > current.size) {
+        largestByName.set(name, { layer, size });
+      }
+    };
+    if (typeof source.eachFeature === "function") {
+      source.eachFeature(visit);
+    } else {
+      source.eachLayer(visit);
+    }
+    largestByName.forEach(({ layer }, name) => {
+      const point = monumentLabelPoint(layer, viewBounds);
+      if (!point) {
+        return;
+      }
+      L.marker(point, {
+        pane: "designationLabels",
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "designation-label",
+          iconSize: null,
+          html: `<span><span class="designation-label-name">${escapeHtml(monumentLabelText(name))}</span><span class="designation-label-type">National Monument</span></span>`,
+        }),
+      }).addTo(monumentLabels);
+    });
+  }
+
+  function scheduleMonumentLabels() {
+    clearTimeout(monumentLabelTimer);
+    monumentLabelTimer = setTimeout(refreshMonumentLabels, 150);
+  }
+  designationLayer.on("load", scheduleMonumentLabels);
+  map.on("moveend", scheduleMonumentLabels);
+
   const censusRoadService =
     "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer";
   const nearbyRoadSearchMeters = 10000;
@@ -3792,6 +3934,7 @@
       if (designationLayer.options.where !== designationWhere) {
         designationLayer.setWhere(designationWhere);
       }
+      scheduleMonumentLabels();
     }
     notifySettingsChange();
   }
@@ -4865,6 +5008,7 @@
         attribution: `${designationSource.attribution} (saved offline)`,
       },
     ).addTo(map);
+    scheduleMonumentLabels();
     const names = [...new Set(savedLandSources().map((source) => source.name))];
     dataSourceLabel.textContent = names.length ? `${names.join(" + ")} (saved offline)` : liveLandSourceLabel;
   }
@@ -4957,6 +5101,7 @@
       map.removeLayer(offlineState.designationLayer);
       offlineState.designationLayer = null;
     }
+    monumentLabels.clearLayers();
     if (offlineState.outlines) {
       map.removeLayer(offlineState.outlines);
       offlineState.outlines = null;
@@ -5099,6 +5244,7 @@
     if (designationLayer.options.where !== designationWhere) {
       designationLayer.setWhere(designationWhere);
     }
+    scheduleMonumentLabels();
     document.querySelectorAll('input[name="map-reference-overlay"]').forEach((checkbox) => {
       if (checkbox.checked) {
         checkbox.dispatchEvent(new Event("change"));
