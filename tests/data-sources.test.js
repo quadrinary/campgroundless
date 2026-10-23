@@ -140,3 +140,44 @@ test("every agency logo is bundled and cached for offline use", () => {
     assert.ok(sw.includes(`"./${file}"`), `${code} logo is precached`);
   });
 });
+
+function loadStateLandIcons() {
+  const app = source("app.js");
+  const grab = (start, end) => {
+    const from = app.indexOf(start);
+    return app.slice(from, app.indexOf(end, from));
+  };
+  const code = [
+    grab("  const coverageStates = [", "  const coverageStateCodes"),
+    grab("  const landCategories = [", "  const landCategorySections"),
+    grab("  const stateLandSymbols", "  const blmRecreationTypes"),
+    "function escapeHtml(value) { return String(value); }",
+    "this.icon = stateLandIconMarkup; this.coverageStates = coverageStates; this.landCategories = landCategories;",
+  ].join("\n");
+  const context = vm.createContext({ window: {} });
+  vm.runInContext(source("state-outlines.js"), context);
+  vm.runInContext(code, context);
+  return context;
+}
+
+test("state and local land get a project-drawn state icon", () => {
+  const { icon, coverageStates, landCategories, window } = loadStateLandIcons();
+  coverageStates.forEach(({ abbreviation }) =>
+    assert.ok(window.CampgroundlessStateOutlines[abbreviation]?.path, `${abbreviation} has an outline`));
+  landCategories
+    .filter((category) => category.section === "state")
+    .forEach((category) => {
+      category.managers.forEach((manager) => {
+        const markup = icon(manager, "CA");
+        assert.match(markup, /class="state-land-outline" d="M/, `${manager} uses the state outline`);
+        assert.match(markup, /aria-label="California /, `${manager} has a label`);
+        assert.match(markup, new RegExp(`fill="${category.color}"`), `${manager} uses its map color`);
+      });
+    });
+  // An unknown state still shows the category symbol in a plain badge.
+  assert.match(icon("SPR", "ZZ"), /<rect class="state-land-outline"/);
+  assert.match(icon("CNTY", undefined), /aria-label="county icon"/);
+  // Federal managers keep their own logos.
+  assert.equal(icon("BLM", "CA"), "");
+  assert.match(source("index.html"), /state-outlines\.js\?v=\d+"><\/script>\s*<script src="\.\/app\.js/);
+});
