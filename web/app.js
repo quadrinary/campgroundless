@@ -2001,6 +2001,31 @@
     dataSourceLabel.textContent = landSource.name;
     sourceLayerNote.textContent = landSource.note;
   }
+  const liveLandSourceLabel = dataSourceLabel.textContent;
+  // Recorded with each offline download so saved boundaries keep their own credit.
+  function currentLandSourceRecord() {
+    if (settings.dataSource === "custom" && settings.dataUrl) {
+      return {
+        id: "custom",
+        name: "Custom ArcGIS Feature Layer",
+        attribution: settings.dataAttribution || "Land data: custom ArcGIS Feature Layer",
+      };
+    }
+    const id = landSources[settings.dataSource] ? settings.dataSource : "padus";
+    return { id, name: landSource.name, attribution: landSource.attribution };
+  }
+  // Areas saved before sources were recorded all came from the PAD-US 3.0 layer (or a custom layer).
+  const legacyPackLandSource = {
+    id: "padus3",
+    name: "USGS PAD-US 3.0",
+    attribution: "Land data: USGS GAP, PAD-US 3.0",
+  };
+  function packLandSource(pack) {
+    const source = pack?.landSource;
+    return source && typeof source.name === "string" && typeof source.attribution === "string"
+      ? source
+      : legacyPackLandSource;
+  }
   const landLayerOptions = {
     url: dataSourceUrl,
     where: buildWhere(),
@@ -4241,6 +4266,7 @@
       maxZoom,
       basemap,
       layers,
+      landSource: currentLandSourceRecord(),
       createdAt: new Date().toISOString(),
       tileLayers: Object.fromEntries(
         plan.jobs.map((job) => [job.layer, { minZoom: job.minZoom, maxZoom: job.maxZoom }]),
@@ -4497,6 +4523,15 @@
       }));
   }
 
+  function savedLandSources() {
+    const sources = new Map();
+    offlineState.packs
+      .filter((pack) => pack.featureCounts?.land !== undefined)
+      .map(packLandSource)
+      .forEach((source) => sources.set(`${source.name}|${source.attribution}`, source));
+    return [...sources.values()];
+  }
+
   async function renderOfflineData() {
     const sequence = ++offlineState.renderSequence;
     const features = await combinedPackData("land");
@@ -4521,11 +4556,13 @@
         renderer: offlineLandRenderer,
         style: featureStyle,
         onEachFeature: createPopup,
-        attribution: `${landLayerOptions.attribution} (saved offline)`,
+        attribution: `${savedLandSources().map((source) => escapeHtml(source.attribution)).join("; ")} (saved offline)`,
       },
     );
     offlineState.landLayer.on("click", handleLandFeatureClick);
     offlineState.landLayer.addTo(map);
+    const names = [...new Set(savedLandSources().map((source) => source.name))];
+    dataSourceLabel.textContent = names.length ? `${names.join(" + ")} (saved offline)` : liveLandSourceLabel;
   }
 
   async function buildOfflineOverlay(key, definition) {
@@ -4740,6 +4777,7 @@
     stopConnectionProbe();
     map.closePopup();
     removeOfflineLayers();
+    dataSourceLabel.textContent = liveLandSourceLabel;
     basemapLayer = createBasemap().addTo(map);
     basemapLayer.bringToBack?.();
     landLayer.addTo(map);
@@ -4938,6 +4976,7 @@
       `Saved ${formatPackDate(pack.createdAt)}`,
       pack.complete === false ? null : offlineApi.formatBytes(pack.bytes),
       offlineApi.basemaps[pack.basemap]?.label,
+      pack.featureCounts?.land !== undefined ? packLandSource(pack).name : null,
       `detail zoom ${pack.maxZoom}`,
       pack.complete === false && pack.parts > 1 ? `${pack.partsDone ?? 0} of ${pack.parts} parts done` : null,
     ].filter(Boolean).join(" · ");
