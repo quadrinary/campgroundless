@@ -18,17 +18,28 @@
     { abbreviation: "CO", fips: "08", name: "Colorado" },
     { abbreviation: "NM", fips: "35", name: "New Mexico" },
     { abbreviation: "TX", fips: "48", name: "Texas" },
+    { abbreviation: "AK", fips: "02", name: "Alaska" },
+    { abbreviation: "HI", fips: "15", name: "Hawaii" },
   ];
+  const coverageStateNames = coverageStates.map((state) => state.name);
+  const coverageStateList = (conjunction) =>
+    `${coverageStateNames.slice(0, -1).join(", ")}, ${conjunction} ${coverageStateNames.at(-1)}`;
   const coverageStateCodes = coverageStates
     .map((state) => `'${state.abbreviation}'`)
     .join(",");
   const coverageStateFips = coverageStates
     .map((state) => `'${state.fips}'`)
     .join(",");
-  const coverageBounds = L.latLngBounds(
-    [25.8, -124.8],
-    [49.1, -93.5],
-  );
+  // Alaska stops at 180°: the Near and Rat Islands west of it are outside the map.
+  const coverageRegions = [
+    { key: "west", label: "Lower 48 western states", short: "L48", bounds: L.latLngBounds([25.8, -124.8], [49.1, -93.5]) },
+    { key: "alaska", label: "Alaska", short: "AK", bounds: L.latLngBounds([51.2, -180], [71.6, -129.9]) },
+    { key: "hawaii", label: "Hawaii", short: "HI", bounds: L.latLngBounds([18.8, -160.4], [22.4, -154.6]) },
+  ];
+  const homeBounds = coverageRegions[0].bounds;
+  const coverageBounds = coverageRegions
+    .slice(1)
+    .reduce((union, region) => L.latLngBounds(union.getSouthWest(), union.getNorthEast()).extend(region.bounds), homeBounds);
   const landSources = {
     padus: {
       name: "USGS PAD-US 4.1",
@@ -173,7 +184,7 @@
       ? `<path class="state-land-outline" d="${outline.path}" fill="${category.color}"/>`
       : `<rect class="state-land-outline" x="4" y="4" width="92" height="92" rx="22" fill="${category.color}"/>`;
     const [centerX, centerY] = outline?.center ?? [50, 50];
-    const symbolSize = outline ? 58 : 72;
+    const symbolSize = outline ? (outline.symbolSize ?? 58) : 72;
     const x = Math.min(100 - symbolSize / 2, Math.max(symbolSize / 2, centerX)) - symbolSize / 2;
     const y = Math.min(100 - symbolSize / 2, Math.max(symbolSize / 2, centerY)) - symbolSize / 2;
     return `<svg class="mapped-land-logo state-land-icon" viewBox="-4 -4 108 108" role="img" aria-label="${escapeHtml(label)}">${shape}<circle class="state-land-symbol-disc" cx="${x + symbolSize / 2}" cy="${y + symbolSize / 2}" r="${symbolSize / 2}"/><path class="state-land-symbol" fill-rule="evenodd" transform="translate(${x + symbolSize * 0.18} ${y + symbolSize * 0.18}) scale(${(symbolSize * 0.64) / 24})" d="${symbol}"/></svg>`;
@@ -275,9 +286,9 @@
     zoomControl: false,
     minZoom: 5,
     maxZoom: 18,
-    maxBounds: coverageBounds.pad(0.6),
+    maxBounds: coverageBounds.pad(0.15),
     maxBoundsViscosity: 0.7,
-  }).fitBounds(coverageBounds);
+  }).fitBounds(homeBounds);
   const usfsRecreationPane = map.createPane("usfsRecreationSites");
   usfsRecreationPane.style.zIndex = "420";
   usfsRecreationPane.style.pointerEvents = "auto";
@@ -287,7 +298,7 @@
   const coverageBoundaryPromise = queryArcGisFeatures(`${censusStateService}/0`, {
     where: `STATE IN (${coverageStateFips})`,
     outFields: "STATE",
-    resultRecordCount: 10,
+    resultRecordCount: coverageStates.length,
   }).then((data) => {
     const statesByFips = new Map(
       (data.features ?? []).map((feature) => [
@@ -1777,7 +1788,7 @@
   function openNoteEditor(location, note = null, prefill = null) {
     if (!isWithinCoverage([location.lng, location.lat])) {
       selectedNoteLocation = null;
-      setNoteMessage("Choose a point within California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, or Texas to save a note.", true);
+      setNoteMessage(`Choose a point within ${coverageStateList("or")} to save a note.`, true);
       return;
     }
     selectedNoteLocation = location;
@@ -2849,7 +2860,7 @@
   }
 
   function isWithinCoverage(point) {
-    if (!coverageBounds.contains([point[1], point[0]])) {
+    if (!coverageRegions.some((region) => region.bounds.contains([point[1], point[0]]))) {
       return false;
     }
     return (
@@ -4274,7 +4285,7 @@
     });
     searchResults.hidden = validPlaces.length === 0;
     if (validPlaces.length === 0) {
-      searchMessage.textContent = "No matching places found in California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, or Texas. Try another name or spelling.";
+      searchMessage.textContent = `No matching places found in ${coverageStateList("or")}. Try another name or spelling.`;
       return;
     }
     searchMessage.textContent = `${validPlaces.length} place results found. Choose one to show it on the map.`;
@@ -4410,7 +4421,7 @@
     placeSearchInProgress = true;
     searchSubmit.disabled = true;
     searchSubmit.textContent = "…";
-    searchMessage.textContent = "Searching California, Oregon, Washington, Idaho, Nevada, Utah, Arizona, Colorado, New Mexico, and Texas…";
+    searchMessage.textContent = `Searching ${coverageStateList("and")}…`;
     try {
       await searchPlaces(term);
     } catch (error) {
@@ -4494,7 +4505,7 @@
         console.info("Startup location: found");
       }
       // Positions far outside the mapped states keep the default overview.
-      if (map.options.maxBounds.contains(event.latlng)) {
+      if (coverageRegions.some((region) => region.bounds.pad(0.2).contains(event.latlng))) {
         map.setView(event.latlng, offlineState.active ? 14 : 10);
       }
     } else {
@@ -4528,8 +4539,14 @@
       : "Location access was unavailable. Check your browser permission and try again.";
   });
 
+  coverageRegions.forEach((region) => {
+    document.getElementById(`region-${region.key}`)?.addEventListener("click", () => {
+      map.fitBounds(region.bounds);
+    });
+  });
+
   document.getElementById("reset-button").addEventListener("click", () => {
-    map.fitBounds(coverageBounds);
+    map.fitBounds(homeBounds);
     searchInput.value = "";
     clearSearchResults();
     searchMessage.textContent = defaultSearchMessage;

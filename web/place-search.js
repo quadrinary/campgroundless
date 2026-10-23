@@ -7,8 +7,8 @@
     nominatim: "https://nominatim.openstreetmap.org/search",
     photon: "https://photon.komoot.io/api/",
   };
-  // Western US bounds: west, south, east, north.
-  const bounds = [-124.8, 25.8, -93.5, 49.1];
+  // Western US, Alaska, and Hawaii bounds: west, south, east, north.
+  const bounds = [-180, 18.8, -93.5, 71.6];
 
   function buildRequest(provider, customUrl, term) {
     if (provider === "photon") {
