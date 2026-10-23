@@ -2139,6 +2139,7 @@
     token,
     objectIds,
     resultRecordCount = 2000,
+    returnGeometry = true,
   }) {
     const url = `${layerUrl.replace(/\/+$/, "")}/query`;
     const parameters = new URLSearchParams({
@@ -2146,7 +2147,7 @@
       inSR: "4326",
       outSR: "4326",
       outFields,
-      returnGeometry: "true",
+      returnGeometry: String(returnGeometry),
       resultRecordCount: String(resultRecordCount),
       f: "geojson",
     });
@@ -2641,7 +2642,9 @@
       geometryType: "esriGeometryPoint",
       outFields: "FeatClass,Mang_Name,Unit_Nm,Loc_Nm,Pub_Access,Src_Date",
       token: settings.dataApiKey,
-      resultRecordCount: 10,
+      resultRecordCount: 1,
+      // Only the attributes are shown; whole forest outlines can be megabytes.
+      returnGeometry: false,
     });
     return data.features?.[0]?.properties ?? null;
   }
