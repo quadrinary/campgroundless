@@ -96,6 +96,10 @@
     }
     const known = Object.keys(Settings().defaults);
     const clean = Object.fromEntries(Object.entries(settings).filter(([key]) => known.includes(key)));
+    if ("dataSource" in clean && !Settings().dataSources.includes(clean.dataSource)) delete clean.dataSource;
+    if ("placeSearchProvider" in clean && !Settings().placeSearchProviders.includes(clean.placeSearchProvider)) {
+      delete clean.placeSearchProvider;
+    }
     if (clean.placeSearchUrl) Settings().validateHttpUrl(clean.placeSearchUrl, "The file's place search endpoint");
     if (clean.dataUrl) Settings().validateHttpUrl(clean.dataUrl, "The file's land data URL");
     if (clean.basemapUrl) {

@@ -16,7 +16,9 @@
 
   // Checks the Advanced values, which reload the map when saved. Throws a readable error.
   function validateAdvanced(values) {
-    Settings.validateHttpUrl(values.placeSearchUrl, "Place search endpoint");
+    if (values.placeSearchProvider === "custom" || values.placeSearchUrl) {
+      Settings.validateHttpUrl(values.placeSearchUrl, "Place search endpoint");
+    }
     if (values.dataSource === "custom") {
       if (!values.dataUrl) throw new Error("Enter a Feature Layer URL to use a custom data source.");
       Settings.validateHttpUrl(values.dataUrl, "Feature Layer URL");
@@ -106,6 +108,7 @@
     form.elements.showLandDisclaimer.checked = settings.showLandDisclaimer !== false;
     form.elements.showBoundaryData.checked = settings.showBoundaryData !== false;
     form.querySelector(`input[name="dataSource"][value="${settings.dataSource}"]`).checked = true;
+    form.querySelector(`input[name="placeSearchProvider"][value="${settings.placeSearchProvider}"]`).checked = true;
     advancedFields.forEach((field) => {
       form.elements[field].value = settings[field] ?? "";
     });
@@ -115,11 +118,15 @@
   function updateConditionalFields() {
     document.getElementById("custom-data-fields").hidden =
       form.querySelector('input[name="dataSource"]:checked')?.value !== "custom";
+    document.getElementById("custom-search-fields").hidden =
+      form.querySelector('input[name="placeSearchProvider"]:checked')?.value !== "custom";
   }
 
   function advancedValues() {
     const values = Object.fromEntries(advancedFields.map((field) => [field, form.elements[field].value.trim()]));
     values.dataSource = form.querySelector('input[name="dataSource"]:checked').value;
+    values.placeSearchProvider = form.querySelector('input[name="placeSearchProvider"]:checked').value;
+    if (!values.placeSearchUrl) values.placeSearchUrl = Settings.defaults.placeSearchUrl;
     return values;
   }
 
@@ -162,7 +169,7 @@
     const target = event.target;
     const field = target.name;
     if (target.closest("[data-backup]")) return;
-    if (!mapApi() && !advancedFields.includes(field) && field !== "dataSource") return;
+    if (!mapApi() && !advancedFields.includes(field) && field !== "dataSource" && field !== "placeSearchProvider") return;
     if (field === "dataSource") {
       updateConditionalFields();
       if (target.value === "custom" && !form.elements.dataUrl.value.trim()) {
@@ -170,6 +177,9 @@
         form.elements.dataUrl.focus();
         return;
       }
+      commitAdvanced();
+    } else if (field === "placeSearchProvider") {
+      updateConditionalFields();
       commitAdvanced();
     } else if (advancedFields.includes(field)) {
       commitAdvanced();
