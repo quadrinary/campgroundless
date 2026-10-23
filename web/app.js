@@ -111,6 +111,7 @@
   // Agency logos are bundled (copied from each agency's website) so they also show offline.
   const managerLogos = {
     BLM: "logos/blm.svg",
+    DOE: "logos/doe.png",
     FWS: "logos/fws.svg",
     NPS: "logos/nps.png",
     USACE: "logos/usace.svg",
