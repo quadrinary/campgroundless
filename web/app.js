@@ -136,6 +136,42 @@
     OTHF: "U.S.",
     USBR: "BOR",
   };
+  // State and local land icons are drawn for this map (not agency logos or seals):
+  // a simplified state outline in the category's map color with a category symbol.
+  // Symbols are 24 x 24 paths filled with the even-odd rule.
+  const stateLandSymbols = {
+    stateTrust: "M6 2.5h8.5L19 7v14.5H6zM8.8 10.5v1.6h7.4v-1.6zm0 3.4v1.6h7.4v-1.6zm0 3.4v1.6h5v-1.6z",
+    stateParks: "M12 2 5.5 10.5h3.2L4 17h6.2v5h3.6v-5H20l-4.7-6.5h3.2z",
+    stateWildlife: "M8.5 4.5a3.2 3.2 0 0 1 3.1 4.1l-.9 2.9h3.8c3 0 5.5 1.6 5.5 4.3S17.5 20 13.8 20H8.6c-3 0-5.1-1.9-5.1-4.3 0-1.7 1-3.1 2.6-3.8l-.5-1.8A3.2 3.2 0 0 1 8.5 4.5zM5.6 7.2 2 8.4l3.4 1.3z",
+    state: "M11.3 1.5h1.4v3.6h-1.4zM6.5 11a5.5 5.5 0 0 1 11 0zM4.5 11.8h15v2h-15zM5.5 14.6h2.4v5H5.5zm3.8 0h2.2v5H9.3zm3.2 0h2.2v5h-2.2zm3.6 0h2.4v5h-2.4zM3.5 20.4h17v2h-17z",
+    regional: "M12 2C9 6.8 5.5 10.6 5.5 14.6a6.5 6.5 0 0 0 13 0C18.5 10.6 15 6.8 12 2zm-3.2 12.2a3.2 3.2 0 0 0 3.2 3.4V19a4.6 4.6 0 0 1-4.6-4.8z",
+    county: "M12 1.8 2.5 7.5h19zM3.5 8.6h17v2h-17zM5 11.6h2.6v6.8H5zm5.7 0h2.6v6.8h-2.6zm5.7 0H19v6.8h-2.6zM2.5 19.4h19v2.4h-19z",
+    city: "M2.5 22V11.5h4.5V6.5h5.5v6H14V2h7.5v20zM16.3 4.6v1.8h1.6V4.6zm0 3.4v1.8h1.6V8zm0 3.4v1.8h1.6v-1.8zm-6.6-2.3v1.8h1.6V9.1zM4.6 14v1.8h1.6V14z",
+  };
+  const landCategoryByManager = Object.fromEntries(
+    landCategories.flatMap((category) => (category.managers ?? []).map((manager) => [manager, category])),
+  );
+  const stateNameByCode = Object.fromEntries(coverageStates.map((state) => [state.abbreviation, state.name]));
+
+  function stateLandIconMarkup(managerCode, stateCode) {
+    const category = landCategoryByManager[managerCode];
+    const symbol = category && stateLandSymbols[category.key];
+    if (!symbol) {
+      return "";
+    }
+    const code = String(stateCode ?? "").toUpperCase();
+    const outline = window.CampgroundlessStateOutlines?.[code];
+    const label = `${outline ? `${stateNameByCode[code] ?? code} ` : ""}${category.label.toLowerCase()} icon`;
+    // Without a known state outline, the symbol sits in a plain rounded badge.
+    const shape = outline
+      ? `<path class="state-land-outline" d="${outline.path}" fill="${category.color}"/>`
+      : `<rect class="state-land-outline" x="4" y="4" width="92" height="92" rx="22" fill="${category.color}"/>`;
+    const [centerX, centerY] = outline?.center ?? [50, 50];
+    const symbolSize = outline ? 58 : 72;
+    const x = Math.min(100 - symbolSize / 2, Math.max(symbolSize / 2, centerX)) - symbolSize / 2;
+    const y = Math.min(100 - symbolSize / 2, Math.max(symbolSize / 2, centerY)) - symbolSize / 2;
+    return `<svg class="mapped-land-logo state-land-icon" viewBox="-4 -4 108 108" role="img" aria-label="${escapeHtml(label)}">${shape}<circle class="state-land-symbol-disc" cx="${x + symbolSize / 2}" cy="${y + symbolSize / 2}" r="${symbolSize / 2}"/><path class="state-land-symbol" fill-rule="evenodd" transform="translate(${x + symbolSize * 0.18} ${y + symbolSize * 0.18}) scale(${(symbolSize * 0.64) / 24})" d="${symbol}"/></svg>`;
+  }
   const blmRecreationTypes = {
     "1": { label: "Information center site", color: "#cfeffc", usfsLabel: "Visitor Centers" },
     "2": { label: "Water based site", color: "#fbb3fc", npsIcon: "boat-launch" },
@@ -1960,9 +1996,9 @@
     };
   }
 
-  function managerIconMarkup(managerCode) {
+  function managerIconMarkup(managerCode, stateCode) {
     if (!federalManagerCodes.has(managerCode)) {
-      return "";
+      return stateLandIconMarkup(managerCode, stateCode);
     }
     const managerName = managerNames[managerCode] ?? "Federal land manager";
     const managerLogo = managerLogos[managerCode];
@@ -1994,8 +2030,9 @@
     });
   }
 
-  function appendManagerIcon(container, managerCode) {
+  function appendManagerIcon(container, managerCode, stateCode) {
     if (!federalManagerCodes.has(managerCode)) {
+      container.insertAdjacentHTML("beforeend", stateLandIconMarkup(managerCode, stateCode));
       return;
     }
     const managerLogo = managerLogos[managerCode];
@@ -2032,7 +2069,7 @@
     const popup = `
       <div class="map-popup">
         <div class="site-popup-header">
-          <div class="map-popup-label">${managerIconMarkup(managerCode)}${escapeHtml(manager)}</div>
+          <div class="map-popup-label">${managerIconMarkup(managerCode, properties.State_Nm)}${escapeHtml(manager)}</div>
           ${popupNoteIconMarkup("Write a note at this location")}
         </div>
         <h3>${escapeHtml(unit)}</h3>
@@ -2118,6 +2155,7 @@
       settings.dataSource === "custom" ? "FID" : "OBJECTID",
       "FeatClass",
       "Mang_Name",
+      "State_Nm",
       "Unit_Nm",
       "Loc_Nm",
       "Pub_Access",
@@ -2791,7 +2829,7 @@
         spatialReference: { wkid: 4326 },
       },
       geometryType: "esriGeometryPoint",
-      outFields: "FeatClass,Mang_Name,Unit_Nm,Loc_Nm,Pub_Access,Src_Date",
+      outFields: "FeatClass,Mang_Name,State_Nm,Unit_Nm,Loc_Nm,Pub_Access,Src_Date",
       token: settings.dataApiKey,
       resultRecordCount: 1,
       // Only the attributes are shown; whole forest outlines can be megabytes.
@@ -3362,7 +3400,7 @@
         const contactValue = popupElement.querySelector(".point-contact-value");
         const managerCode = propertyValue(land, "Mang_Name");
         landValue.replaceChildren();
-        appendManagerIcon(landValue, managerCode);
+        appendManagerIcon(landValue, managerCode, propertyValue(land, "State_Nm"));
         const landDescription = document.createElement("span");
         landDescription.textContent = landTypeDescription(land);
         landValue.append(landDescription);

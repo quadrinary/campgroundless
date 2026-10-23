@@ -1267,6 +1267,26 @@ h1 em {
   height: 32px;
 }
 
+.state-land-icon {
+  overflow: visible;
+}
+
+.state-land-outline {
+  stroke: #1d2420;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.state-land-symbol-disc {
+  fill: #1d2420;
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+.state-land-symbol {
+  fill: #fff;
+}
+
 .mapped-land-logo-usbr {
   padding: 3px;
   border-radius: 50%;
