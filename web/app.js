@@ -49,11 +49,11 @@
     { key: "forest", section: "federal", label: "U.S. Forest Service", color: "#33745b", managers: ["USFS"] },
     { key: "blm", section: "federal", label: "Bureau of Land Management", color: "#c67b46", managers: ["BLM"] },
     { key: "nps", section: "federal", label: "National Park Service", color: "#7d5a3c", managers: ["NPS"] },
-    { key: "monuments", section: "federal", label: "National Monuments (outline)", color: "#d0389b", designation: "Des_Tp = 'NM'" },
+    { key: "monuments", section: "federal", label: "National Monuments (outline)", color: "#d0389b", designation: "Des_Tp = 'NM'", designationTypes: ["NM"], kind: "National Monument", outline: { weight: 2, dashArray: "6 4" }, nameLabel: { minZoom: 7, suffix: /\s+National Monument\b/i, type: "National Monument" } },
     { key: "fws", section: "federal", label: "U.S. Fish & Wildlife Service", color: "#2e8b8b", managers: ["FWS"] },
     { key: "usbr", section: "federal", label: "Bureau of Reclamation", color: "#3f6fb5", managers: ["USBR"] },
     { key: "usace", section: "federal", label: "Army Corps of Engineers", color: "#8a8a2e", managers: ["USACE"] },
-    { key: "military", section: "federal", label: "Department of Defense (military)", color: "#c0392b", managers: ["DOD"], designation: "(Des_Tp = 'MIL' OR Mang_Name = 'DOD')" },
+    { key: "military", section: "federal", label: "Department of Defense (military)", color: "#c0392b", managers: ["DOD"], designation: "(Des_Tp = 'MIL' OR Mang_Name = 'DOD')", designationTypes: ["MIL"], kind: "Military land", outline: { weight: 1.5, dashArray: "3 3", fillOpacity: 0.22 }, nameLabel: { minZoom: 7, type: "Military land" } },
     { key: "doe", section: "federal", label: "Department of Energy", color: "#4d4d4d", managers: ["DOE"] },
     { key: "otherFederal", section: "federal", label: "Other federal", color: "#7b8794", managers: ["OTHF", "ARS", "NRCS"] },
     { key: "stateTrust", section: "state", label: "State trust lands", color: "#d1a32a", managers: ["SLB"] },
@@ -63,10 +63,16 @@
     { key: "regional", section: "state", label: "Regional & special districts", color: "#a27fc0", managers: ["REG", "RWD"] },
     { key: "county", section: "state", label: "County", color: "#c46aa8", managers: ["CNTY"] },
     { key: "city", section: "state", label: "City / municipal", color: "#e08aa0", managers: ["CITY"] },
+    // Designations overlay the managing agency's land, so they draw as outlines over its color.
+    { key: "wilderness", section: "designations", label: "Wilderness (outline)", color: "#0f8a5f", designation: "Des_Tp = 'WA'", designationTypes: ["WA"], kind: "Wilderness (no motor vehicles or bicycles)", outline: { weight: 2.5, dashArray: null, fillOpacity: 0.08 }, nameLabel: { minZoom: 9, suffix: /\s+Wilderness( Area)?$/i, type: "Wilderness" } },
+    { key: "wsa", section: "designations", label: "Wilderness Study Areas (outline)", color: "#6aa84f", designation: "Des_Tp = 'WSA'", designationTypes: ["WSA"], kind: "Wilderness Study Area (managed to preserve wilderness character)", outline: { weight: 2, dashArray: "8 5" }, nameLabel: { minZoom: 9, suffix: /\s+(Wilderness Study Area|WSA)$/i, type: "Wilderness Study Area" } },
+    { key: "acec", section: "designations", label: "Areas of Critical Environmental Concern (outline)", color: "#8e5cc4", designation: "Des_Tp = 'ACEC'", designationTypes: ["ACEC"], kind: "Area of Critical Environmental Concern (special BLM rules may apply)", outline: { weight: 2, dashArray: "2 5" } },
+    { key: "wsr", section: "designations", label: "Wild & Scenic River corridors (outline)", color: "#1f78d1", designation: "Des_Tp = 'WSR'", designationTypes: ["WSR"], kind: "Wild & Scenic River corridor (special rules may apply)", outline: { weight: 2, dashArray: "10 4 2 4", fillOpacity: 0.1 } },
   ];
   const landCategorySections = [
     ["federal", "Federal"],
     ["state", "State & local"],
+    ["designations", "Special designations"],
   ];
   const managersByGroup = Object.fromEntries(
     landCategories.filter((category) => category.managers).map((category) => [category.key, category.managers]),
@@ -312,6 +318,13 @@
   searchMarkers.addTo(map);
   noteMarkers.addTo(map);
   sharedNoteMarkers.addTo(map);
+  // Multiplied over the basemap so terrain shading darkens it without hiding land colors.
+  const shadedReliefPane = map.createPane("shadedRelief");
+  shadedReliefPane.style.zIndex = "250";
+  shadedReliefPane.style.pointerEvents = "none";
+  shadedReliefPane.style.mixBlendMode = "multiply";
+  const wildfirePerimeterUrl =
+    "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0";
   const referencePane = map.createPane("referenceOverlays");
   referencePane.style.zIndex = "420";
   referencePane.style.pointerEvents = "none";
@@ -579,7 +592,7 @@
     });
     const managerHelp = L.DomUtil.create("p", "map-layer-help", panel);
     managerHelp.textContent =
-      "Colors show the mapped land manager, not permission to camp. Dashed magenta outlines mark National Monuments, named inside the outline from zoom 7; the land inside keeps its manager's color. Military and Energy lands are generally closed to the public.";
+      "Colors show the mapped land manager, not permission to camp. Dashed magenta outlines mark National Monuments and red-tinted areas mark Department of Defense land, both named inside the outline from zoom 7; the land inside keeps its manager's color. Special designations (PAD-US) draw as outlines over the managing agency's land; Wilderness and Wilderness Study Areas are named from zoom 9. Popups list any designation at the tapped spot, even when its outline is hidden. Military and Energy lands are generally closed to the public.";
     const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
     managerSeparator.setAttribute("aria-hidden", "true");
     const styleSection = document.createElement("div");
@@ -743,7 +756,78 @@
         dashArray: "6 4",
         attribution: '<a href="https://www.arcgis.com/home/item.html?id=4a2d788c46804bfbb7288d05184e2936">BLM National Ground Transportation Linear Features (GTLF)</a>',
       },
+      wildfirePerimeters: {
+        type: "live-polygons",
+        liveOnly: true,
+        label: "Current wildfire perimeters",
+        description: "NIFC interagency data; refreshed every 10 minutes; online only",
+        legendTitle: "Fire perimeter",
+        legendDescription:
+          "Mapped perimeters can lag a fire by hours and do not show closures or evacuation zones. Follow local emergency orders.",
+        staticLegend: [{ label: "Active fire perimeter", color: "#ff5a1f", fillOpacity: 0.32 }],
+        url: wildfirePerimeterUrl,
+        fields: ["OBJECTID"],
+        style: () => ({ color: "#ff5a1f", weight: 2, opacity: 0.95, fillColor: "#ff5a1f", fillOpacity: 0.32 }),
+        attribution: '<a href="https://data-nifc.opendata.arcgis.com/">NIFC WFIGS wildfire perimeters</a>',
+      },
+      smoke: {
+        type: "live-polygons",
+        liveOnly: true,
+        label: "Wildfire smoke (satellite)",
+        description: "NOAA analyst-drawn smoke from today's imagery; online only",
+        legendTitle: "Smoke density",
+        legendDescription:
+          "Smoke seen from satellites, mostly aloft. It is not a ground-level air-quality reading; check AirNow.gov for that.",
+        staticLegend: [
+          { label: "Light", color: "#9a9a9a", fillOpacity: 0.18 },
+          { label: "Medium", color: "#7a7a7a", fillOpacity: 0.3 },
+          { label: "Heavy", color: "#5a5a5a", fillOpacity: 0.45 },
+        ],
+        url: "https://services2.arcgis.com/C8EMgrsFcRFL6LrL/arcgis/rest/services/NOAA_Satellite_Smoke_Detection_(v1)/FeatureServer/0",
+        fields: ["FID", "Density"],
+        style: (feature) => {
+          const opacity = { Light: 0.18, Medium: 0.3, Heavy: 0.45 }[feature?.properties?.Density] ?? 0.18;
+          const color = { Light: "#9a9a9a", Medium: "#7a7a7a", Heavy: "#5a5a5a" }[feature?.properties?.Density] ?? "#9a9a9a";
+          return { color, weight: 0.5, opacity: 0.6, fillColor: color, fillOpacity: opacity };
+        },
+        attribution: '<a href="https://www.ospo.noaa.gov/products/land/hms.html">NOAA HMS smoke</a>',
+      },
+      plss: {
+        label: "Survey grid (PLSS townships & sections)",
+        description: "BLM survey grid; townships from zoom 8, sections from zoom 11",
+        legendTitle: "Survey grid",
+        legendDescription: "Township, range, and section lines used in legal land descriptions; not property or access boundaries.",
+        url: "https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer",
+        layers: [1, 2],
+        legendGroups: { 1: "Townships", 2: "Sections" },
+        attribution: '<a href="https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer">BLM PLSS (CadNSDI)</a>',
+      },
+      water: {
+        label: "Streams & springs (USGS NHD)",
+        description: "Mapped water features; many flow only seasonally",
+        legendTitle: "Water features",
+        legendDescription: "Mapped features, not current flow. Treat all natural water before drinking.",
+        url: "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer",
+        layers: [0, 4, 6],
+        layerDefs: { 0: "FTYPE = 458" },
+        legendGroups: { 0: "Springs", 4: "Streams", 6: "Streams (detailed)" },
+        legendLabels: { 0: { Other: "Spring or seep" } },
+        attribution: '<a href="https://www.usgs.gov/national-hydrography">USGS National Hydrography Dataset</a>',
+      },
+      shadedRelief: {
+        label: "Shaded relief (USGS 3DEP)",
+        description: "Terrain shading to help judge slopes",
+        legendTitle: "Shaded relief",
+        legendDescription: "Shading from USGS elevation data, blended under land colors.",
+        url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer",
+        tileUrl: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}",
+        layers: [0],
+        pane: "shadedRelief",
+        opacity: 0.6,
+        attribution: '<a href="https://www.usgs.gov/3d-elevation-program">USGS 3DEP shaded relief</a>',
+      },
     };
+    const overlayRefreshTimers = new Map();
     const overlayLayers = {};
     liveOverlayLayers = overlayLayers;
     overlayDefinitionsByKey = overlayDefinitions;
@@ -815,6 +899,22 @@
           legendLoaded = true;
           return;
         }
+        if (definition.staticLegend) {
+          definition.staticLegend.forEach((entry) => {
+            const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
+            const symbol = L.DomUtil.create("span", "map-area-legend-symbol", item);
+            symbol.style.setProperty("--swatch", entry.color);
+            symbol.style.setProperty("--swatch-fill", `${Math.round(entry.fillOpacity * 100)}%`);
+            const label = L.DomUtil.create("span", "", item);
+            label.textContent = entry.label;
+          });
+          legendLoaded = true;
+          return;
+        }
+        if (definition.tileUrl) {
+          legendLoaded = true;
+          return;
+        }
         if (definition.type === "feature") {
           const item = L.DomUtil.create("div", "map-mvum-legend-item", legendContent);
           const line = L.DomUtil.create("span", "map-blm-legend-line", item);
@@ -854,12 +954,16 @@
                 "map-mvum-legend-group-title",
                 group,
               );
-              groupHeading.textContent = serviceLayer.layerName.endsWith("Roads")
-                ? "Roads"
-                : "Trails";
+              groupHeading.textContent =
+                definition.legendGroups?.[serviceLayer.layerId] ??
+                (serviceLayer.layerName.endsWith("Roads") ? "Roads" : "Trails");
             }
             const list = L.DomUtil.create("ul", "map-mvum-legend-list", group);
+            const relabel = definition.legendLabels?.[serviceLayer.layerId];
             (serviceLayer.legend ?? []).forEach((entry) => {
+              if (relabel && !relabel[entry.label]) {
+                return;
+              }
               if (
                 entry.contentType !== "image/png" ||
                 typeof entry.imageData !== "string" ||
@@ -873,7 +977,7 @@
               symbol.alt = "";
               const label = L.DomUtil.create("span", "", item);
               label.textContent =
-                entry.label || definition.legendFallback || serviceLayer.layerName;
+                relabel?.[entry.label] || entry.label || definition.legendFallback || serviceLayer.layerName;
             });
           });
           if (!legendContent.childElementCount) {
@@ -943,7 +1047,27 @@
           }
           if (!overlayLayers[key]) {
             const overlay =
-              definition.type === "feature"
+              definition.type === "live-polygons"
+                ? L.esri.featureLayer({
+                    url: definition.url,
+                    pane: "referenceOverlays",
+                    renderer: L.canvas({ pane: "referenceOverlays", padding: 0.3 }),
+                    interactive: false,
+                    fields: definition.fields,
+                    simplifyFactor: 0.35,
+                    precision: 5,
+                    attribution: definition.attribution,
+                    style: definition.style,
+                  })
+                : definition.tileUrl
+                ? L.tileLayer(definition.tileUrl, {
+                    pane: definition.pane,
+                    opacity: definition.opacity,
+                    maxNativeZoom: 16,
+                    maxZoom: 19,
+                    attribution: definition.attribution,
+                  })
+                : definition.type === "feature"
                 ? L.esri.featureLayer({
                     url: definition.url,
                     where: definition.where,
@@ -967,14 +1091,15 @@
                 : L.esri.dynamicMapLayer({
                     url: definition.url,
                     layers: definition.layers,
-                    opacity: 0.88,
+                    layerDefs: definition.layerDefs,
+                    opacity: definition.opacity ?? 0.88,
                     pane: definition.isRecreation
                       ? "usfsRecreationSites"
                       : "referenceOverlays",
                     interactive: Boolean(definition.isRecreation),
                     attribution: definition.attribution,
                   });
-            overlay.on("requesterror", () => {
+            overlay.on(definition.tileUrl ? "tileerror" : "requesterror", () => {
               layerStatus.textContent = `${definition.label} could not be loaded. The provider may be unavailable.`;
             });
             if (definition.isRoad) {
@@ -990,8 +1115,22 @@
           if (overlayLayers[key]) {
             overlayLayers[key].addTo(map);
           }
-        } else if (overlayLayers[key]) {
-          map.removeLayer(overlayLayers[key]);
+          if (definition.liveOnly && !overlayRefreshTimers.has(key)) {
+            overlayRefreshTimers.set(
+              key,
+              setInterval(() => {
+                if (!offlineState.active && map.hasLayer(overlayLayers[key])) {
+                  overlayLayers[key].refresh();
+                }
+              }, 10 * 60 * 1000),
+            );
+          }
+        } else {
+          if (overlayLayers[key]) {
+            map.removeLayer(overlayLayers[key]);
+          }
+          clearInterval(overlayRefreshTimers.get(key));
+          overlayRefreshTimers.delete(key);
         }
       });
       if (checkbox.checked) {
@@ -1965,23 +2104,25 @@
     return `State_Nm IN (${coverageStateCodes}) AND FeatClass <> 'Easement' AND (${clauses.join(" OR ")})`;
   }
 
+  // Anything else in the designation query came from the DoD manager clause.
   function designationCategory(properties) {
-    return properties?.Des_Tp === "NM"
-      ? designationCategories.find((category) => category.key === "monuments")
-      : designationCategories.find((category) => category.key === "military");
+    return (
+      designationCategories.find((category) => category.designationTypes.includes(properties?.Des_Tp)) ??
+      designationCategories.find((category) => category.key === "military")
+    );
   }
 
   function designationStyle(feature) {
     const category = designationCategory(feature?.properties);
-    const isMonument = category?.key === "monuments";
+    const outline = category?.outline ?? {};
     return {
       color: category?.color ?? "#d0389b",
-      weight: isMonument ? 2 : 1.5,
+      weight: outline.weight ?? 2,
       opacity: 0.9,
-      dashArray: isMonument ? "6 4" : "3 3",
-      fill: !isMonument,
-      fillColor: category?.color ?? "#c0392b",
-      fillOpacity: 0.22,
+      dashArray: outline.dashArray ?? null,
+      fill: Boolean(outline.fillOpacity),
+      fillColor: category?.color ?? "#d0389b",
+      fillOpacity: outline.fillOpacity ?? 0,
     };
   }
 
@@ -2075,6 +2216,7 @@
         <h3>${escapeHtml(unit)}</h3>
         <p><strong>Public access type:</strong> ${accessText}</p>
         <p class="designation-line" hidden><strong>Special designation:</strong> <span class="designation-value"></span></p>
+        <p class="fire-line" hidden role="alert"><strong>Active fire perimeter:</strong> <span class="fire-value"></span></p>
         <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
         <div class="feature-note-action">
           <label for="feature-note-icon">Choose a note marker icon</label>
@@ -2101,6 +2243,7 @@
         void loadNearestRoadDescription(event.popup.getLatLng(), nearestRoadValue);
       }
       void loadDesignationDescription(event.popup.getLatLng(), popupElement.querySelector(".designation-line"));
+      void loadFireDescription(event.popup.getLatLng(), popupElement.querySelector(".fire-line"));
       bindPopupNoteIcon(event.popup, event.popup.getLatLng(), iconSelect);
     });
   }
@@ -2232,20 +2375,19 @@
   });
   designationLayer.addTo(map);
 
-  // Monument outlines have no fill, so each visible monument is named inside its outline.
+  // Outline designations have little or no fill, so visible ones are named inside their outline.
   const designationLabelPane = map.createPane("designationLabels");
   designationLabelPane.style.zIndex = "415";
   designationLabelPane.style.pointerEvents = "none";
   const monumentLabels = L.layerGroup().addTo(map);
-  const monumentLabelMinZoom = 7;
   const monumentLabelMinPixels = 70;
   let monumentLabelTimer = null;
 
-  function monumentLabelText(name) {
+  function designationLabelText(name, nameLabel) {
     const short = String(name ?? "")
-      .replace(/\s+National Monument\b/i, "")
+      .replace(nameLabel.suffix ?? /$^/, "")
       .trim();
-    return short || "National Monument";
+    return short || nameLabel.type;
   }
 
   function outerRings(latLngs) {
@@ -2323,25 +2465,30 @@
   function refreshMonumentLabels() {
     monumentLabels.clearLayers();
     const source = offlineState.active ? offlineState.designationLayer : designationLayer;
-    if (!source || !settings.layers.monuments || map.getZoom() < monumentLabelMinZoom) {
+    const labeled = designationCategories.filter(
+      (category) => category.nameLabel && settings.layers[category.key] && map.getZoom() >= category.nameLabel.minZoom,
+    );
+    if (!source || !labeled.length) {
       return;
     }
     const viewBounds = map.getBounds();
     const largestByName = new Map();
     const visit = (layer) => {
       const properties = layer.feature?.properties;
-      if (properties?.Des_Tp !== "NM" || !map.hasLayer(layer) || typeof layer.getLatLngs !== "function") {
+      const category = designationCategory(properties);
+      if (!labeled.includes(category) || !map.hasLayer(layer) || typeof layer.getLatLngs !== "function") {
         return;
       }
       const bounds = layer.getBounds();
       if (!bounds.isValid() || !viewBounds.intersects(bounds)) {
         return;
       }
-      const name = properties.Unit_Nm || properties.Loc_Nm || "National Monument";
+      const name = properties.Unit_Nm || properties.Loc_Nm || category.nameLabel.type;
       const size = (bounds.getNorth() - bounds.getSouth()) * (bounds.getEast() - bounds.getWest());
-      const current = largestByName.get(name);
+      const key = `${category.key}:${name}`;
+      const current = largestByName.get(key);
       if (!current || size > current.size) {
-        largestByName.set(name, { layer, size });
+        largestByName.set(key, { layer, size, name, category });
       }
     };
     if (typeof source.eachFeature === "function") {
@@ -2349,22 +2496,35 @@
     } else {
       source.eachLayer(visit);
     }
-    largestByName.forEach(({ layer }, name) => {
-      const point = monumentLabelPoint(layer, viewBounds);
-      if (!point) {
-        return;
-      }
-      L.marker(point, {
-        pane: "designationLabels",
-        interactive: false,
-        keyboard: false,
-        icon: L.divIcon({
-          className: "designation-label",
-          iconSize: null,
-          html: `<span><span class="designation-label-name">${escapeHtml(monumentLabelText(name))}</span><span class="designation-label-type">National Monument</span></span>`,
-        }),
-      }).addTo(monumentLabels);
-    });
+    // Earlier categories (monuments first) and larger areas win when labels would overlap.
+    const placed = [];
+    [...largestByName.values()]
+      .sort((a, b) => labeled.indexOf(a.category) - labeled.indexOf(b.category) || b.size - a.size)
+      .forEach(({ layer, name, category }) => {
+        const point = monumentLabelPoint(layer, viewBounds);
+        if (!point) {
+          return;
+        }
+        const text = designationLabelText(name, category.nameLabel);
+        const center = map.latLngToContainerPoint(point);
+        const halfWidth = Math.min(160, Math.max(text.length * 7, category.nameLabel.type.length * 6.5) + 14) / 2;
+        const halfHeight = text.length > 22 ? 24 : 17;
+        const box = L.bounds([center.x - halfWidth, center.y - halfHeight], [center.x + halfWidth, center.y + halfHeight]);
+        if (placed.some((other) => other.intersects(box))) {
+          return;
+        }
+        placed.push(box);
+        L.marker(point, {
+          pane: "designationLabels",
+          interactive: false,
+          keyboard: false,
+          icon: L.divIcon({
+            className: "designation-label",
+            iconSize: null,
+            html: `<span style="--label-color: ${category.color}"><span class="designation-label-name">${escapeHtml(text)}</span><span class="designation-label-type">${escapeHtml(category.nameLabel.type)}</span></span>`,
+          }),
+        }).addTo(monumentLabels);
+      });
   }
 
   function scheduleMonumentLabels() {
@@ -3017,7 +3177,7 @@
     const unit = propertyValue(properties, "Unit_Nm", "Loc_Nm") || "Unnamed area";
     const managerCode = propertyValue(properties, "Mang_Name");
     const manager = managerNames[managerCode] || managerCode || "manager not specified";
-    const kind = designationCategory(properties)?.key === "monuments" ? "National Monument" : "Military land";
+    const kind = designationCategory(properties)?.kind ?? "Special designation";
     const access = {
       OA: "open access",
       RA: "restricted access",
@@ -3041,6 +3201,47 @@
       line.hidden = false;
     } catch (error) {
       console.warn("Could not look up monument and military designations here.", error);
+    }
+  }
+
+  function fireDescription(properties) {
+    const name = properties.poly_IncidentName || properties.attr_IncidentName || "Unnamed fire";
+    const parts = [`${name.replace(/\s+fire$/i, "")} Fire`];
+    if (Number.isFinite(properties.attr_PercentContained)) {
+      parts.push(`${Math.round(properties.attr_PercentContained)}% contained`);
+    }
+    if (Number.isFinite(properties.poly_GISAcres)) {
+      parts.push(`${Math.round(properties.poly_GISAcres).toLocaleString("en-US")} acres`);
+    }
+    if (Number.isFinite(properties.poly_DateCurrent)) {
+      parts.push(`perimeter updated ${new Date(properties.poly_DateCurrent).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
+    }
+    return parts.join(" · ");
+  }
+
+  async function loadFireDescription(location, line) {
+    // Live data only: a saved copy of a fire perimeter would be dangerously stale.
+    if (!line || offlineState.active) {
+      return;
+    }
+    try {
+      const data = await queryArcGisFeatures(wildfirePerimeterUrl, {
+        where: "1=1",
+        geometry: { x: location.lng, y: location.lat, spatialReference: { wkid: 4326 } },
+        geometryType: "esriGeometryPoint",
+        outFields: "poly_IncidentName,attr_IncidentName,attr_PercentContained,poly_GISAcres,poly_DateCurrent",
+        resultRecordCount: 3,
+        returnGeometry: false,
+      });
+      const descriptions = [...new Set((data.features ?? []).map((feature) => fireDescription(feature.properties ?? {})))];
+      if (!line.isConnected || descriptions.length === 0) {
+        return;
+      }
+      line.querySelector(".fire-value").textContent =
+        `${descriptions.join("; ")}. Follow official closures and evacuation orders.`;
+      line.hidden = false;
+    } catch (error) {
+      console.warn("Could not check wildfire perimeters here.", error);
     }
   }
 
@@ -3526,6 +3727,7 @@
           <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
           <p><strong>Mapped land:</strong> <span class="point-land-value">Looking up the land manager…</span></p>
           <p class="designation-line" hidden><strong>Special designation:</strong> <span class="designation-value"></span></p>
+        <p class="fire-line" hidden role="alert"><strong>Active fire perimeter:</strong> <span class="fire-value"></span></p>
           <p><strong>Contact:</strong> <span class="point-contact-value">Looking up manager information…</span></p>
           <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
           <p class="popup-warning">Mapped ownership and public-access records do not establish camping permission or current access. Confirm rules, closures, and contact details with the responsible office.</p>
@@ -3576,6 +3778,7 @@
       popup.getElement().querySelector(".nearest-road-value"),
     );
     void loadDesignationDescription(location, popup.getElement().querySelector(".designation-line"));
+    void loadFireDescription(location, popup.getElement().querySelector(".fire-line"));
     bindPopupNoteIcon(popup, location);
   }
 
@@ -4437,14 +4640,20 @@
   }
 
   function isRasterOverlay(definition) {
-    return Boolean(definition) && definition.type !== "feature" && definition.type !== "blm-sites";
+    return Boolean(definition) && !definition.liveOnly && definition.type !== "feature" && definition.type !== "blm-sites";
   }
 
   function overlayExportUrl(definition) {
     return (tile) => {
       const bbox = offlineApi.tileMercatorBounds(tile).join(",");
+      if (definition.tileUrl) {
+        return definition.tileUrl.replace("{z}", tile.z).replace("{y}", tile.y).replace("{x}", tile.x);
+      }
+      const layerDefs = definition.layerDefs
+        ? `&layerDefs=${encodeURIComponent(JSON.stringify(definition.layerDefs))}`
+        : "";
       // 512px at 192 dpi keeps lines and labels sharp on high-density screens.
-      return `${definition.url}/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=512,512&dpi=192&format=png32&transparent=true&layers=show:${definition.layers.join(",")}&f=image`;
+      return `${definition.url}/export?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=512,512&dpi=192&format=png32&transparent=true&layers=show:${definition.layers.join(",")}${layerDefs}&f=image`;
     };
   }
 
@@ -4540,7 +4749,7 @@
       },
       {
         data: "designations",
-        label: "Monument and military boundaries",
+        label: "Special designation boundaries",
         url: designationSource.url,
         where: buildDesignationWhere(allLandLayers),
         outFields: designationSource.fields.join(","),
@@ -5045,8 +5254,8 @@
       return null;
     }
     return offlineApi.createCachedTileLayer(tileLayer, {
-      pane: definition.isRecreation ? "usfsRecreationSites" : "referenceOverlays",
-      opacity: 0.88,
+      pane: definition.pane ?? (definition.isRecreation ? "usfsRecreationSites" : "referenceOverlays"),
+      opacity: definition.opacity ?? 0.88,
       minZoom: offlineOverlayMinZoom,
       maxZoom: 19,
       bounds: unionPackBounds(packs),
@@ -5060,8 +5269,15 @@
     }
     const sequence = ++offlineState.overlaySequence;
     const missing = [];
+    const liveOnly = [];
     for (const [key, definition] of Object.entries(overlayDefinitionsByKey)) {
       const existing = offlineState.overlayLayers.get(key);
+      if (definition.liveOnly) {
+        if (settings.overlays[key]) {
+          liveOnly.push(definition.label);
+        }
+        continue;
+      }
       if (!settings.overlays[key]) {
         if (existing) {
           map.removeLayer(existing);
@@ -5083,8 +5299,11 @@
         missing.push(definition.label);
       }
     }
-    if (layerStatus && missing.length) {
-      layerStatus.textContent = `Not saved in your offline areas: ${missing.join(", ")}.`;
+    if (layerStatus && (missing.length || liveOnly.length)) {
+      layerStatus.textContent = [
+        missing.length ? `Not saved in your offline areas: ${missing.join(", ")}.` : "",
+        liveOnly.length ? `Needs a connection (live data is never saved): ${liveOnly.join(", ")}.` : "",
+      ].filter(Boolean).join(" ");
     }
   }
 
@@ -5564,6 +5783,9 @@
     landLabel.append(landInput, landText);
     offlineLayerChoices.append(landLabel);
     Object.entries(overlayDefinitionsByKey).forEach(([key, definition]) => {
+      if (definition.liveOnly) {
+        return;
+      }
       const label = document.createElement("label");
       label.className = "offline-choice";
       const input = document.createElement("input");

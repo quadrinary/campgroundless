@@ -99,7 +99,8 @@ test("backups drop unknown source values", () => {
 test("land categories split the old state and other groups", () => {
   const read = (saved) => load(["settings-store.js"], saved).window.CampgroundlessSettings.read();
   const defaults = read().layers;
-  assert.ok(Object.values(defaults).every((on) => on === true));
+  const specialDesignations = ["wilderness", "wsa", "acec", "wsr"];
+  Object.entries(defaults).forEach(([key, on]) => assert.equal(on, !specialDesignations.includes(key), key));
   // Settings saved before the split carry their state/other choice to every new category.
   const migrated = read({ layers: { forest: true, blm: false, state: false, other: true } }).layers;
   assert.equal(migrated.blm, false);
@@ -108,6 +109,7 @@ test("land categories split the old state and other groups", () => {
   ["nps", "monuments", "fws", "usbr", "usace", "military", "doe", "otherFederal"].forEach((key) =>
     assert.equal(migrated[key], true, key));
   assert.equal("other" in migrated, false);
+  specialDesignations.forEach((key) => assert.equal(migrated[key], false, key));
   // New-format settings keep "state" as its own category.
   const current = read({ layers: { state: false, stateTrust: true, nps: false } }).layers;
   assert.equal(current.state, false);
@@ -120,13 +122,27 @@ test("every land category has a saved setting and known manager codes", () => {
   const { window } = load(["settings-store.js"]);
   const layerKeys = Object.keys(window.CampgroundlessSettings.defaults.layers).sort();
   const app = source("app.js");
-  const categoryKeys = [...app.matchAll(/\{ key: "(\w+)", section: "(federal|state)"/g)].map((match) => match[1]).sort();
+  const categoryKeys = [...app.matchAll(/\{ key: "(\w+)", section: "(federal|state|designations)"/g)].map((match) => match[1]).sort();
   assert.deepEqual(categoryKeys, layerKeys);
   const managerNames = app.slice(app.indexOf("const managerNames = {"), app.indexOf("// Agency logos"));
   const codes = [...app.matchAll(/managers: \[([^\]]+)\]/g)]
     .flatMap((match) => match[1].match(/"(\w+)"/g).map((code) => code.slice(1, -1)));
   assert.ok(codes.includes("SLB"), "state trust lands are mapped");
   codes.forEach((code) => assert.match(managerNames, new RegExp(`\\b${code}: "`), `${code} has a display name`));
+});
+
+test("every reference overlay has a saved setting and live data is never saved offline", () => {
+  const { window } = load(["settings-store.js"]);
+  const overlayKeys = Object.keys(window.CampgroundlessSettings.defaults.overlays).sort();
+  const app = source("app.js");
+  const block = app.slice(app.indexOf("const overlayDefinitions = {"), app.indexOf("const overlayRefreshTimers"));
+  const definitionKeys = [...block.matchAll(/^      (\w+): \{$/gm)].map((match) => match[1]).sort();
+  assert.deepEqual(definitionKeys, overlayKeys);
+  for (const key of ["wildfirePerimeters", "smoke"]) {
+    const start = block.indexOf(`      ${key}: {`);
+    assert.match(block.slice(start, block.indexOf("\n      },", start)), /liveOnly: true/, `${key} is live only`);
+  }
+  assert.match(app, /return Boolean\(definition\) && !definition\.liveOnly/);
 });
 
 test("every agency logo is bundled and cached for offline use", () => {
@@ -184,13 +200,18 @@ test("state and local land get a project-drawn state icon", () => {
 
 test("monument labels drop the designation suffix from the name", () => {
   const app = source("app.js");
-  const start = app.indexOf("  function monumentLabelText");
+  const start = app.indexOf("  function designationLabelText");
   const end = app.indexOf("  function outerRings");
   assert.ok(start > 0 && end > start);
   const context = vm.createContext({});
-  vm.runInContext(`${app.slice(start, end)}; this.monumentLabelText = monumentLabelText;`, context);
-  assert.equal(context.monumentLabelText("Mojave Trails National Monument"), "Mojave Trails");
-  assert.equal(context.monumentLabelText("Sand to Snow National Monument"), "Sand to Snow");
-  assert.equal(context.monumentLabelText("Cesar E. Chavez"), "Cesar E. Chavez");
-  assert.equal(context.monumentLabelText(""), "National Monument");
+  vm.runInContext(`${app.slice(start, end)}; this.designationLabelText = designationLabelText;`, context);
+  const monument = { suffix: /\s+National Monument\b/i, type: "National Monument" };
+  const military = { type: "Military land" };
+  const label = context.designationLabelText;
+  assert.equal(label("Mojave Trails National Monument", monument), "Mojave Trails");
+  assert.equal(label("Sand to Snow National Monument", monument), "Sand to Snow");
+  assert.equal(label("Cesar E. Chavez", monument), "Cesar E. Chavez");
+  assert.equal(label("", monument), "National Monument");
+  assert.equal(label("Fort Irwin National Training Center", military), "Fort Irwin National Training Center");
+  assert.equal(label("", military), "Military land");
 });
