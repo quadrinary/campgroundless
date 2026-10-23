@@ -29,8 +29,20 @@
     [25.8, -124.8],
     [49.1, -93.5],
   );
-  const defaultLayerUrl =
-    "https://services.arcgis.com/v01gqwM5QqNysAAi/ArcGIS/rest/services/Manager_Name/FeatureServer/0";
+  const landSources = {
+    padus: {
+      name: "USGS PAD-US 4.1",
+      url: "https://services.arcgis.com/v01gqwM5QqNysAAi/ArcGIS/rest/services/Fee_Managers_PADUS/FeatureServer/0",
+      attribution: "Land data: USGS GAP, PAD-US 4.1",
+      note: "The default ArcGIS layer (PADUS4_1FeeManagers, published by USGS) reports PAD-US 4.1 data last edited April 22, 2026. This is not a current land-status or camping-permission service; verify boundaries, access, closures, and rules with the land manager.",
+    },
+    padus3: {
+      name: "USGS PAD-US 3.0",
+      url: "https://services.arcgis.com/v01gqwM5QqNysAAi/ArcGIS/rest/services/Manager_Name/FeatureServer/0",
+      attribution: "Land data: USGS GAP, PAD-US 3.0",
+      note: "The legacy ArcGIS layer reports PAD-US 3.0 data last edited March 20, 2024; PAD-US 4.1 is newer. This is not a current land-status or camping-permission service; verify boundaries, access, closures, and rules with the land manager.",
+    },
+  };
   const managersByGroup = {
     forest: ["USFS"],
     blm: ["BLM"],
@@ -143,6 +155,9 @@
   const searchSubmit = document.getElementById("search-submit");
   const searchResults = document.getElementById("search-results");
   const dataSourceLabel = document.getElementById("map-data-source-label");
+  const PlaceSearch = window.CampgroundlessPlaceSearch;
+  const searchAttribution = document.getElementById("search-attribution");
+  if (searchAttribution) searchAttribution.innerHTML = PlaceSearch.attribution(settings.placeSearchProvider);
   const sourceLayerNote = document.getElementById("source-layer-note");
   const searchMarkers = L.layerGroup();
   const noteMarkers = L.layerGroup();
@@ -1973,14 +1988,18 @@
     });
   }
 
+  const landSource = landSources[settings.dataSource] || landSources.padus;
   const dataSourceUrl =
     settings.dataSource === "custom" && settings.dataUrl
       ? settings.dataUrl
-      : defaultLayerUrl;
+      : landSource.url;
   if (settings.dataSource === "custom" && settings.dataUrl) {
     dataSourceLabel.textContent = "Custom ArcGIS Feature Layer";
     sourceLayerNote.textContent =
       "This custom layer is managed by its provider. Verify its metadata, attribution requirements, accuracy, and update date with that provider; a compatible schema still does not indicate camping permission.";
+  } else {
+    dataSourceLabel.textContent = landSource.name;
+    sourceLayerNote.textContent = landSource.note;
   }
   const landLayerOptions = {
     url: dataSourceUrl,
@@ -1989,7 +2008,7 @@
     attribution:
       settings.dataSource === "custom"
         ? escapeHtml(settings.dataAttribution || "Land data: custom ArcGIS Feature Layer")
-        : "Land data: USGS GAP, PAD-US 3.0",
+        : landSource.attribution,
     fields: [
       settings.dataSource === "custom" ? "FID" : "OBJECTID",
       "FeatClass",
@@ -2027,7 +2046,7 @@
     mapStatus.textContent =
       settings.dataSource === "custom"
         ? "Custom land boundaries loaded"
-        : "Public land boundaries loaded · PAD-US 3.0";
+        : `Public land boundaries loaded · ${landSource.name.replace("USGS ", "")}`;
     mapStatus.classList.remove("error");
   });
 
@@ -3652,15 +3671,7 @@
     if (waitTime > 0) {
       await new Promise((resolve) => window.setTimeout(resolve, waitTime));
     }
-    const endpoint = new URL(settings.placeSearchUrl);
-    endpoint.searchParams.set("q", term);
-    endpoint.searchParams.set("format", "jsonv2");
-    endpoint.searchParams.set("limit", "5");
-    endpoint.searchParams.set("addressdetails", "1");
-    endpoint.searchParams.set("extratags", "1");
-    endpoint.searchParams.set("countrycodes", "us");
-    endpoint.searchParams.set("viewbox", "-124.8,49.1,-93.5,25.8");
-    endpoint.searchParams.set("bounded", "1");
+    const endpoint = PlaceSearch.buildRequest(settings.placeSearchProvider, settings.placeSearchUrl, term);
     lastPlaceSearchAt = Date.now();
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15000);
@@ -3674,10 +3685,7 @@
       if (!response.ok) {
         throw new Error(`Place search service returned HTTP ${response.status}.`);
       }
-      const places = await response.json();
-      if (!Array.isArray(places)) {
-        throw new Error("Place search service returned an unsupported response.");
-      }
+      const places = PlaceSearch.parseResponse(settings.placeSearchProvider, await response.json());
       placeSearchCache.set(normalizedTerm, places);
       if (placeSearchCache.size > 50) {
         placeSearchCache.delete(placeSearchCache.keys().next().value);

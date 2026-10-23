@@ -8,6 +8,7 @@
     dataApiKey: "",
     dataAttribution: "",
     placeSearchUrl: "https://nominatim.openstreetmap.org/search",
+    placeSearchProvider: "nominatim",
     layers: {
       forest: true,
       blm: true,
@@ -48,6 +49,9 @@
     caption: { min: 5, max: 15 },
     map: { min: 50, max: 200 },
   };
+  // "padus" is PAD-US 4.1; it meant 3.0 before 4.1 became the default, so those users move to 4.1.
+  const dataSources = ["padus", "padus3", "custom"];
+  const placeSearchProviders = ["nominatim", "photon", "custom"];
   const osmLayers = ["standard", "hot", "topographic"];
   const themes = ["auto", "light", "dark"];
   const recreationSiteZoomLevels = [11, 12, 13, 14, 15];
@@ -57,6 +61,16 @@
     return recreationSiteZoomLevels.includes(normalizedZoom)
       ? normalizedZoom
       : defaults.recreationSitesMinZoom;
+  }
+
+  function normalizeDataSource(source) {
+    return dataSources.includes(source) ? source : defaults.dataSource;
+  }
+
+  // Before providers existed, a changed endpoint URL meant a custom Nominatim-compatible service.
+  function normalizePlaceSearchProvider(provider, url) {
+    if (placeSearchProviders.includes(provider)) return provider;
+    return url && url !== defaults.placeSearchUrl ? "custom" : defaults.placeSearchProvider;
   }
 
   function normalizeOsmLayer(layer) {
@@ -107,6 +121,8 @@
       return {
         ...defaults,
         ...saved,
+        dataSource: normalizeDataSource(saved.dataSource),
+        placeSearchProvider: normalizePlaceSearchProvider(saved.placeSearchProvider, saved.placeSearchUrl),
         layers: { ...defaults.layers, ...(saved.layers ?? {}) },
         overlays: normalizeOverlays(saved.overlays),
         recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
@@ -130,6 +146,8 @@
       storageKey,
       JSON.stringify({
         ...settings,
+        dataSource: normalizeDataSource(settings.dataSource),
+        placeSearchProvider: normalizePlaceSearchProvider(settings.placeSearchProvider, settings.placeSearchUrl),
         overlays: normalizeOverlays(settings.overlays),
         recreationSitesMinZoom: normalizeRecreationSitesMinZoom(
           settings.recreationSitesMinZoom,
@@ -189,6 +207,8 @@
   window.CampgroundlessSettings = Object.freeze({
     storageKey,
     defaults,
+    dataSources,
+    placeSearchProviders,
     read,
     write,
     applyTypography,
