@@ -1,6 +1,6 @@
 // App shell for offline use. Map data is never cached here: saved offline
 // areas live in their own cache and IndexedDB, managed by offline.js.
-const SHELL_CACHE = "campgroundless-shell-v19";
+const SHELL_CACHE = "campgroundless-shell-v20";
 const PAGES = ["./", "./index.html", "./settings.html"];
 const EXTRAS = [
   "./manifest.webmanifest",

@@ -10,7 +10,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <style>html,body{background:#f5f4ef}@media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body.app-body{background:#1d1e1a}}html[data-theme="dark"],html[data-theme="dark"] body.app-body{background:#1d1e1a}</style>
     <script src="./theme.js?v=8"></script>
-    <script src="./native.js?v=3"></script>
+    <script src="./native.js?v=4"></script>
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="description"
@@ -27,8 +27,8 @@
     <link rel="stylesheet" href="./vendor/maplibre-gl.css?v=4.7.1" />
     <link rel="stylesheet" href="./vendor/leaflet.css?v=1.9.4" />
     <link rel="stylesheet" href="./styles.css?v=26" />
-    <link rel="stylesheet" href="./shell.css?v=14" />
-    <link rel="stylesheet" href="./theme.css?v=19" />
+    <link rel="stylesheet" href="./shell.css?v=15" />
+    <link rel="stylesheet" href="./theme.css?v=20" />
   </head>
   <body class="app-body">
     <div class="status-strip" aria-hidden="true"></div>
@@ -79,6 +79,12 @@
             <span class="rail-label">About this map</span>
           </button>
         </nav>
+
+        <!-- Website only: removed in the iPhone app (App Store rules on external donation links). -->
+        <a class="rail-item rail-support" data-web-only href="https://ko-fi.com/quadr" target="_blank" rel="noopener" title="Support on Ko-fi">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 6.500h13.500v7a6 6 0 0 1-6 6h-1.500a6 6 0 0 1-6-6z"></path><path d="M17 8.500h1.500a3.200 3.200 0 0 1 0 6.400H17"></path><path d="M10.250 15.800s-3.200-1.900-3.200-3.900a1.600 1.600 0 0 1 3.200-.6 1.600 1.600 0 0 1 3.200.6c0 2-3.200 3.900-3.200 3.900Z"></path></svg>
+          <span class="rail-label">Support on Ko-fi</span>
+        </a>
 
         <button class="rail-item rail-settings" type="button" data-view="settings" aria-controls="view-panel" aria-expanded="false" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true">

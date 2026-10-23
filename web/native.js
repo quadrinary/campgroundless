@@ -195,6 +195,11 @@
         if (!link || event.defaultPrevented) {
           return;
         }
+        // Donation links are website-only (App Store guideline 3.1.1).
+        if (link.closest("[data-web-only]") || /(^|\.)ko-fi\.com$/i.test(new URL(link.href).hostname)) {
+          event.preventDefault();
+          return;
+        }
         const url = new URL(link.getAttribute("href"), window.location.href);
         if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:") {
           event.preventDefault();
@@ -214,6 +219,7 @@
     });
     document.addEventListener("DOMContentLoaded", () => {
       Promise.resolve(plugin("SplashScreen")?.hide?.()).catch(() => {});
+      document.querySelectorAll("[data-web-only]").forEach((element) => element.remove());
       // Privacy copy is written for the website; the app keeps data on the device.
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {

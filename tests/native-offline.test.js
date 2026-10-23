@@ -126,6 +126,17 @@ test("app routes geolocation through the native plugin", async () => {
   assert.equal(calls[0].enableHighAccuracy, true);
 });
 
+test("donation links are website-only", () => {
+  const html = source("index.html");
+  const links = html.match(/<a\b[^>]*ko-fi\.com[^>]*>/gi) ?? [];
+  assert.ok(links.length > 0, "the website shows a Ko-fi link");
+  links.forEach((link) => assert.match(link, /\bdata-web-only\b/, "every Ko-fi link is marked web-only"));
+  assert.match(source("theme.css"), /html\.is-native \[data-web-only\] \{ display: none !important; \}/);
+  const native = source("native.js");
+  assert.match(native, /querySelectorAll\("\[data-web-only\]"\)\.forEach\(\(element\) => element\.remove\(\)\)/);
+  assert.match(native, /ko-fi\\\.com/);
+});
+
 test("app provides geolocation even when the web view does not", async () => {
   const geo = {
     async getCurrentPosition() {
