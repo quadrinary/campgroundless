@@ -256,6 +256,8 @@
   // Canvas-rendered land clicks target the canvas, not an SVG path, so they are
   // tracked by their DOM event instead of the .leaflet-interactive class.
   const landClickEvents = new WeakSet();
+  // The land feature under each tap; its popup opens after the double-tap wait.
+  const landClickTargets = new WeakMap();
   // BLM road layers hold ~131,000 lines across the coverage area; drawing them
   // at regional zoom freezes the page.
   const vectorRoadMinZoom = 10;
@@ -1976,6 +1978,8 @@
   // Popup markup is built on demand; thousands of land features load at once.
   function createPopup(feature, layer) {
     layer.bindPopup(() => buildLandPopup(feature), { maxWidth: 300, maxHeight: 320 });
+    // Opened from the delayed map click instead, so a double tap zooms without a popup.
+    layer.off("click", layer._openPopup, layer);
     layer.on("popupopen", (event) => {
       const popupElement = event.popup.getElement();
       bindManagerIconFallback(popupElement);
@@ -2055,14 +2059,18 @@
   function handleLandFeatureClick(event) {
     if (event.originalEvent) {
       landClickEvents.add(event.originalEvent);
+      landClickTargets.set(event.originalEvent, {
+        layer: event.propagatedFrom || event.layer,
+        latlng: event.latlng,
+      });
     }
-    if (activeRoadOverlays.size === 0) {
-      return;
+  }
+  function openLandPopup(target) {
+    if (!target?.layer || !map.hasLayer(target.layer)) {
+      return false;
     }
-    if (event.originalEvent) {
-      L.DomEvent.stopPropagation(event.originalEvent);
-    }
-    handleMapClick(event, true);
+    target.layer.openPopup(target.latlng);
+    return true;
   }
   landLayer.on("click", handleLandFeatureClick);
 
@@ -3425,6 +3433,7 @@
 
   async function handleMapClick(event, fromLandFeature = false) {
     const location = event.latlng;
+    const landTarget = event.originalEvent ? landClickTargets.get(event.originalEvent) : null;
     if (
       !offlineState.active &&
       settings.overlays.blmRecreation &&
@@ -3449,8 +3458,11 @@
       });
       return;
     }
+    if (landTarget) {
+      fromLandFeature = openLandPopup(landTarget);
+    }
     if (activeRoadOverlays.size === 0) {
-      if (clickedMapFeature(event)) {
+      if (fromLandFeature || (!landTarget && clickedMapFeature(event))) {
         return;
       }
       openPointInformationPopup(location);
@@ -3494,7 +3506,7 @@
           ? "No selected road was found here. Showing the land information."
           : `No selected road was found within ${distanceDescription(toleranceMeters)}. Zoom in and click closer to a mapped route.`;
       }
-      if (!fromLandFeature && !clickedMapFeature(event)) {
+      if (!fromLandFeature && (landTarget || !clickedMapFeature(event))) {
         openPointInformationPopup(location);
       }
       return;
