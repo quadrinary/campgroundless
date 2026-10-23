@@ -159,6 +159,7 @@ html.is-standalone .map-notice { padding: 3px 12px 4px; line-height: 1.2; min-he
 
 /* The iPhone app bundles its files, so there is no web file cache to clear. */
 html.is-native #storage-clear-files { display: none; }
+html.is-native [data-web-only] { display: none !important; }
 
 /*
  * iPhone app: the map runs behind the status bar. A faint, non-interactive

@@ -158,6 +158,7 @@ Before an App Store release:
 - **Privacy:** the privacy policy is `web/privacy.html` (published at `/privacy.html`). In App Store Connect, the App Privacy answer is **Data Not Collected**: location is used only on the device, and there are no accounts, analytics, or tracking. The app sets `ITSAppUsesNonExemptEncryption` to `false` (it uses only standard HTTPS).
 - **Review guideline 4.2 (minimum functionality):** reviewers reject apps that are only a website in a wrapper. Highlight the native features in the review notes: offline maps stored on the device, OpenFreeMap offline vector maps, native location, share sheet, and haptics.
 - **Screenshots:** App Store Connect requires 6.9-inch iPhone screenshots.
+- **Donations (guideline 3.1.1):** the Ko-fi support link in the sidebar appears only on the website. Elements marked `data-web-only` are hidden and removed in the iPhone app, and `native.js` blocks any Ko-fi link there. Any future in-app tipping must use Apple in-app purchase.
 
 ## Hosting on GitHub Pages
 

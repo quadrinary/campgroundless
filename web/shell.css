@@ -123,8 +123,13 @@ body.app-body {
   gap: 4px;
 }
 
-.rail-settings {
+.rail-settings,
+.rail-support {
   margin-top: auto;
+}
+
+.rail-support + .rail-settings {
+  margin-top: 4px;
 }
 
 .rail:not(:hover) .rail-label {
