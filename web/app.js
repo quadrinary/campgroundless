@@ -3831,14 +3831,36 @@
     }, 0);
   });
 
+  // On open, center on the current position unless a shared note link chose the view.
+  // Skipped if the user starts moving the map or searching before the position arrives.
+  let startupLocating = !sharedNote && Boolean(navigator.geolocation);
+  const cancelStartupLocate = () => {
+    startupLocating = false;
+  };
+  if (startupLocating) {
+    map.getContainer().addEventListener("pointerdown", cancelStartupLocate, { once: true });
+    map.getContainer().addEventListener("wheel", cancelStartupLocate, { once: true });
+    searchInput.addEventListener("focus", cancelStartupLocate, { once: true });
+    map.locate({ setView: false, timeout: 15000, maximumAge: 5 * 60 * 1000 });
+  }
+
   document.getElementById("locate-button").addEventListener("click", () => {
+    startupLocating = false;
     // GPS still works without a data connection; Wi-Fi/cell positioning may not.
     map.locate({ setView: true, maxZoom: offlineState.active ? 14 : 10, enableHighAccuracy: offlineState.active });
   });
 
   let locationMarker = null;
   map.on("locationfound", (event) => {
-    nativeApp.haptic("light");
+    if (startupLocating) {
+      startupLocating = false;
+      // Positions far outside the mapped states keep the default overview.
+      if (map.options.maxBounds.contains(event.latlng)) {
+        map.setView(event.latlng, offlineState.active ? 14 : 10);
+      }
+    } else {
+      nativeApp.haptic("light");
+    }
     if (locationMarker) map.removeLayer(locationMarker);
     locationMarker = L.circleMarker(event.latlng, {
       radius: 7,
@@ -3852,6 +3874,11 @@
   });
 
   map.on("locationerror", () => {
+    // A denied or slow position on open is not an error the user asked about.
+    if (startupLocating) {
+      startupLocating = false;
+      return;
+    }
     searchMessage.textContent = nativeApp.isNative
       ? "Location access was unavailable. Allow location for Campgroundless in iPhone Settings and try again."
       : "Location access was unavailable. Check your browser permission and try again.";
