@@ -43,36 +43,56 @@
       note: "The legacy ArcGIS layer reports PAD-US 3.0 data last edited March 20, 2024; PAD-US 4.1 is newer. This is not a current land-status or camping-permission service; verify boundaries, access, closures, and rules with the land manager.",
     },
   };
-  const managersByGroup = {
-    forest: ["USFS"],
-    blm: ["BLM"],
-    state: [
-      "CITY",
-      "CNTY",
-      "REG",
-      "RWD",
-      "SDC",
-      "SDNR",
-      "SDOL",
-      "SFW",
-      "SPR",
-      "OTHS",
-    ],
-    other: ["FWS", "NPS", "OTHF", "USACE", "USBR"],
-  };
-  const colorByManager = {
-    USFS: "#33745b",
-    BLM: "#c67b46",
-    FWS: "#8776a8",
-    NPS: "#8776a8",
-    OTHF: "#8776a8",
-    USACE: "#8776a8",
-    USBR: "#8776a8",
+  // Land categories in the Layers panel. Fee categories filter PAD-US manager codes
+  // (Mang_Name); "designation" categories come from the PAD-US federal designation layer.
+  const landCategories = [
+    { key: "forest", section: "federal", label: "U.S. Forest Service", color: "#33745b", managers: ["USFS"] },
+    { key: "blm", section: "federal", label: "Bureau of Land Management", color: "#c67b46", managers: ["BLM"] },
+    { key: "nps", section: "federal", label: "National Park Service", color: "#7d5a3c", managers: ["NPS"] },
+    { key: "monuments", section: "federal", label: "National Monuments (outline)", color: "#d0389b", designation: "Des_Tp = 'NM'" },
+    { key: "fws", section: "federal", label: "U.S. Fish & Wildlife Service", color: "#2e8b8b", managers: ["FWS"] },
+    { key: "usbr", section: "federal", label: "Bureau of Reclamation", color: "#3f6fb5", managers: ["USBR"] },
+    { key: "usace", section: "federal", label: "Army Corps of Engineers", color: "#8a8a2e", managers: ["USACE"] },
+    { key: "military", section: "federal", label: "Department of Defense (military)", color: "#c0392b", managers: ["DOD"], designation: "(Des_Tp = 'MIL' OR Mang_Name = 'DOD')" },
+    { key: "doe", section: "federal", label: "Department of Energy", color: "#4d4d4d", managers: ["DOE"] },
+    { key: "otherFederal", section: "federal", label: "Other federal", color: "#7b8794", managers: ["OTHF", "ARS", "NRCS"] },
+    { key: "stateTrust", section: "state", label: "State trust lands", color: "#d1a32a", managers: ["SLB"] },
+    { key: "stateParks", section: "state", label: "State parks & recreation", color: "#3fa7c9", managers: ["SPR"] },
+    { key: "stateWildlife", section: "state", label: "State fish & wildlife areas", color: "#7aa84a", managers: ["SFW"] },
+    { key: "state", section: "state", label: "Other state lands", color: "#5b91ae", managers: ["SDOL", "SDNR", "SDC", "OTHS"] },
+    { key: "regional", section: "state", label: "Regional & special districts", color: "#a27fc0", managers: ["REG", "RWD"] },
+    { key: "county", section: "state", label: "County", color: "#c46aa8", managers: ["CNTY"] },
+    { key: "city", section: "state", label: "City / municipal", color: "#e08aa0", managers: ["CITY"] },
+  ];
+  const landCategorySections = [
+    ["federal", "Federal"],
+    ["state", "State & local"],
+  ];
+  const managersByGroup = Object.fromEntries(
+    landCategories.filter((category) => category.managers).map((category) => [category.key, category.managers]),
+  );
+  const colorByManager = Object.fromEntries(
+    landCategories.flatMap((category) => (category.managers ?? []).map((manager) => [manager, category.color])),
+  );
+  const designationCategories = landCategories.filter((category) => category.designation);
+  const allLandLayers = Object.fromEntries(landCategories.map((category) => [category.key, true]));
+  // National Monuments overlay other managers' land and military ranges are mostly
+  // proclamation boundaries, so neither is in the fee-manager layer.
+  const designationSource = {
+    name: "USGS PAD-US 4.1 federal designations",
+    url: "https://services.arcgis.com/v01gqwM5QqNysAAi/ArcGIS/rest/services/Federal_Management_Agencies_PADUS/FeatureServer/0",
+    attribution: "Monuments and military lands: USGS GAP, PAD-US 4.1",
+    fields: ["OBJECTID", "FeatClass", "Mang_Name", "Des_Tp", "Unit_Nm", "Loc_Nm", "Pub_Access", "Src_Date"],
   };
   const managerNames = {
     BLM: "Bureau of Land Management",
     CITY: "City government",
     CNTY: "County government",
+    ARS: "USDA Agricultural Research Service",
+    DOD: "U.S. Department of Defense",
+    DOE: "U.S. Department of Energy",
+    NRCS: "USDA Natural Resources Conservation Service",
+    SLB: "State land board (state trust lands)",
     FWS: "U.S. Fish and Wildlife Service",
     NPS: "National Park Service",
     OTHF: "Other federal manager",
@@ -98,7 +118,11 @@
     USFS: "logos/usfs.svg",
   };
   const federalManagerCodes = new Set([
+    "ARS",
     "BLM",
+    "DOD",
+    "DOE",
+    "NRCS",
     "FWS",
     "NPS",
     "OTHF",
@@ -107,6 +131,7 @@
     "USFS",
   ]);
   const federalManagerLabels = {
+    DOD: "DoD",
     OTHF: "U.S.",
     USBR: "BOR",
   };
@@ -484,22 +509,40 @@
 
     const managerHeading = L.DomUtil.create("strong", "map-layer-heading", panel);
     managerHeading.textContent = "Land Managers";
-    [
-      ["forest", "U.S. Forest Service"],
-      ["blm", "Bureau of Land Management"],
-      ["state", "State public lands"],
-      ["other", "Other public lands"],
-    ].forEach(([value, label]) => {
-      const managerLabel = L.DomUtil.create("label", "map-layer-option", panel);
-      const managerInput = L.DomUtil.create("input", "", managerLabel);
-      managerInput.type = "checkbox";
-      managerInput.name = "manager";
-      managerInput.value = value;
-      const swatch = L.DomUtil.create("span", `filter-swatch swatch-${value}`, managerLabel);
-      swatch.setAttribute("aria-hidden", "true");
-      const managerText = L.DomUtil.create("span", "", managerLabel);
-      managerText.textContent = label;
+    landCategorySections.forEach(([section, sectionLabel]) => {
+      const group = L.DomUtil.create("div", "map-layer-manager-group", panel);
+      group.setAttribute("role", "group");
+      const sectionLabelElement = L.DomUtil.create("label", "map-layer-option map-layer-section-option", group);
+      const sectionInput = L.DomUtil.create("input", "", sectionLabelElement);
+      sectionInput.type = "checkbox";
+      sectionInput.name = "manager-section";
+      sectionInput.value = section;
+      const sectionText = L.DomUtil.create("span", "", sectionLabelElement);
+      sectionText.textContent = `${sectionLabel} · all`;
+      group.setAttribute("aria-label", `${sectionLabel} land managers`);
+      landCategories
+        .filter((category) => category.section === section)
+        .forEach((category) => {
+          const managerLabel = L.DomUtil.create("label", "map-layer-option map-layer-manager-option", group);
+          const managerInput = L.DomUtil.create("input", "", managerLabel);
+          managerInput.type = "checkbox";
+          managerInput.name = "manager";
+          managerInput.value = category.key;
+          managerInput.dataset.section = section;
+          const swatch = L.DomUtil.create(
+            "span",
+            `filter-swatch${category.designation && !category.managers ? " is-outline" : ""}`,
+            managerLabel,
+          );
+          swatch.style.setProperty("--swatch", category.color);
+          swatch.setAttribute("aria-hidden", "true");
+          const managerText = L.DomUtil.create("span", "", managerLabel);
+          managerText.textContent = category.label;
+        });
     });
+    const managerHelp = L.DomUtil.create("p", "map-layer-help", panel);
+    managerHelp.textContent =
+      "Colors show the mapped land manager, not permission to camp. Military and Energy lands are generally closed to the public.";
     const managerSeparator = L.DomUtil.create("hr", "map-layer-separator", panel);
     managerSeparator.setAttribute("aria-hidden", "true");
     const styleSection = document.createElement("div");
@@ -1875,6 +1918,36 @@
     return `State_Nm IN (${coverageStateCodes}) AND FeatClass = 'Fee' AND Mang_Name IN (${quotedManagers})`;
   }
 
+  function buildDesignationWhere(layers = settings.layers) {
+    const clauses = designationCategories
+      .filter((category) => layers[category.key])
+      .map((category) => category.designation);
+    if (clauses.length === 0) {
+      return "1=0";
+    }
+    return `State_Nm IN (${coverageStateCodes}) AND FeatClass <> 'Easement' AND (${clauses.join(" OR ")})`;
+  }
+
+  function designationCategory(properties) {
+    return properties?.Des_Tp === "NM"
+      ? designationCategories.find((category) => category.key === "monuments")
+      : designationCategories.find((category) => category.key === "military");
+  }
+
+  function designationStyle(feature) {
+    const category = designationCategory(feature?.properties);
+    const isMonument = category?.key === "monuments";
+    return {
+      color: category?.color ?? "#d0389b",
+      weight: isMonument ? 2 : 1.5,
+      opacity: 0.9,
+      dashArray: isMonument ? "6 4" : "3 3",
+      fill: !isMonument,
+      fillColor: category?.color ?? "#c0392b",
+      fillOpacity: 0.22,
+    };
+  }
+
   function featureStyle(feature) {
     const manager = feature?.properties?.Mang_Name;
     return {
@@ -1963,6 +2036,7 @@
         </div>
         <h3>${escapeHtml(unit)}</h3>
         <p><strong>Public access type:</strong> ${accessText}</p>
+        <p class="designation-line" hidden><strong>Special designation:</strong> <span class="designation-value"></span></p>
         <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
         <div class="feature-note-action">
           <label for="feature-note-icon">Choose a note marker icon</label>
@@ -1988,6 +2062,7 @@
       if (nearestRoadValue) {
         void loadNearestRoadDescription(event.popup.getLatLng(), nearestRoadValue);
       }
+      void loadDesignationDescription(event.popup.getLatLng(), popupElement.querySelector(".designation-line"));
       bindPopupNoteIcon(event.popup, event.popup.getLatLng(), iconSelect);
     });
   }
@@ -2094,6 +2169,29 @@
   });
 
   landLayer.addTo(map);
+
+  // Outlines and military tint sit above land but never take taps; popups list them instead.
+  const designationPane = map.createPane("landDesignations");
+  designationPane.style.zIndex = "410";
+  designationPane.style.pointerEvents = "none";
+  const designationRenderer = L.canvas({ pane: "landDesignations", padding: 0.3 });
+  const designationLayer = L.esri.featureLayer({
+    url: designationSource.url,
+    where: buildDesignationWhere(),
+    fields: designationSource.fields,
+    attribution: designationSource.attribution,
+    simplifyFactor: 0.35,
+    precision: 5,
+    minZoom: 5,
+    pane: "landDesignations",
+    renderer: designationRenderer,
+    interactive: false,
+    style: designationStyle,
+  });
+  designationLayer.on("requesterror", (event) => {
+    console.warn("Could not load monument and military boundaries.", event?.message ?? event);
+  });
+  designationLayer.addTo(map);
 
   const censusRoadService =
     "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer";
@@ -2685,7 +2783,7 @@
       return offlineLandAtPoint(location);
     }
     const data = await queryArcGisFeatures(dataSourceUrl, {
-      where: buildWhere({ forest: true, blm: true, state: true, other: true }),
+      where: buildWhere(allLandLayers),
       geometry: {
         x: location.lng,
         y: location.lat,
@@ -2699,6 +2797,70 @@
       returnGeometry: false,
     });
     return data.features?.[0]?.properties ?? null;
+  }
+
+  // Always checked (even with those layers hidden): a military range changes what a spot means.
+  async function queryDesignationsAtPoint(location) {
+    if (offlineState.active) {
+      if (!insideSavedArea(location, "designations")) {
+        return [];
+      }
+      const point = [location.lng, location.lat];
+      return (await combinedPackData("designations"))
+        .filter((feature) => {
+          const box = featureBox(feature);
+          return (
+            point[0] >= box.xmin && point[0] <= box.xmax &&
+            point[1] >= box.ymin && point[1] <= box.ymax &&
+            pointInStateBoundary(point, feature.geometry)
+          );
+        })
+        .map((feature) => feature.properties ?? {});
+    }
+    const data = await queryArcGisFeatures(designationSource.url, {
+      where: buildDesignationWhere(allLandLayers),
+      geometry: {
+        x: location.lng,
+        y: location.lat,
+        spatialReference: { wkid: 4326 },
+      },
+      geometryType: "esriGeometryPoint",
+      outFields: designationSource.fields.join(","),
+      resultRecordCount: 5,
+      returnGeometry: false,
+    });
+    return (data.features ?? []).map((feature) => feature.properties ?? {});
+  }
+
+  function designationDescription(properties) {
+    const unit = propertyValue(properties, "Unit_Nm", "Loc_Nm") || "Unnamed area";
+    const managerCode = propertyValue(properties, "Mang_Name");
+    const manager = managerNames[managerCode] || managerCode || "manager not specified";
+    const kind = designationCategory(properties)?.key === "monuments" ? "National Monument" : "Military land";
+    const access = {
+      OA: "open access",
+      RA: "restricted access",
+      XA: "closed to public access",
+      UK: "access unknown",
+    }[String(propertyValue(properties, "Pub_Access")).toUpperCase()];
+    return `${unit} · ${kind}, ${manager}${access ? ` · PAD-US: ${access}` : ""}`;
+  }
+
+  async function loadDesignationDescription(location, line) {
+    if (!line) {
+      return;
+    }
+    try {
+      const designations = await queryDesignationsAtPoint(location);
+      const descriptions = [...new Set(designations.map(designationDescription))];
+      if (!line.isConnected || descriptions.length === 0) {
+        return;
+      }
+      line.querySelector(".designation-value").textContent = descriptions.join("; ");
+      line.hidden = false;
+    } catch (error) {
+      console.warn("Could not look up monument and military designations here.", error);
+    }
   }
 
   function pointToRoadDistanceMeters(location, geometry) {
@@ -3182,6 +3344,7 @@
           <h3>${place ? "Land at this location" : "Map point"}</h3>
           <p><strong>Coordinates (lat, lon):</strong> ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</p>
           <p><strong>Mapped land:</strong> <span class="point-land-value">Looking up the land manager…</span></p>
+          <p class="designation-line" hidden><strong>Special designation:</strong> <span class="designation-value"></span></p>
           <p><strong>Contact:</strong> <span class="point-contact-value">Looking up manager information…</span></p>
           <p><strong>Nearest named road (Census):</strong> <span class="nearest-road-value">Looking up nearby named roads…</span></p>
           <p class="popup-warning">Mapped ownership and public-access records do not establish camping permission or current access. Confirm rules, closures, and contact details with the responsible office.</p>
@@ -3231,6 +3394,7 @@
       location,
       popup.getElement().querySelector(".nearest-road-value"),
     );
+    void loadDesignationDescription(location, popup.getElement().querySelector(".designation-line"));
     bindPopupNoteIcon(popup, location);
   }
 
@@ -3558,26 +3722,59 @@
     bindPopupNoteIcon(popup, location);
   }
 
-  document.querySelectorAll('input[name="manager"]').forEach((checkbox) => {
+  const managerCheckboxes = [...document.querySelectorAll('input[name="manager"]')];
+  const managerSectionCheckboxes = [...document.querySelectorAll('input[name="manager-section"]')];
+  function syncManagerSectionCheckboxes() {
+    managerSectionCheckboxes.forEach((sectionCheckbox) => {
+      const members = managerCheckboxes.filter((checkbox) => checkbox.dataset.section === sectionCheckbox.value);
+      const checkedCount = members.filter((checkbox) => checkbox.checked).length;
+      sectionCheckbox.checked = checkedCount === members.length;
+      sectionCheckbox.indeterminate = checkedCount > 0 && checkedCount < members.length;
+    });
+  }
+  function applyManagerLayers() {
+    try {
+      window.CampgroundlessSettings.write(settings);
+    } catch (error) {
+      console.error("Could not save layer preferences.", error);
+      searchMessage.textContent =
+        "Could not save layer preferences in this browser. Check storage settings.";
+    }
+    syncManagerSectionCheckboxes();
+    if (offlineState.active) {
+      void renderOfflineData();
+    } else {
+      const where = buildWhere(settings.layers);
+      if (landLayer.options.where !== where) {
+        mapStatus.textContent = "Updating land boundaries…";
+        landLayer.setWhere(where);
+      }
+      const designationWhere = buildDesignationWhere(settings.layers);
+      if (designationLayer.options.where !== designationWhere) {
+        designationLayer.setWhere(designationWhere);
+      }
+    }
+    notifySettingsChange();
+  }
+  managerCheckboxes.forEach((checkbox) => {
     checkbox.checked = Boolean(settings.layers[checkbox.value]);
     checkbox.addEventListener("change", () => {
       settings.layers[checkbox.value] = checkbox.checked;
-      try {
-        window.CampgroundlessSettings.write(settings);
-      } catch (error) {
-        console.error("Could not save layer preferences.", error);
-        searchMessage.textContent =
-          "Could not save layer preferences in this browser. Check storage settings.";
-      }
-      if (offlineState.active) {
-        void renderOfflineData();
-        return;
-      }
-      mapStatus.textContent = "Updating land boundaries…";
-      landLayer.setWhere(buildWhere(settings.layers));
+      applyManagerLayers();
     });
-    checkbox.addEventListener("change", notifySettingsChange);
   });
+  managerSectionCheckboxes.forEach((sectionCheckbox) => {
+    sectionCheckbox.addEventListener("change", () => {
+      managerCheckboxes
+        .filter((checkbox) => checkbox.dataset.section === sectionCheckbox.value)
+        .forEach((checkbox) => {
+          checkbox.checked = sectionCheckbox.checked;
+          settings.layers[checkbox.value] = sectionCheckbox.checked;
+        });
+      applyManagerLayers();
+    });
+  });
+  syncManagerSectionCheckboxes();
 
   function notifySettingsChange() {
     window.dispatchEvent(new CustomEvent("campgroundless:settingschange"));
@@ -4155,9 +4352,16 @@
         data: "land",
         label: "Land boundaries",
         url: dataSourceUrl,
-        where: buildWhere({ forest: true, blm: true, state: true, other: true }),
+        where: buildWhere(allLandLayers),
         outFields: landLayerOptions.fields.join(","),
         token: settings.dataApiKey || undefined,
+      },
+      {
+        data: "designations",
+        label: "Monument and military boundaries",
+        url: designationSource.url,
+        where: buildDesignationWhere(allLandLayers),
+        outFields: designationSource.fields.join(","),
       },
     ];
     layers.forEach((key) => {
@@ -4598,6 +4802,30 @@
     );
     offlineState.landLayer.on("click", handleLandFeatureClick);
     offlineState.landLayer.addTo(map);
+    const designationFeatures = await combinedPackData("designations");
+    if (!offlineState.active || sequence !== offlineState.renderSequence) {
+      return;
+    }
+    if (offlineState.designationLayer) {
+      map.removeLayer(offlineState.designationLayer);
+    }
+    const enabledDesignations = new Set(
+      designationCategories.filter((category) => settings.layers[category.key]).map((category) => category.key),
+    );
+    offlineState.designationLayer = L.geoJSON(
+      {
+        type: "FeatureCollection",
+        features: designationFeatures.filter((feature) =>
+          enabledDesignations.has(designationCategory(feature.properties)?.key)),
+      },
+      {
+        pane: "landDesignations",
+        renderer: designationRenderer,
+        interactive: false,
+        style: designationStyle,
+        attribution: `${designationSource.attribution} (saved offline)`,
+      },
+    ).addTo(map);
     const names = [...new Set(savedLandSources().map((source) => source.name))];
     dataSourceLabel.textContent = names.length ? `${names.join(" + ")} (saved offline)` : liveLandSourceLabel;
   }
@@ -4685,6 +4913,10 @@
     if (offlineState.landLayer) {
       map.removeLayer(offlineState.landLayer);
       offlineState.landLayer = null;
+    }
+    if (offlineState.designationLayer) {
+      map.removeLayer(offlineState.designationLayer);
+      offlineState.designationLayer = null;
     }
     if (offlineState.outlines) {
       map.removeLayer(offlineState.outlines);
@@ -4791,6 +5023,7 @@
     map.removeLayer(basemapLayer);
     map.getContainer().dataset.basemap = "offline";
     map.removeLayer(landLayer);
+    map.removeLayer(designationLayer);
     Object.values(liveOverlayLayers).forEach((layer) => {
       if (layer && map.hasLayer(layer)) {
         map.removeLayer(layer);
@@ -4821,6 +5054,11 @@
     const where = buildWhere(settings.layers);
     if (landLayer.options.where !== where) {
       landLayer.setWhere(where);
+    }
+    designationLayer.addTo(map);
+    const designationWhere = buildDesignationWhere(settings.layers);
+    if (designationLayer.options.where !== designationWhere) {
+      designationLayer.setWhere(designationWhere);
     }
     document.querySelectorAll('input[name="map-reference-overlay"]').forEach((checkbox) => {
       if (checkbox.checked) {

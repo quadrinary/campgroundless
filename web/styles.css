@@ -649,6 +649,12 @@ h1 em {
   height: 10px;
   flex: none;
   border-radius: 2px;
+  background: var(--swatch, var(--state));
+}
+
+.filter-swatch.is-outline {
+  background: transparent;
+  border: 2px dashed var(--swatch);
 }
 
 .swatch-forest {
@@ -984,6 +990,20 @@ h1 em {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+}
+
+.map-layer-manager-group + .map-layer-manager-group {
+  margin-top: 6px;
+}
+
+.map-layer-section-option {
+  min-height: 26px;
+  font-weight: 600;
+}
+
+.map-layer-manager-option {
+  min-height: 26px;
+  padding-left: 14px;
 }
 
 .map-overlay-option {
