@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "integrations": {
+    "padus41": {
+      "enabled": true
+    },
+    "padus30": {
+      "enabled": true
+    },
+    "padusDesignations": {
+      "enabled": true
+    },
+    "customLandSource": {
+      "enabled": true
+    },
+    "censusStateBoundaries": {
+      "enabled": true
+    },
+    "censusRoads": {
+      "enabled": true
+    },
+    "openFreeMap": {
+      "enabled": true
+    },
+    "esriWorldStreetMap": {
+      "enabled": true
+    },
+    "esriWorldImagery": {
+      "enabled": true
+    },
+    "esriWorldHillshade": {
+      "enabled": true
+    },
+    "usgsTopo": {
+      "enabled": true
+    },
+    "usgsImageryTopo": {
+      "enabled": true
+    },
+    "usgsShadedRelief": {
+      "enabled": true
+    },
+    "osmStandardTiles": {
+      "enabled": true
+    },
+    "osmHumanitarianTiles": {
+      "enabled": true
+    },
+    "openTopoMapTiles": {
+      "enabled": true
+    },
+    "customBasemap": {
+      "enabled": true
+    },
+    "usfsRecreation": {
+      "enabled": true
+    },
+    "blmRecreation": {
+      "enabled": true
+    },
+    "usfsRoads": {
+      "enabled": true
+    },
+    "usfsTrails": {
+      "enabled": true
+    },
+    "usfsMvum": {
+      "enabled": true
+    },
+    "blmGtlfPublicRoads": {
+      "enabled": true
+    },
+    "blmGtlfLimitedRoads": {
+      "enabled": true
+    },
+    "nifcWildfirePerimeters": {
+      "enabled": true
+    },
+    "noaaSmoke": {
+      "enabled": true
+    },
+    "blmPlss": {
+      "enabled": true
+    },
+    "usgsNhd": {
+      "enabled": true
+    },
+    "nominatim": {
+      "enabled": true
+    },
+    "photon": {
+      "enabled": true
+    },
+    "customPlaceSearch": {
+      "enabled": true
+    },
+    "kofi": {
+      "enabled": true
+    }
+  },
+  "features": {
+    "landBoundaries": {
+      "enabled": true
+    },
+    "landLayer.forest": {
+      "enabled": true
+    },
+    "landLayer.blm": {
+      "enabled": true
+    },
+    "landLayer.nps": {
+      "enabled": true
+    },
+    "landLayer.monuments": {
+      "enabled": true
+    },
+    "landLayer.fws": {
+      "enabled": true
+    },
+    "landLayer.usbr": {
+      "enabled": true
+    },
+    "landLayer.usace": {
+      "enabled": true
+    },
+    "landLayer.military": {
+      "enabled": true
+    },
+    "landLayer.doe": {
+      "enabled": true
+    },
+    "landLayer.otherFederal": {
+      "enabled": true
+    },
+    "landLayer.stateTrust": {
+      "enabled": true
+    },
+    "landLayer.stateParks": {
+      "enabled": true
+    },
+    "landLayer.stateWildlife": {
+      "enabled": true
+    },
+    "landLayer.state": {
+      "enabled": true
+    },
+    "landLayer.regional": {
+      "enabled": true
+    },
+    "landLayer.county": {
+      "enabled": true
+    },
+    "landLayer.city": {
+      "enabled": true
+    },
+    "landLayer.wilderness": {
+      "enabled": true
+    },
+    "landLayer.wsa": {
+      "enabled": true
+    },
+    "landLayer.acec": {
+      "enabled": true
+    },
+    "landLayer.wsr": {
+      "enabled": true
+    },
+    "designationLabels": {
+      "enabled": true
+    },
+    "overlay.fsRecreation": {
+      "enabled": true
+    },
+    "overlay.blmRecreation": {
+      "enabled": true
+    },
+    "overlay.fsRoads": {
+      "enabled": true
+    },
+    "overlay.fsClosedRoads": {
+      "enabled": true
+    },
+    "overlay.fsTrails": {
+      "enabled": true
+    },
+    "overlay.fsMvum": {
+      "enabled": true
+    },
+    "overlay.blmPublicRoads": {
+      "enabled": true
+    },
+    "overlay.blmLimitedRoads": {
+      "enabled": true
+    },
+    "overlay.wildfirePerimeters": {
+      "enabled": true
+    },
+    "overlay.smoke": {
+      "enabled": true
+    },
+    "overlay.plss": {
+      "enabled": true
+    },
+    "overlay.water": {
+      "enabled": true
+    },
+    "overlay.shadedRelief": {
+      "enabled": true
+    },
+    "placeSearch": {
+      "enabled": true
+    },
+    "recentSearches": {
+      "enabled": true
+    },
+    "gpsLocation": {
+      "enabled": true
+    },
+    "regionJump": {
+      "enabled": true
+    },
+    "savedSpots": {
+      "enabled": true
+    },
+    "noteSharing": {
+      "enabled": true
+    },
+    "placeExport": {
+      "enabled": true
+    },
+    "backup": {
+      "enabled": true
+    },
+    "offlineMaps": {
+      "enabled": true
+    },
+    "nearestRoad": {
+      "enabled": true
+    },
+    "supportLink": {
+      "enabled": true
+    }
+  },
+  "defaults": {
+    "basemap": "vector",
+    "dataSource": "padus",
+    "placeSearchProvider": "nominatim",
+    "recreationSitesMinZoom": 11,
+    "theme": "auto",
+    "showLandDisclaimer": true,
+    "showBoundaryData": true,
+    "layers.forest": true,
+    "layers.blm": true,
+    "layers.nps": true,
+    "layers.monuments": true,
+    "layers.fws": true,
+    "layers.usbr": true,
+    "layers.usace": true,
+    "layers.military": true,
+    "layers.doe": true,
+    "layers.otherFederal": true,
+    "layers.stateTrust": true,
+    "layers.stateParks": true,
+    "layers.stateWildlife": true,
+    "layers.state": true,
+    "layers.regional": true,
+    "layers.county": true,
+    "layers.city": true,
+    "layers.wilderness": false,
+    "layers.wsa": false,
+    "layers.acec": false,
+    "layers.wsr": false,
+    "overlays.fsRecreation": false,
+    "overlays.blmRecreation": false,
+    "overlays.fsRoads": false,
+    "overlays.fsClosedRoads": false,
+    "overlays.fsTrails": false,
+    "overlays.fsMvum": false,
+    "overlays.blmPublicRoads": false,
+    "overlays.blmLimitedRoads": false,
+    "overlays.wildfirePerimeters": false,
+    "overlays.smoke": false,
+    "overlays.plss": false,
+    "overlays.water": false,
+    "overlays.shadedRelief": false
+  },
+  "updatedAt": "2026-10-27T05:42:00.650Z"
+}

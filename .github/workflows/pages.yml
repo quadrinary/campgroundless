@@ -1,0 +1,54 @@
+name: Mirror site config and deploy redirects
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Mirror site-config.json from campgroundless.com
+        id: mirror
+        run: echo "result=$(node tools/mirror.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Commit mirrored config
+        if: steps.mirror.outputs.result == 'changed'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/site-config.json
+          git commit -m "Mirror site config from campgroundless.com"
+          git push
+      - name: Configure Pages
+        if: steps.mirror.outputs.result == 'changed' || github.event_name != 'schedule'
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload site
+        if: steps.mirror.outputs.result == 'changed' || github.event_name != 'schedule'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        if: steps.mirror.outputs.result == 'changed' || github.event_name != 'schedule'
+        uses: actions/deploy-pages@v4
