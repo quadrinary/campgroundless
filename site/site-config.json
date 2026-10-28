@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "updatedAt": "2026-10-28T06:52:59.954Z",
   "integrations": {
     "padus41": {
       "enabled": true
@@ -283,6 +284,5 @@
     "overlays.plss": false,
     "overlays.water": false,
     "overlays.shadedRelief": false
-  },
-  "updatedAt": "2026-10-27T05:42:00.650Z"
+  }
 }
